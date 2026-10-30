@@ -19,6 +19,7 @@ export default defineConfig(({ mode, command }) => {
     server: {
       proxy: {
         "/rpc": { target, ws: true },
+        "/claude/rpc": { target, ws: true },
         "/healthz": { target },
         "/api/translate": { target },
         "/api/media": { target },

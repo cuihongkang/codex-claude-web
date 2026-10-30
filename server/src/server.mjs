@@ -1,4 +1,5 @@
 import http from "node:http";
+import { attachClaude } from "./claude-web.mjs";
 import { createSummaryTranslationHandler } from "./summary-translation.mjs";
 import { serveFile } from "./file-content.mjs";
 import { readFile, stat } from "node:fs/promises";
@@ -438,7 +439,13 @@ const server = http.createServer(async (request, response) => {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
     });
-    response.end(JSON.stringify({ ready, version }));
+    response.end(
+      JSON.stringify({
+        ready,
+        version,
+        claude: { enabled: true, busy: claude.busy },
+      }),
+    );
     return;
   }
   const asset = path.match(/^\/([\w.-]+\.(js|css))$/);
@@ -488,7 +495,10 @@ const server = http.createServer(async (request, response) => {
     response.end("Unable to load page");
   }
 });
+const claude = attachClaude(server, config);
 server.on("upgrade", (request, socket, head) => {
+  if (new URL(request.url, "http://localhost").pathname === "/claude/rpc")
+    return;
   if (new URL(request.url, "http://localhost").pathname !== "/rpc") {
     socket.destroy();
     return;

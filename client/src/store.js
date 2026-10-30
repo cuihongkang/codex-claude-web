@@ -45,6 +45,7 @@ export const b64encode = (text) => {
   return btoa(raw);
 };
 let state = {
+  provider: saved("cx-provider", "codex"),
   connected: false,
   booting: true,
   serverVersion: null,
@@ -101,6 +102,7 @@ let state = {
   modal: null,
 };
 export function set(patch) {
+  if (patch.provider) persist("cx-provider", patch.provider);
   if (patch.contextOpen === false)
     patch = { ...patch, panel: null, panelAgent: null };
   else if (patch.panel && patch.contextOpen === undefined)
@@ -436,7 +438,10 @@ async function boot() {
     // 初始化只恢复启动时的选择，保留期间新建、发送和切换的对话。
     if (epoch === opening && !state.busy) {
       if (id)
-        await openThread(id, { preserveServiceTier: state.current?.id === id });
+        await openThread(id, {
+          preserveServiceTier: state.current?.id === id,
+          activate: false,
+        });
       else if (!state.current)
         set({ draft: localStorage.getItem("cx-draft-new") || "" });
     }
@@ -531,6 +536,7 @@ export function newChat(
       : null;
   opening++;
   localStorage.removeItem("cx-current");
+  set({ provider: "codex" });
   set({
     current: null,
     items: [],
@@ -545,7 +551,11 @@ export function newChat(
     sidebar: false,
   });
 }
-export async function openThread(id, { preserveServiceTier = false } = {}) {
+export async function openThread(
+  id,
+  { preserveServiceTier = false, activate = true } = {},
+) {
+  if (activate) set({ provider: "codex" });
   const epoch = ++opening;
   const revision = nameRevision;
   set({

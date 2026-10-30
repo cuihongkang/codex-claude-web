@@ -57,6 +57,7 @@ import {
   loadSkills,
 } from "./store";
 import { Conversation, Composer } from "./chat";
+import { ClaudeSidebar, ClaudeWorkspace, newClaude } from "./claude";
 import { ServiceTierToggle } from "./service-tier-toggle";
 import { ReasoningEffortControl } from "./reasoning-effort";
 import { IconButton, Empty, FolderPicker, TerminalPanel } from "./workspace";
@@ -166,7 +167,10 @@ function ThreadRow({ thread }) {
   return (
     <div
       className={
-        "thread-row " + (s.current?.id === thread.id ? "selected" : "")
+        "thread-row " +
+        (s.provider === "codex" && s.current?.id === thread.id
+          ? "selected"
+          : "")
       }
     >
       <button
@@ -231,6 +235,7 @@ function ThreadRow({ thread }) {
 }
 function Sidebar() {
   const s = useStore();
+  const [filter, setFilter] = useState("all");
   const pinned = s.threads.filter((t) => s.pins.includes(t.id));
   const groups = projectGroups(
     s.threads,
@@ -250,7 +255,7 @@ function Sidebar() {
         <div className="sidebar-top">
           <button className="brand" onClick={() => newChat()}>
             <img src={codexWebIcon} width={24} height={24} alt="" />
-            <strong>Codex</strong>
+            <strong>Codex + Claude</strong>
             <span>Web</span>
           </button>
           <IconButton
@@ -263,27 +268,40 @@ function Sidebar() {
           />
         </div>
         <nav className="primary-nav">
+          <button onClick={newClaude}>
+            <SquarePen size={17} />
+            <span>新建 Claude 对话</span>
+          </button>
           <button onClick={() => newChat()}>
             <SquarePen size={17} />
-            <span>新对话</span>
+            <span>新建 Codex 对话</span>
             <kbd>⇧ ⌘ O</kbd>
           </button>
           <button onClick={() => set({ modal: { type: "search" } })}>
             <Search size={17} />
-            <span>搜索对话</span>
+            <span>搜索 Codex 对话</span>
             <kbd>⌘ K</kbd>
           </button>
           <button onClick={() => set({ modal: { type: "skills" } })}>
             <Sparkles size={17} />
-            <span>技能</span>
+            <span>Codex 技能</span>
           </button>
           <button onClick={() => set({ modal: { type: "plugins" } })}>
             <Blocks size={17} />
-            <span>插件与连接</span>
+            <span>Codex 插件与连接</span>
           </button>
         </nav>
         <div className="sidebar-section-title">
-          <span>{s.archived ? "已归档" : "项目与对话"}</span>
+          <select
+            aria-label="筛选会话后端"
+            className="provider-filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <option value="all">全部会话</option>
+            <option value="codex">Codex</option>
+            <option value="claude">Claude</option>
+          </select>
           <div>
             <IconButton
               icon={Archive}
@@ -302,41 +320,47 @@ function Sidebar() {
           </div>
         </div>
         <div className="thread-list">
-          {pinned.length > 0 && (
-            <div className="project-group">
-              <div className="pinned-heading">
-                <Pin size={12} />
-                置顶
+          {filter !== "codex" && <ClaudeSidebar />}
+          <div hidden={filter === "claude"}>
+            <div className="sidebar-section-title">
+              Codex {s.archived ? "已归档" : "项目与对话"}
+            </div>
+            {pinned.length > 0 && (
+              <div className="project-group">
+                <div className="pinned-heading">
+                  <Pin size={12} />
+                  置顶
+                </div>
+                {pinned.map((t) => (
+                  <ThreadRow key={t.id} thread={t} />
+                ))}
               </div>
-              {pinned.map((t) => (
-                <ThreadRow key={t.id} thread={t} />
-              ))}
-            </div>
-          )}
-          {[...groups].map(([path, threads]) => (
-            <ProjectGroup key={path} path={path}>
-              {threads.map((t) => (
-                <ThreadRow key={t.id} thread={t} />
-              ))}
-            </ProjectGroup>
-          ))}
-          {!s.threads.length && (
-            <div className="sidebar-empty">
-              {s.booting
-                ? "正在载入…"
-                : s.archived
-                  ? "还没有归档的对话"
-                  : "创建一段新对话，开始工作。"}
-            </div>
-          )}
-          {s.threadCursor && (
-            <button
-              className="load-more"
-              onClick={() => loadThreads(true).catch(report)}
-            >
-              加载更多对话
-            </button>
-          )}
+            )}
+            {[...groups].map(([path, threads]) => (
+              <ProjectGroup key={path} path={path}>
+                {threads.map((t) => (
+                  <ThreadRow key={t.id} thread={t} />
+                ))}
+              </ProjectGroup>
+            ))}
+            {!s.threads.length && (
+              <div className="sidebar-empty">
+                {s.booting
+                  ? "正在载入…"
+                  : s.archived
+                    ? "还没有归档的对话"
+                    : "创建一段新对话，开始工作。"}
+              </div>
+            )}
+            {s.threadCursor && (
+              <button
+                className="load-more"
+                onClick={() => loadThreads(true).catch(report)}
+              >
+                加载更多对话
+              </button>
+            )}
+          </div>
         </div>
         <div className="sidebar-footer">
           <AccountFooter />
@@ -830,7 +854,8 @@ function App() {
       }
       if (e.shiftKey && e.key.toLowerCase() === "o") {
         e.preventDefault();
-        newChat();
+        if (get().provider === "claude") newClaude();
+        else newChat();
       }
       if (e.key === "`") {
         e.preventDefault();
@@ -844,32 +869,38 @@ function App() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-shell">
-        <Header />
-        {!s.connected && (
-          <div className="connection-banner">
-            <LoaderCircle size={14} className="spin" />
-            正在连接电脑，连接恢复后会自动载入对话。
-          </div>
-        )}
-        <div className="workspace">
-          <section className="chat-pane">
-            <Conversation>
-              <ContextWorkspace />
-            </Conversation>
-            {s.error && (
-              <div className="error-banner">
-                <span>{s.error}</span>
-                <IconButton
-                  icon={X}
-                  title="关闭错误提示"
-                  onClick={() => set({ error: "" })}
-                />
+        {s.provider === "claude" ? (
+          <ClaudeWorkspace />
+        ) : (
+          <>
+            <Header />
+            {!s.connected && (
+              <div className="connection-banner">
+                <LoaderCircle size={14} className="spin" />
+                正在连接电脑，连接恢复后会自动载入对话。
               </div>
             )}
-            <Composer />
-          </section>
-        </div>
-        {s.terminalOpen && <TerminalPanel />}
+            <div className="workspace">
+              <section className="chat-pane">
+                <Conversation>
+                  <ContextWorkspace />
+                </Conversation>
+                {s.error && (
+                  <div className="error-banner">
+                    <span>{s.error}</span>
+                    <IconButton
+                      icon={X}
+                      title="关闭错误提示"
+                      onClick={() => set({ error: "" })}
+                    />
+                  </div>
+                )}
+                <Composer />
+              </section>
+            </div>
+            {s.terminalOpen && <TerminalPanel />}
+          </>
+        )}
       </main>
       <Modal />
       {s.notice && (

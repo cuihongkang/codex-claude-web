@@ -28,8 +28,17 @@ function connect() {
     }
     if (timer) return;
     timer = setTimeout(async () => {
-      restarting = true;
       try {
+        const before = await fetch(origin + "/healthz", {
+          signal: AbortSignal.timeout(5000),
+        }).then((r) => r.json());
+        if (before.claude?.busy || !ready || turns.size || compactions.size) {
+          console.log("等待 Claude 任务完成后重启。");
+          timer = undefined;
+          setTimeout(check, 2000);
+          return;
+        }
+        restarting = true;
         execFileSync(
           "systemctl",
           ["--user", "restart", "codex-lan-web.service"],
@@ -51,10 +60,11 @@ function connect() {
         }
         throw new Error("网页服务已执行重启，健康检查等待超时。");
       } catch (error) {
+        restarting = true;
         console.error(error.message);
         process.exitCode = 1;
       } finally {
-        socket.close();
+        if (restarting) socket.close();
       }
     }, 2000);
   }

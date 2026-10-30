@@ -31,6 +31,10 @@
 
 </details>
 
+## 本地扩展：Claude + Codex
+
+本地功能分支增加 Claude CLI 会话：统一侧栏、后端筛选、历史浏览、持续对话、工具授权与停止。原有 Codex 功能继续可用。详见[本机 Claude 会话](docs/deployment.md#本机-claude-会话本地扩展版)。此功能尚未包含在上游 v2.4.0 发行包中，应使用本分支构建安装。
+
 ## 快速开始
 
 准备一台 Linux 电脑，安装 Node.js 24+、npm、Git 和 `/usr/bin/zsh`，并完成 Codex CLI 登录。Codex CLI 需支持 `codex app-server`，后台运行使用 systemd 用户服务。

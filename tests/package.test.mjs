@@ -150,7 +150,11 @@ test(
       }
       await delay(20);
     }
-    assert.deepEqual(initialized, { ready: true, version });
+    assert.deepEqual(initialized, {
+      ready: true,
+      version,
+      claude: { enabled: true, busy: false },
+    });
     const html = await (await fetch(url)).text();
     assert.match(html, /<html/);
     for (const [name, type, size] of [

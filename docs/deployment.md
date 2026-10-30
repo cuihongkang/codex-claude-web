@@ -140,3 +140,17 @@ systemctl --user restart codex-app-server.service codex-lan-web.service
 ```
 
 `codex-web service restart-when-idle` 检查网页服务观察到的任务和上下文整理。重启后端还需确认其他客户端以及网页终端、对话后台终端的运行状态。
+
+## 本机 Claude 会话（本地扩展版）
+
+侧栏同时列出 Codex 与 Claude 会话，可筛选后端；使用“新建 Claude 对话”选择工作目录和模型。模型留空时沿用本机 Claude Code 配置。Claude CLI 默认从 `~/.local/bin/claude` 启动，也可在网页服务 `.env` 中设置 `CLAUDE_BIN` 为可执行文件绝对路径。需要先在服务用户下配置好 Claude Code 登录或中转接口。
+
+Claude 与 Codex 使用独立连接和进程。网页托管的 Claude 会话在手机、电脑浏览器间共享，关闭浏览器不会停止任务；运行中可补充消息或停止，工具授权与提问在对话中处理。网页服务重启会结束其 Claude 子进程，已有落盘会话可以续聊；更新前使用空闲重启命令，它会同时等待 Claude 任务完成。
+
+本机 `~/.claude/projects` 中的主会话历史会出现在列表中。VS Code 插件或其他 Claude 进程仍持有的会话只读显示；请先在原客户端结束任务并关闭会话，再在网页重试。网页会话空闲时可点击“释放会话”，之后再由 CLI 或 VS Code 续接。不要同时在另一个客户端对网页持有的会话使用 `--resume`，Claude CLI 本身不保证跨进程互斥。
+
+Claude 的网页会话索引默认保存在 `~/.local/state/codex-web/claude-sessions.json`，历史仍由 Claude Code 保存在自己的配置目录。`CLAUDE_CONFIG_DIR` 可指定独立 Claude 配置目录，`CLAUDE_WEB_STATE_FILE` 可覆盖网页索引路径。新建会话的工作目录必须是电脑上已存在的绝对路径。
+
+当前 Claude 界面支持文字输入、历史图片显示、工具记录、授权和提问。Codex 专属的文件变更面板、目标管理、技能菜单和新附件上传未移植到 Claude 界面。搜索框、归档按钮与账户额度的 Codex 功能沿用原后端；Claude 会话使用自己侧栏中的搜索框。
+
+与原项目一样，网页没有独立登录验证，仅在受信任的内网或受控 VPN 中开放端口。Claude 使用本机已有权限设置，需审批的操作会显示“允许本次／拒绝”，不会自动开启跳过权限检查。

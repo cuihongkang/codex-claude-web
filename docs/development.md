@@ -160,3 +160,19 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 ## 构建来源
 
 版本来源的生成机制、开发构建标识和正式发布身份见[版本管理](versioning.md#正式版本与开发构建)。网页来源在构建时固定，源码桥接来源在进程启动时固定；排查更新时分别核对网页“设置 → 关于”和 `/healthz` 中的信息。
+
+## Claude 本地扩展验证
+
+`server/tests/claude-sessions.test.mjs` 使用模拟子进程验证独占进程、外部占用、历史读取、授权、中断和释放；默认测试不会操作真实 Claude 会话。
+
+真实浏览器测试使用隔离的模拟会话：
+
+```bash
+PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
+CHROME_PATH=/path/to/chromium \
+node tests/browser/claude.mjs
+```
+
+测试覆盖两种后端在同一侧栏展示、完整历史分页、外部会话只读、授权、两个浏览器共享进程、停止、刷新恢复草稿及手机布局，截图写入 `.cache/claude-browser/`。可用 `BROWSER_OUTPUT_DIR` 指定截图目录。`BASELINE_ONLY=1 STATIC_TEST_DIR=/path/to/old/client/dist` 可生成原版本的隔离基线截图。
+
+`tests/fixtures/claude-live-probe.mjs` 和 `claude-control-probe.mjs` 是手动启用的真实接口验证，会调用本机 Claude、创建专用临时会话并消耗少量模型额度，不属于默认测试。后者只测试临时目录中的一个文件和运行中取消；不会续接既有用户会话。

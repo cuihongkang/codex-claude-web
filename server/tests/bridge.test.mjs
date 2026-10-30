@@ -300,7 +300,11 @@ test(
     const health = await fetch(url + "/healthz");
     assert.equal(health.status, 200);
     assert.equal(health.headers.get("cache-control"), "no-store");
-    assert.deepEqual(await health.json(), { ready: true, version });
+    assert.deepEqual(await health.json(), {
+      ready: true,
+      version,
+      claude: { enabled: true, busy: false },
+    });
     const videoPath = join(files, "preview.MP4");
     await writeFile(videoPath, Buffer.from([0, 1, 2, 3, 4]));
     const video = await fetch(

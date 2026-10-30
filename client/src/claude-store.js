@@ -1,0 +1,228 @@
+import { useSyncExternalStore } from "react";
+const listeners = new Set(),
+  pending = new Map();
+function saved(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+function persist(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+let state = {
+  connected: false,
+  sessions: [],
+  next: null,
+  selected: saved("claude-selected", null),
+  session: null,
+  messages: [],
+  permissions: [],
+  loading: false,
+  sending: false,
+  error: "",
+  defaultCwd: "",
+  drafts: saved("claude-drafts", {}),
+  query: "",
+};
+let socket,
+  seq = 0,
+  epoch = 0,
+  listEpoch = 0;
+const update = (patch) => {
+  state = { ...state, ...patch };
+  for (const fn of listeners) fn();
+};
+export function useClaude() {
+  return useSyncExternalStore(
+    (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+    () => state,
+  );
+}
+export function claudeState() {
+  return state;
+}
+export function setClaudeDraft(id, text) {
+  const drafts = { ...state.drafts, [id || "new"]: text };
+  persist("claude-drafts", drafts);
+  update({ drafts });
+}
+export function claudeError(error) {
+  update({ error: error?.message || String(error || "") });
+}
+export function claudeRpc(method, params = {}) {
+  return new Promise((resolve, reject) => {
+    if (socket?.readyState !== WebSocket.OPEN)
+      return reject(Error("Claude 尚未连接，正在重连。"));
+    const id = ++seq,
+      timer = setTimeout(() => {
+        pending.delete(id);
+        reject(Error("请求超时，请刷新会话确认任务状态。"));
+      }, 90000);
+    pending.set(id, { resolve, reject, timer });
+    socket.send(JSON.stringify({ id, method, params }));
+  });
+}
+function mergeMessages(old, added, removed = []) {
+  const map = new Map(old.map((m) => [m.id, m]));
+  for (const id of removed) map.delete(id);
+  for (const m of added) map.set(m.id, m);
+  return [...map.values()];
+}
+export async function loadClaude(more = false, query = state.query) {
+  const revision = ++listEpoch,
+    r = await claudeRpc("list", { offset: more ? state.next || 0 : 0, query });
+  if (revision !== listEpoch) return;
+  const sessions = more
+    ? [
+        ...state.sessions,
+        ...r.sessions.filter((s) => !state.sessions.some((p) => p.id === s.id)),
+      ]
+    : r.sessions;
+  const selected = sessions.find((s) => s.id === state.selected);
+  update({
+    sessions,
+    next: r.next,
+    defaultCwd: r.defaultCwd,
+    query,
+    ...(selected ? { session: { ...state.session, ...selected } } : {}),
+  });
+}
+export async function openClaude(id) {
+  const revision = ++epoch;
+  persist("claude-selected", id);
+  update({
+    selected: id,
+    session: state.sessions.find((s) => s.id === id) || null,
+    messages: [],
+    permissions: [],
+    loading: !!id,
+    error: "",
+  });
+  if (!id) return;
+  try {
+    let offset = 0;
+    let history = [];
+    do {
+      const r = await claudeRpc("open", { id, offset });
+      if (epoch !== revision) return;
+      history = mergeMessages(history, r.messages);
+      update({
+        session: r.session,
+        messages: mergeMessages(history, state.messages),
+        permissions: r.permissions,
+      });
+      offset = r.next;
+    } while (offset !== null);
+  } catch (e) {
+    if (epoch === revision) claudeError(e);
+  } finally {
+    if (epoch === revision) update({ loading: false });
+  }
+}
+export async function sendClaude({ cwd, model } = {}) {
+  if (state.sending) return;
+  const originalId = state.selected,
+    text = state.drafts[originalId || "new"] || "",
+    revision = epoch;
+  if (!text.trim()) return;
+  update({ sending: true, error: "" });
+  try {
+    let id = originalId;
+    if (!id) {
+      const r = await claudeRpc("create", {
+        cwd: cwd || state.defaultCwd,
+        model,
+      });
+      id = r.session.id;
+      if (epoch === revision) {
+        setClaudeDraft(id, text);
+        await openClaude(id);
+      }
+    }
+    await claudeRpc("send", {
+      id,
+      text,
+      messageId: crypto.randomUUID ? crypto.randomUUID() : uuid(),
+    });
+    if (state.drafts[originalId || "new"] === text)
+      setClaudeDraft(originalId, "");
+    if (id !== originalId && state.drafts[id] === text) setClaudeDraft(id, "");
+    await loadClaude();
+  } catch (e) {
+    claudeError(e);
+  } finally {
+    update({ sending: false });
+  }
+}
+// randomUUID is unavailable on HTTP LAN origins; getRandomValues remains available.
+function uuid() {
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 15) | 64;
+  b[8] = (b[8] & 63) | 128;
+  const h = [...b].map((v) => v.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+function connect() {
+  const ws = new WebSocket(
+    `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/claude/rpc`,
+  );
+  socket = ws;
+  ws.onmessage = ({ data }) => {
+    if (socket !== ws) return;
+    const m = JSON.parse(data);
+    if (m.id && pending.has(m.id)) {
+      const p = pending.get(m.id);
+      clearTimeout(p.timer);
+      pending.delete(m.id);
+      m.error ? p.reject(Error(m.error.message)) : p.resolve(m.result);
+      return;
+    }
+    if (m.method === "claude/ready") {
+      update({ connected: true });
+      loadClaude().catch(claudeError);
+      if (state.selected) openClaude(state.selected);
+      return;
+    }
+    if (m.method === "claude/listChanged") {
+      loadClaude().catch(claudeError);
+      return;
+    }
+    if (m.method === "claude/session") {
+      const p = m.params;
+      if (p.session.id === state.selected)
+        update({
+          session: p.session,
+          messages: mergeMessages(state.messages, p.messages, p.removed),
+          permissions: p.permissions,
+        });
+    }
+  };
+  ws.onclose = () => {
+    if (socket !== ws) return;
+    update({ connected: false });
+    for (const p of pending.values()) {
+      clearTimeout(p.timer);
+      p.reject(Error("连接已断开；后台任务继续运行，重连后会恢复。"));
+    }
+    pending.clear();
+    setTimeout(connect, 2000);
+  };
+  ws.onerror = () => {};
+}
+connect();
+setInterval(() => {
+  if (state.connected) loadClaude().catch(() => {});
+}, 15000);
+window.addEventListener("focus", () => {
+  if (state.connected) {
+    loadClaude().catch(() => {});
+    if (state.selected) openClaude(state.selected);
+  }
+});

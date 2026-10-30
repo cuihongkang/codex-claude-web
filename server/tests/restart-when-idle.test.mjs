@@ -28,12 +28,14 @@ async function watcher(t, state, fail = false) {
     { mode: 0o755 },
   );
   let healthChecks = 0;
+  let claudeBusy = false;
   const server = http.createServer((request, response) => {
     assert.equal(request.url, "/healthz");
     healthChecks++;
     response.writeHead(200, { "Content-Type": "application/json" }).end(
       JSON.stringify({
         ready: healthChecks > 1,
+        claude: { busy: claudeBusy },
         version: { displayVersion: "fixture-updated" },
       }),
     );
@@ -79,6 +81,9 @@ async function watcher(t, state, fail = false) {
     requests,
     log: () => log,
     healthChecks: () => healthChecks,
+    setClaudeBusy: (value) => {
+      claudeBusy = value;
+    },
     restarted: () =>
       readFile(record, "utf8")
         .then(JSON.parse)
@@ -164,6 +169,20 @@ test("重启失败时返回失败状态并保留错误日志", async (t) => {
   const app = await watcher(t, idle, true);
   assert.deepEqual(await app.exited, [1, null]);
   assert.match(app.log(), /Command failed/);
-  assert.equal(app.healthChecks(), 0);
+  assert.equal(
+    app.healthChecks(),
+    1,
+    "重启前检查 Claude 状态，失败后不再报告成功",
+  );
   assert(!app.log().includes("通过健康检查"));
+});
+
+test("Claude 运行期间等待，任务完成后才重启", async (t) => {
+  const app = await watcher(t, idle);
+  app.setClaudeBusy(true);
+  await waitFor(() => app.log().includes("等待 Claude"));
+  assert.equal(await app.restarted(), null);
+  app.setClaudeBusy(false);
+  await waitFor(app.restarted);
+  assert.deepEqual(await app.exited, [0, null]);
 });
