@@ -119,4 +119,4 @@ Copyright (C) 2026 Codex Web contributors.
 
 Codex Web 采用 [GNU General Public License v3.0](LICENSE)（SPDX：`GPL-3.0-only`）发布。你可以按 GNU GPL 第 3 版的条款使用、复制、修改和分发本项目。担保与责任限制见许可证正文，第三方依赖沿用各自的许可证。
 
-本地 Claude 扩展支持一键回到最新消息、长会话流畅输入、按会话保存草稿、浏览器会话缓存与稳定的刷新恢复、手机模型下拉选择、会话内模型与思考强度设置，以及通过 VS Code 插件的进程启动器共享同一会话，配置见 [部署说明](docs/deployment.md#与-vs-code-claude-插件共享同一进程)。
+本地 Claude 扩展支持一键回到最新消息、长会话流畅输入、按会话保存草稿、浏览器会话缓存与稳定的刷新恢复、自动摘要与系统消息的折叠显示、手机模型下拉选择、会话内模型与思考强度设置，以及通过 VS Code 插件的进程启动器共享同一会话，配置见 [部署说明](docs/deployment.md#与-vs-code-claude-插件共享同一进程)。

@@ -106,7 +106,8 @@ export function claudeRpc(method, params = {}) {
 function mergeMessages(old, added, removed = []) {
   const map = new Map(old.map((m) => [m.id, m]));
   for (const id of removed) map.delete(id);
-  for (const m of added) map.set(m.id, m);
+  for (const m of added)
+    map.set(m.id, { ...m, kind: m.kind || map.get(m.id)?.kind });
   return [...map.values()];
 }
 export async function loadClaude(more = false, query = state.query) {

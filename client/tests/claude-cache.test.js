@@ -53,3 +53,28 @@ test("invalid, expired and unavailable storage fall back to live loading", () =>
     writeClaudeCache({ sessions: [], messages: [] }, broken),
   );
 });
+
+test("old snapshots without origin metadata are discarded, new classified snapshots restore", () => {
+  const db = storage();
+  db.setItem(
+    "claude-history-v1",
+    JSON.stringify({
+      savedAt: Date.now(),
+      selected: "demo",
+      session: { id: "demo" },
+      sessions: [],
+      messages: [{ id: "summary", role: "user", content: [] }],
+    }),
+  );
+  assert.equal(readClaudeCache(db), null);
+  writeClaudeCache(
+    {
+      selected: "demo",
+      session: { id: "demo" },
+      sessions: [],
+      messages: [{ id: "summary", role: "user", kind: "context", content: [] }],
+    },
+    db,
+  );
+  assert.equal(readClaudeCache(db).messages[0].kind, "context");
+});

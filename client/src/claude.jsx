@@ -131,17 +131,38 @@ const ClaudeHistory = memo(function ClaudeHistory({ messages, cwd }) {
           key={m.id}
           className={
             "claude-message " +
-            (m.role === "user" && m.content.some((c) => c.type === "text")
+            (m.role === "user" &&
+            (!m.kind || m.kind === "user") &&
+            m.content.some((c) => c.type === "text")
               ? "claude-user"
               : "claude-assistant")
           }
         >
-          <Content message={m} cwd={cwd} />
+          {["context", "system"].includes(m.kind) ? (
+            <SystemMessage message={m} cwd={cwd} />
+          ) : (
+            <Content message={m} cwd={cwd} />
+          )}
         </article>
       ))}
     </>
   );
 });
+
+function SystemMessage({ message, cwd }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <details
+      className="claude-tool claude-system-message"
+      onToggle={(e) => setExpanded(e.currentTarget.open)}
+    >
+      <summary>
+        {message.kind === "context" ? "上下文整理摘要" : "系统消息"}
+      </summary>
+      {expanded && <Content message={message} cwd={cwd} />}
+    </details>
+  );
+}
 
 function Content({ message, cwd }) {
   return message.content.filter(Boolean).map((block, index) => {

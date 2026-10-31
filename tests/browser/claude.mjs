@@ -35,6 +35,18 @@ await writeFile(
   join(project, normal + ".jsonl"),
   [
     rec("user", "实现图片上传功能"),
+    {
+      ...rec(
+        "user",
+        "自动上下文摘要：" + "历史工具命令与任务记录。".repeat(100),
+      ),
+      isCompactSummary: true,
+      isVisibleInTranscriptOnly: true,
+    },
+    {
+      ...rec("user", "自动系统说明：" + "工具与技能说明。".repeat(100)),
+      isMeta: true,
+    },
     rec(
       "assistant",
       "已完成上传组件和文件类型校验。\n\n- 支持 PNG、JPEG\n- 上传失败可重试\n- 单元测试全部通过",
@@ -333,6 +345,31 @@ try {
       fullPage: true,
       animations: "disabled",
     });
+    for (const name of ["上下文整理摘要", "系统消息"]) {
+      const summary = page
+        .locator(".claude-system-message")
+        .filter({ has: page.locator("summary", { hasText: name }) });
+      assert.equal(await summary.count(), 1);
+      assert.equal(await summary.evaluate((el) => el.open), false);
+    }
+    assert.equal(
+      await page.locator(".claude-user").count(),
+      1,
+      "only the actual user prompt belongs on the right",
+    );
+    await page.getByText("上下文整理摘要", { exact: true }).click();
+    await page.getByText("自动上下文摘要：", { exact: false }).waitFor();
+    await page.getByText("上下文整理摘要", { exact: true }).click();
+    await page.reload();
+    await page.getByText("上下文整理摘要", { exact: true }).waitFor();
+    assert.equal(await page.locator(".claude-user").count(), 1);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: join(output, "system-messages-mobile.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+    await page.setViewportSize({ width: 1440, height: 1000 });
     // Pagination maintains chronological order across all pages.
     await page.getByRole("button").filter({ hasText: "history-000" }).click();
     await page.getByText("history-419", { exact: true }).waitFor();

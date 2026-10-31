@@ -7,6 +7,7 @@ export function readClaudeCache(storage = globalThis.localStorage) {
     const value = JSON.parse(storage.getItem(KEY));
     if (
       !value ||
+      value.version !== 2 ||
       Date.now() - value.savedAt > MAX_AGE ||
       !Number.isFinite(value.savedAt) ||
       !Array.isArray(value.sessions) ||
@@ -22,6 +23,7 @@ export function readClaudeCache(storage = globalThis.localStorage) {
 export function writeClaudeCache(state, storage = globalThis.localStorage) {
   try {
     const value = {
+      version: 2,
       savedAt: Date.now(),
       selected: state.selected,
       session: state.session,

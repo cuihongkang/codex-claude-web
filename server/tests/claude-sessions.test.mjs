@@ -263,3 +263,70 @@ test("status retries never read history and settings persist with live controls"
     /等待/,
   );
 });
+
+test("generated user records retain their origin and never become ordinary prompts", async () => {
+  const { transcriptMessage } = await import("../src/claude-history.mjs");
+  const record = {
+    type: "user",
+    uuid: randomUUID(),
+    message: { content: "echo example\n".repeat(200) },
+  };
+  assert.equal(
+    transcriptMessage(record).kind,
+    "user",
+    "long commands typed by a user stay user messages",
+  );
+  assert.equal(
+    transcriptMessage({
+      ...record,
+      isCompactSummary: true,
+      isVisibleInTranscriptOnly: true,
+    }).kind,
+    "context",
+  );
+  for (const flag of ["isMeta", "is_meta", "isVisibleInTranscriptOnly"])
+    assert.equal(transcriptMessage({ ...record, [flag]: true }).kind, "system");
+  assert.equal(
+    transcriptMessage({
+      ...record,
+      message: {
+        content: [
+          { type: "tool_result", tool_use_id: "demo", content: "output" },
+          { type: "text", text: "tool context" },
+        ],
+      },
+    }).kind,
+    "tool",
+  );
+});
+
+test("old shared snapshots recover context markers from disk without restarting the owner", async (t) => {
+  const { manager, root } = await fixture(t),
+    id = await savedSession(root);
+  await manager.send({ id, text: "continue", messageId: randomUUID() });
+  const messageId = randomUUID(),
+    path = manager.sessions.get(id).path;
+  const { appendFile } = await import("node:fs/promises");
+  await appendFile(
+    path,
+    "\n" +
+      JSON.stringify({
+        type: "user",
+        uuid: messageId,
+        isCompactSummary: true,
+        message: { content: "generated summary" },
+      }) +
+      "\n",
+  );
+  manager.runtime.get(id).messages.set(messageId, {
+    id: messageId,
+    role: "user",
+    content: [{ type: "text", text: "generated summary" }],
+  });
+  const opened = await manager.open(id);
+  assert.equal(opened.messages.find((m) => m.id === messageId).kind, "context");
+  assert.equal(
+    (await manager.status(id)).messages.find((m) => m.id === messageId).kind,
+    "context",
+  );
+});

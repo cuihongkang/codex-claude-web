@@ -23,6 +23,18 @@ export function transcriptMessage(record) {
   return {
     id: record.uuid || record.message.id,
     role: record.type,
+    kind:
+      record.type === "assistant"
+        ? "assistant"
+        : record.isCompactSummary === true
+          ? "context"
+          : record.isMeta === true ||
+              record.is_meta === true ||
+              record.isVisibleInTranscriptOnly === true
+            ? "system"
+            : content.some((c) => c?.type === "tool_result")
+              ? "tool"
+              : "user",
     content,
     timestamp: record.timestamp,
     parentToolUseId: record.parent_tool_use_id || null,
@@ -85,7 +97,7 @@ export async function scanSessions(home) {
         const user = records.find(
           (r) =>
             r.type === "user" &&
-            !r.isMeta &&
+            transcriptMessage(r)?.kind === "user" &&
             transcriptMessage(r)?.content.some((c) => c.type === "text"),
         );
         const preview =

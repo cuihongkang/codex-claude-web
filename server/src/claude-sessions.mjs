@@ -243,7 +243,13 @@ export class ClaudeSessions {
       history = cached.messages;
     }
     const merged = new Map(history.map((m) => [m.id, m]));
-    for (const m of r?.messages.values() || []) merged.set(m.id, m);
+    for (const m of r?.messages.values() || []) {
+      // Older plugin wrappers may have snapshots without classification fields.
+      // Recover those fields from the original transcript without restarting the plugin.
+      const message = { ...m, kind: m.kind || merged.get(m.id)?.kind };
+      merged.set(m.id, message);
+      r.messages.set(m.id, message);
+    }
     const messages = [...merged.values()];
     offset = Math.max(0, Number(offset) || 0);
     return {
