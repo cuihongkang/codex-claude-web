@@ -325,6 +325,11 @@ test("old shared snapshots recover context markers from disk without restarting 
   });
   const opened = await manager.open(id);
   assert.equal(opened.messages.find((m) => m.id === messageId).kind, "context");
+  manager.event(id, {
+    type: "user",
+    uuid: messageId,
+    message: { content: "generated summary" },
+  });
   assert.equal(
     (await manager.status(id)).messages.find((m) => m.id === messageId).kind,
     "context",

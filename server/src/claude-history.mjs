@@ -13,6 +13,19 @@ export function parseRecord(line) {
   }
 }
 export function transcriptMessage(record) {
+  if (
+    record?.type === "attachment" &&
+    record.attachment?.type === "queued_command"
+  ) {
+    const queued = record.attachment;
+    return transcriptMessage({
+      type: "user",
+      uuid: queued.source_uuid || record.uuid,
+      timestamp: queued.timestamp || record.timestamp,
+      isMeta: queued.commandMode !== "prompt",
+      message: { content: queued.prompt },
+    });
+  }
   if (!["user", "assistant"].includes(record?.type) || !record.message)
     return null;
   const content =
@@ -42,12 +55,18 @@ export function transcriptMessage(record) {
 }
 export async function readTranscript(path) {
   const messages = new Map();
+  let historyOrder = 0;
   for await (const line of createInterface({
     input: createReadStream(path),
     crlfDelay: Infinity,
   })) {
     const message = transcriptMessage(parseRecord(line));
-    if (message?.id) messages.set(message.id, message);
+    if (message?.id)
+      messages.set(message.id, {
+        ...message,
+        historyOrder: messages.get(message.id)?.historyOrder ?? historyOrder,
+      });
+    historyOrder++;
   }
   return [...messages.values()];
 }

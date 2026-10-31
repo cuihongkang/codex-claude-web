@@ -73,6 +73,7 @@ await writeFile(
       i % 2 ? "assistant" : "user",
       "history-" + String(i).padStart(3, "0"),
     );
+    message.timestamp = new Date(1700000000000 + i * 1000).toISOString();
     if (i % 2)
       message.message.content.push({
         type: "tool_use",
@@ -83,6 +84,21 @@ await writeFile(
           command: "echo isolated-browser-fixture\n".repeat(100),
         },
       });
+    if (i === 40)
+      return {
+        type: "attachment",
+        uuid: randomUUID(),
+        cwd: home,
+        timestamp: message.timestamp,
+        renderedRole: "system",
+        attachment: {
+          type: "queued_command",
+          source_uuid: message.uuid,
+          commandMode: "prompt",
+          prompt: message.message.content,
+          timestamp: message.timestamp,
+        },
+      };
     return message;
   })
     .map(JSON.stringify)
@@ -377,6 +393,10 @@ try {
     assert.equal(texts.length, 420);
     assert(texts[0].includes("history-000"));
     assert(texts[419].includes("history-419"));
+    assert(
+      texts[40].includes("history-040"),
+      "mid-turn queued input belongs in its original timeline position",
+    );
     // Desktop and phone: jump to the actual bottom and restore following.
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 844 });
@@ -540,6 +560,11 @@ try {
       frames.every((frame) => frame.gap < 2),
       "refresh must paint at bottom without replaying history scroll",
     );
+    const restoredTexts = await page
+      .locator(".claude-message")
+      .allTextContents();
+    assert(restoredTexts[40].includes("history-040"));
+    assert(restoredTexts.at(-1).includes("history-419"));
     historyDelay = 0;
     await page.setViewportSize({ width: 1440, height: 1000 });
 

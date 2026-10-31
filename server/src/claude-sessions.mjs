@@ -24,6 +24,8 @@ import {
   connectSharedBridge,
 } from "./claude-shared-client.mjs";
 
+import { mergeClaudeMessages } from "./claude-timeline.mjs";
+
 export class ClaudeSessions {
   constructor({
     home = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"),
@@ -164,7 +166,7 @@ export class ClaudeSessions {
     if (r?.child && r.status === "idle") await this.readSettings(id);
     return {
       session: await this.summary(s),
-      messages: [...(r?.messages.values() || [])],
+      messages: mergeClaudeMessages([], [...(r?.messages.values() || [])]),
       permissions: [...(r?.permissions.values() || [])],
       removed: [...(r?.removed || [])],
     };
@@ -242,15 +244,13 @@ export class ClaudeSessions {
       }
       history = cached.messages;
     }
-    const merged = new Map(history.map((m) => [m.id, m]));
-    for (const m of r?.messages.values() || []) {
-      // Older plugin wrappers may have snapshots without classification fields.
-      // Recover those fields from the original transcript without restarting the plugin.
-      const message = { ...m, kind: m.kind || merged.get(m.id)?.kind };
-      merged.set(m.id, message);
-      r.messages.set(m.id, message);
-    }
-    const messages = [...merged.values()];
+    const messages = mergeClaudeMessages(history, [
+      ...(r?.messages.values() || []),
+    ]);
+    if (r)
+      for (const message of messages) {
+        if (r.messages.has(message.id)) r.messages.set(message.id, message);
+      }
     offset = Math.max(0, Number(offset) || 0);
     return {
       session: {
@@ -301,7 +301,7 @@ export class ClaudeSessions {
             method: "claude/session",
             params: {
               session,
-              messages: [...r.messages.values()],
+              messages: mergeClaudeMessages([], [...r.messages.values()]),
               permissions: [...r.permissions.values()],
               removed: [...r.removed],
             },
@@ -501,7 +501,13 @@ export class ClaudeSessions {
         r.removed.add(r.partial.id);
         r.partial = null;
       }
-      r.messages.set(message.id, message);
+      r.messages.set(
+        message.id,
+        mergeClaudeMessages(
+          r.messages.has(message.id) ? [r.messages.get(message.id)] : [],
+          [message],
+        )[0],
+      );
       if (m.type === "user") r.outstanding.delete(message.id);
       this.notify(id);
     }
