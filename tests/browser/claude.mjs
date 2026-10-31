@@ -56,7 +56,7 @@ await writeFile(
 );
 await writeFile(
   join(project, long + ".jsonl"),
-  Array.from({ length: 220 }, (_, i) => {
+  Array.from({ length: 420 }, (_, i) => {
     const message = rec(
       i % 2 ? "assistant" : "user",
       "history-" + String(i).padStart(3, "0"),
@@ -198,8 +198,11 @@ const manager = attachClaude(
   },
 );
 const originalOpen = manager.open.bind(manager);
-manager.open = (...args) => {
+let historyDelay = 0;
+manager.open = async (...args) => {
   historyRequests++;
+  if (historyDelay)
+    await new Promise((resolve) => setTimeout(resolve, historyDelay));
   return originalOpen(...args);
 };
 const codex = new WebSocketServer({ noServer: true });
@@ -332,11 +335,11 @@ try {
     });
     // Pagination maintains chronological order across all pages.
     await page.getByRole("button").filter({ hasText: "history-000" }).click();
-    await page.getByText("history-219", { exact: true }).waitFor();
+    await page.getByText("history-419", { exact: true }).waitFor();
     const texts = await page.locator(".claude-message").allTextContents();
-    assert.equal(texts.length, 220);
+    assert.equal(texts.length, 420);
     assert(texts[0].includes("history-000"));
-    assert(texts[219].includes("history-219"));
+    assert(texts[419].includes("history-419"));
     // Desktop and phone: jump to the actual bottom and restore following.
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 844 });
@@ -452,11 +455,56 @@ try {
       await longInput.inputValue(),
       "typing into long history 中文输入正常",
     );
+    await page.getByText("history-419", { exact: true }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() =>
+      sessionStorage.setItem("probe-history-restore", "1"),
+    );
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem("probe-history-restore")) return;
+      sessionStorage.removeItem("probe-history-restore");
+      window.restoreFrames = [];
+      const end = performance.now() + 6000;
+      const sample = () => {
+        const pane = document.querySelector(".claude-messages");
+        const messages = document.querySelectorAll(".claude-message");
+        if (pane && messages.length)
+          window.restoreFrames.push({
+            last: messages[messages.length - 1].textContent.slice(0, 11),
+            gap: pane.scrollHeight - pane.scrollTop - pane.clientHeight,
+            count: messages.length,
+          });
+        if (performance.now() < end) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    historyDelay = 400;
     // Reload before the debounce expires: pagehide must flush the last edit.
     await longInput.fill("刷新前最后输入 中文");
     await page.reload();
-    await page.getByText("history-219", { exact: true }).waitFor();
+    await page.getByText("history-419", { exact: true }).waitFor();
     assert.equal(await longInput.inputValue(), "刷新前最后输入 中文");
+    await page.waitForTimeout(700);
+    await page.screenshot({
+      path: join(output, "mobile-refresh-sync.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+    await page.waitForFunction(
+      () => document.querySelectorAll(".claude-message").length === 420,
+    );
+    const frames = await page.evaluate(() => window.restoreFrames);
+    assert(frames.length > 0);
+    assert(
+      frames.every((frame) => frame.last === "history-419"),
+      "cache sync must never append old pages after the latest message",
+    );
+    assert(
+      frames.every((frame) => frame.gap < 2),
+      "refresh must paint at bottom without replaying history scroll",
+    );
+    historyDelay = 0;
+    await page.setViewportSize({ width: 1440, height: 1000 });
 
     await page
       .getByRole("button")

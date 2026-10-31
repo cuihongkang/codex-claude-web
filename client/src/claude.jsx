@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, memo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  memo,
+} from "react";
 import {
   PanelLeft,
   Plus,
@@ -268,11 +274,11 @@ export function ClaudeWorkspace() {
     lastScrollTop = useRef(0);
   const draft = s.drafts[s.selected || "new"] || "",
     session = s.session;
-  useEffect(() => {
+  useLayoutEffect(() => {
     follow.current = true;
     setAwayFromBottom(false);
   }, [s.selected]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = pane.current;
     if (el && follow.current) {
       el.scrollTop = el.scrollHeight;

@@ -163,7 +163,7 @@ export async function openClaude(id, refresh = false) {
       null,
     messages: preserve ? state.messages : [],
     permissions: preserve ? state.permissions : [],
-    loading: !!id && !preserve,
+    loading: !!id && (!preserve || !state.messages.length),
     error: "",
   });
   if (!id) return;
@@ -174,15 +174,16 @@ export async function openClaude(id, refresh = false) {
       const r = await claudeRpc("open", { id, offset });
       if (epoch !== revision) return;
       history = mergeMessages(history, r.messages);
-      update({
-        session: r.session,
-        messages: mergeMessages(
-          r.next !== null ? mergeMessages(state.messages, history) : history,
-          liveHistory.messages,
-          [...liveHistory.removed],
-        ),
-        permissions: r.permissions,
-      });
+      // Keep the cached tail in place until all older pages are available.
+      // Appending those pages to the tail would put old messages at the bottom.
+      if (r.next === null)
+        update({
+          session: r.session,
+          messages: mergeMessages(history, liveHistory.messages, [
+            ...liveHistory.removed,
+          ]),
+          permissions: r.permissions,
+        });
       offset = r.next;
     } while (offset !== null);
   } catch (e) {
