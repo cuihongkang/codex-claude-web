@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import {
   useStore,
+  useDraft,
   get,
   set,
   selectModel,
@@ -49,6 +50,7 @@ import {
   addAttachment,
   uid,
   openSubAgent,
+  editUserMessage,
 } from "./store";
 import { IconButton, DiffBlock } from "./workspace";
 import { useComposerShortcuts } from "./shortcuts";
@@ -69,7 +71,7 @@ import { MessageImage } from "./message-image";
 import { RichText } from "./rich-text";
 import { annotationContexts } from "./annotations";
 import {
-  AnnotatedUserText,
+  UserAnnotations,
   MessageAnnotations,
   ComposerAnnotations,
 } from "./message-annotations";
@@ -79,14 +81,46 @@ import { turnElapsedMs, formatElapsed } from "./turn-timing";
 import { ConversationNavigation } from "./conversation-navigation";
 import { isCompacting } from "./compaction";
 import { isSubAgentItem, subAgentAction, subAgents } from "./sub-agents";
+import { parseUserMessage, userMessageText } from "./user-message.js";
 export { RichText } from "./rich-text";
 function Content({ content, cwd }) {
+  const parsed = parseUserMessage(content);
+  const used = new Set();
+  const parts = [];
+  let offset = 0;
+  const references = [...parsed.references].sort(
+    (a, b) => b.name.length - a.name.length,
+  );
+  for (let index = 0; (index = parsed.text.indexOf("@", index)) !== -1;) {
+    const file = references.find((file) =>
+      parsed.text.startsWith("@" + file.name, index),
+    );
+    if (!file) {
+      index++;
+      continue;
+    }
+    parts.push(parsed.text.slice(offset, index));
+    parts.push(<FileReference key={index} file={file} />);
+    used.add(file.path);
+    offset = index + file.name.length + 1;
+    index = offset;
+  }
+  parts.push(parsed.text.slice(offset));
   return (
     <>
-      {(content || []).map((c, i) =>
-        c.type === "text" ? (
-          <AnnotatedUserText key={i} text={c.text} />
-        ) : c.type === "image" || c.type === "localImage" ? (
+      {parsed.text && <div className="user-text">{parts}</div>}
+      {parsed.references.some((file) => !used.has(file.path)) && (
+        <div className="user-reference-list">
+          {parsed.references
+            .filter((file) => !used.has(file.path))
+            .map((file, index) => (
+              <FileReference key={index} file={file} />
+            ))}
+        </div>
+      )}
+      <UserAnnotations annotations={parsed.annotations} />
+      {parsed.attachments.map((c, i) =>
+        c.type === "image" || c.type === "localImage" ? (
           <div key={i} className="message-image">
             {c.url || c.path ? (
               <MessageImage src={c.url || c.path} alt="图片附件" cwd={cwd} />
@@ -105,6 +139,33 @@ function Content({ content, cwd }) {
         ) : null,
       )}
     </>
+  );
+}
+function FileReference({ file }) {
+  const Icon = file.directory ? Folder : FileCode;
+  const label = (
+    <>
+      <Icon size={14} aria-hidden="true" />
+      <span>{file.name}</span>
+    </>
+  );
+  return (
+    <a
+      className="user-file-reference"
+      href={file.path}
+      title={file.path}
+      onClick={(event) => {
+        event.preventDefault();
+        set({
+          panel: "files",
+          panelFile: file.directory
+            ? { path: file.path, view: "directory" }
+            : file.path,
+        });
+      }}
+    >
+      {label}
+    </a>
   );
 }
 function Activity({ item, cwd }) {
@@ -363,25 +424,13 @@ function Message({ item, annotations, readOnly = false, cwd }) {
             <IconButton
               icon={Copy}
               title="复制消息"
-              onClick={() =>
-                copy(
-                  item.content
-                    ?.filter((c) => c.type === "text")
-                    .map((c) => c.text)
-                    .join("\n") || "",
-                )
-              }
+              onClick={() => copy(userMessageText(item.content))}
             />
             <IconButton
               icon={RotateCcw}
               title="编辑并重新发送"
               onClick={() => {
-                setDraft(
-                  item.content
-                    ?.filter((c) => c.type === "text")
-                    .map((c) => c.text)
-                    .join("\n") || "",
-                );
+                editUserMessage(item);
                 document.querySelector('[aria-label="消息"]')?.focus();
               }}
             />
@@ -902,6 +951,7 @@ export function Conversation({ children }) {
 }
 export function Composer() {
   const s = useStore(),
+    draft = useDraft(),
     area = useRef(),
     files = useRef();
   const annotationDrafts = useAnnotationDrafts(s.current?.id);
@@ -919,7 +969,7 @@ export function Composer() {
       area.current.style.height =
         Math.min(area.current.scrollHeight, 180) + "px";
     }
-  }, [s.draft, s.threadAccess?.status]);
+  }, [draft, s.threadAccess?.status]);
   async function add(files) {
     for (const file of files)
       try {
@@ -932,8 +982,10 @@ export function Composer() {
   const usage = token?.last?.totalTokens;
   const windowSize = token?.modelContextWindow;
   const access = s.threadAccess;
-  const unavailable = s.loading || (access && access.status !== "ready");
   const checking = s.loading || access?.status === "checking";
+  const unavailable =
+    s.loading ||
+    (access && access.status !== "ready" && !(checking && access.background));
   return (
     <div className="composer-wrap">
       {compaction && (
@@ -970,7 +1022,7 @@ export function Composer() {
                   ? "历史记录可正常查看。点击“重试”刷新状态，恢复后即可继续发送。"
                   : access?.message}
             </p>
-            {(s.draft || s.attachments.length > 0) && (
+            {(draft || s.attachments.length > 0) && (
               <small>草稿和附件已保留。</small>
             )}
           </div>
@@ -1033,7 +1085,7 @@ export function Composer() {
                   ? "补充说明，或等待 Codex 完成…"
                   : "描述任务，@ 引用文件，/ 使用命令…"
             }
-            value={s.draft}
+            value={draft}
             onChange={(e) => {
               setDraft(e.target.value);
               shortcuts.detect(e.target.value, e.target.selectionStart);
@@ -1130,9 +1182,10 @@ export function Composer() {
                 title="发送消息"
                 disabled={
                   !s.connected ||
+                  checking ||
                   compacting ||
                   s.busy ||
-                  (!s.draft.trim() &&
+                  (!draft.trim() &&
                     !s.attachments.length &&
                     !annotationDrafts.length)
                 }

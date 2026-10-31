@@ -1,4 +1,4 @@
-import { parseAnnotations } from "./annotations.js";
+import { userMessageText } from "./user-message.js";
 
 export function messageNavigationEntries(groups) {
   return groups
@@ -7,17 +7,7 @@ export function messageNavigationEntries(groups) {
     )
     .map(({ item }, index) => {
       const content = item.content || [];
-      const text = content
-        .filter((part) => part.type === "text")
-        .map((part) => {
-          const parsed = parseAnnotations(part.text);
-          return parsed.annotations.length
-            ? `回复批注：${parsed.annotations.map((entry) => entry.annotation || entry.text).join("；")} ${parsed.text}`
-            : parsed.text;
-        })
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
+      const text = userMessageText(content).replace(/\s+/g, " ").trim();
       const attachments = content
         .filter((part) => ["image", "localImage", "skill"].includes(part.type))
         .map((part) =>

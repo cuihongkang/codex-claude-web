@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { fileReferenceInput } from "./user-message.js";
 import {
   FileCode,
   Folder,
@@ -53,6 +54,7 @@ const commands = composerCommands.map((command) => ({
 }));
 export function useComposerShortcuts(area) {
   const s = store.useStore();
+  const draft = store.useDraft();
   const [trigger, setTrigger] = useState(null),
     [files, setFiles] = useState([]),
     [index, setIndex] = useState(0),
@@ -128,8 +130,8 @@ export function useComposerShortcuts(area) {
     return () => clearTimeout(timer);
   }, [trigger?.kind, trigger?.query, s.cwd]);
   useEffect(() => {
-    if (!s.draft) setTrigger(null);
-  }, [s.draft]);
+    if (!draft) setTrigger(null);
+  }, [draft]);
   useEffect(() => {
     setTrigger(null);
   }, [s.current?.id]);
@@ -201,11 +203,7 @@ export function useComposerShortcuts(area) {
       store.addAttachment({
         id: store.uid(),
         name: file.name,
-        input: {
-          type: "text",
-          text: `引用本机${file.directory ? "目录" : "文件"}：${file.path}\n请根据任务按需读取。`,
-          text_elements: [],
-        },
+        input: fileReferenceInput(file),
       });
     }
     if (item.kind === "skill") {

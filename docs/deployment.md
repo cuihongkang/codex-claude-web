@@ -7,7 +7,7 @@
 预构建 npm 安装包通过 [GitHub Releases](https://github.com/hjd-hitsz/codex-web/releases) 分发。在已配置 Node.js 24+、npm、Codex CLI、`/usr/bin/zsh` 和 systemd 的 Linux 电脑上，以运行 Codex 的普通用户完成本机 Codex 登录，然后执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.0/codex-web-2.4.0.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
 codex-web service install
 loginctl enable-linger "$USER"
 codex-web service status
@@ -20,11 +20,11 @@ curl http://127.0.0.1:8766/healthz
 
 ### 下载后安装与校验
 
-也可以下载或复制 Release 中的 `codex-web-2.4.0.tgz` 和 `codex-web-2.4.0.tgz.sha256` 到同一目录，然后执行：
+也可以下载或复制 Release 中的 `codex-web-2.4.1.tgz` 和 `codex-web-2.4.1.tgz.sha256` 到同一目录，然后执行：
 
 ```bash
-sha256sum -c codex-web-2.4.0.tgz.sha256
-npm install -g ./codex-web-2.4.0.tgz
+sha256sum -c codex-web-2.4.1.tgz.sha256
+npm install -g ./codex-web-2.4.1.tgz
 codex-web service install
 ```
 
@@ -86,7 +86,7 @@ curl http://127.0.0.1:8766/healthz
 从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.0/codex-web-2.4.0.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
 codex-web service install
 codex-web service restart-when-idle
 ```
@@ -143,11 +143,13 @@ systemctl --user restart codex-app-server.service codex-lan-web.service
 
 ## 本机 Claude 会话（本地扩展版）
 
-侧栏同时列出 Codex 与 Claude 会话，可筛选后端；使用“新建 Claude 对话”选择工作目录、模型和思考强度。默认值沿用本机 Claude Code 配置；已有会话空闲时也可修改并点击“应用”，运行中完成当前任务后再修改。模型可输入别名或供应商支持的完整名称，思考强度是否支持由当前模型和接口决定。Claude CLI 默认从 `~/.local/bin/claude` 启动，也可在网页服务 `.env` 中设置 `CLAUDE_BIN` 为可执行文件绝对路径。需要先在服务用户下配置好 Claude Code 登录或中转接口。
+侧栏同时列出 Codex 与 Claude 会话，可筛选后端；使用“新建 Claude 对话”选择工作目录、模型和思考强度。默认值沿用本机 Claude Code 配置；已有会话空闲时也可修改并点击“应用”，运行中完成当前任务后再修改。模型下拉菜单支持 Opus、Sonnet、Haiku 和默认配置，选择“自定义模型”可输入供应商支持的完整名称，思考强度是否支持由当前模型和接口决定。Claude CLI 默认从 `~/.local/bin/claude` 启动，也可在网页服务 `.env` 中设置 `CLAUDE_BIN` 为可执行文件绝对路径。需要先在服务用户下配置好 Claude Code 登录或中转接口。
 
 Claude 与 Codex 使用独立连接和进程。网页托管的 Claude 会话在手机、电脑浏览器间共享，关闭浏览器不会停止任务；运行中可补充消息或停止，工具授权与提问在对话中处理。网页服务重启会结束其 Claude 子进程，已有落盘会话可以续聊；更新前使用空闲重启命令，它会同时等待 Claude 任务完成。
 
 本机 `~/.claude/projects` 中的主会话历史会出现在列表中。未接入共享的 VS Code 插件或其他 Claude 进程持有的会话只读显示。重试只重新检查连接，不清空或重读全部历史；顶部刷新按钮会在保留当前内容的同时更新历史。网页会话空闲时可点击“释放会话”，之后再由 CLI 或 VS Code 续接。不要同时在另一个客户端对网页持有的会话使用 `--resume`，Claude CLI 本身不保证跨进程互斥。
+
+Claude 输入草稿按会话保存在当前浏览器，暂停输入后自动保存；离开或刷新页面时补存最后的输入。
 
 Claude 的网页会话索引默认保存在 `~/.local/state/codex-web/claude-sessions.json`，历史仍由 Claude Code 保存在自己的配置目录。`CLAUDE_CONFIG_DIR` 可指定独立 Claude 配置目录，`CLAUDE_WEB_STATE_FILE` 可覆盖网页索引路径。新建会话的工作目录必须是电脑上已存在的绝对路径。
 
@@ -169,3 +171,5 @@ exec /absolute/path/to/node /absolute/path/to/codex-web/bin/claude-shared.mjs "$
 已运行的旧插件进程无法自动接入。等当前工作完成后，关闭并重新打开该插件会话一次，在网页点击重试。其他未使用该脚本启动的 CLI 会话仍按原来的占用规则处理。移除插件设置即可恢复默认启动方式，不要在任务运行时关闭插件。
 
 共享通信使用 Claude 配置目录下 `web-bridges/` 中的本机 Unix socket，目录仅当前用户可访问；不增加对外监听端口，Claude 登录、代理、工具和权限参数由插件原样传入。
+
+Claude 网页在当前浏览器保存最近一次查看的会话快照和最多 80 条会话索引，刷新先显示缓存，再后台校准完整历史。快照最多保留最近 300 条消息且限制大小，七天后不再读取；旧消息仍会从电脑端补齐。缓存不包含待审批请求，实际运行状态以重连结果为准。清除本站浏览器数据即可删除缓存；浏览器存储禁用或空间不足时仍可正常在线使用。

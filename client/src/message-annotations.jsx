@@ -17,7 +17,6 @@ import {
   writeAnnotationDrafts,
   migrateAnnotationDraft,
 } from "./annotation-drafts";
-import { parseAnnotations } from "./annotations";
 
 export const AnnotationContext = createContext([]);
 export function AnnotationReference({ index }) {
@@ -58,21 +57,21 @@ export function AnnotationReference({ index }) {
   );
 }
 
-export function AnnotatedUserText({ text }) {
-  const parsed = parseAnnotations(text);
+export function UserAnnotations({ annotations }) {
   return (
     <>
-      {parsed.annotations.map((entry, index) => (
-        <details className="annotation-card" key={index} open>
+      {annotations.map((entry, index) => (
+        <details className="annotation-card" key={index}>
           <summary>
             <MessageSquare size={14} />
-            注释 {index + 1}
+            <span>注释 {index + 1}</span>
+            <span className="annotation-card-label">
+              {entry.annotation || entry.text}
+            </span>
           </summary>
           <blockquote>{entry.text}</blockquote>
-          {entry.annotation && <p>{entry.annotation}</p>}
         </details>
       ))}
-      {parsed.text && <div className="user-text">{parsed.text}</div>}
     </>
   );
 }

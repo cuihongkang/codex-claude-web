@@ -17,7 +17,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/desktop-dark.png">
-  <img src="docs/images/desktop-light.png" alt="Codex Web 桌面界面：项目列表、任务对话、文件变更汇总与 Markdown 文件预览" width="1440">
+  <img src="docs/images/desktop-light.png" alt="Codex Web 桌面界面：项目列表、账户额度圆环、任务对话、文件变更汇总与 Markdown 文件预览" width="1440">
 </picture>
 
 <p align="center"><sub>桌面界面 · 演示数据</sub></p>
@@ -27,6 +27,7 @@
 
 <p align="center">
   <img src="docs/images/mobile.png" alt="Codex Web 手机界面：任务对话、文件变更汇总与消息输入框" width="320">
+  <img src="docs/images/mobile-sidebar.png" alt="Codex Web 手机侧栏：项目对话列表与账户额度圆环" width="320">
 </p>
 
 </details>
@@ -44,7 +45,7 @@
 在安装 Codex 的电脑上，以运行 Codex 的普通用户执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.0/codex-web-2.4.0.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
 codex-web service install
 codex-web service status
 ```
@@ -98,7 +99,7 @@ codex-web config init
 升级时，从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.0/codex-web-2.4.0.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
 codex-web service install
 codex-web service restart-when-idle
 ```
@@ -118,4 +119,4 @@ Copyright (C) 2026 Codex Web contributors.
 
 Codex Web 采用 [GNU General Public License v3.0](LICENSE)（SPDX：`GPL-3.0-only`）发布。你可以按 GNU GPL 第 3 版的条款使用、复制、修改和分发本项目。担保与责任限制见许可证正文，第三方依赖沿用各自的许可证。
 
-本地 Claude 扩展支持会话内模型与思考强度设置，以及通过 VS Code 插件的进程启动器共享同一会话，配置见 [部署说明](docs/deployment.md#与-vs-code-claude-插件共享同一进程)。
+本地 Claude 扩展支持长会话流畅输入、按会话保存草稿、浏览器会话缓存、手机模型下拉选择、会话内模型与思考强度设置，以及通过 VS Code 插件的进程启动器共享同一会话，配置见 [部署说明](docs/deployment.md#与-vs-code-claude-插件共享同一进程)。

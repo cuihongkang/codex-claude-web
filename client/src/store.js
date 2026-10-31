@@ -5,10 +5,13 @@ import { inputRequestItem } from "./question-state";
 import { readThreadHistory } from "./thread-history";
 import { isCompacting, recoverCompaction } from "./compaction";
 import { annotationMessage } from "./annotations";
+import { fileReferenceInput, parseUserMessage } from "./user-message.js";
 import { mergeUsageUpdate } from "./account-usage.js";
+import { nextForkTitle } from "./fork-title.js";
 import {
   readAnnotationDrafts,
   removeSentAnnotations,
+  writeAnnotationDrafts,
 } from "./annotation-drafts";
 import {
   createThreadOrdering,
@@ -58,6 +61,7 @@ let state = {
   turns: {},
   turnTimings: {},
   active: {},
+  unreadCompletions: {},
   compactions: saved("cx-compactions", {}),
   questions: [],
   models: [],
@@ -101,8 +105,21 @@ let state = {
   sidebar: false,
   modal: null,
 };
+const { draft: initialDraft, ...initialSharedState } = state;
+let sharedState = initialSharedState;
+function subscribe(callback) {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+}
 export function set(patch) {
   if (patch.provider) persist("cx-provider", patch.provider);
+  if (patch.active) {
+    const unreadCompletions = {
+      ...(patch.unreadCompletions ?? state.unreadCompletions),
+    };
+    for (const id of Object.keys(patch.active)) delete unreadCompletions[id];
+    patch = { ...patch, unreadCompletions };
+  }
   if (patch.contextOpen === false)
     patch = { ...patch, panel: null, panelAgent: null };
   else if (patch.panel && patch.contextOpen === undefined)
@@ -120,10 +137,32 @@ export function set(patch) {
       ),
     );
   state = { ...state, ...patch };
+  // 输入草稿单独订阅，避免每次输入重新渲染历史、侧栏与文件面板。
+  const { draft, ...sharedPatch } = patch;
+  if (
+    Object.keys(sharedPatch).some(
+      (key) => !Object.is(sharedState[key], sharedPatch[key]),
+    )
+  )
+    sharedState = { ...sharedState, ...sharedPatch };
   for (const fn of listeners) fn();
 }
 export function get() {
   return state;
+}
+let readingThreadId = null;
+export function setReadingThread(id) {
+  readingThreadId =
+    state.provider === "codex" &&
+    state.current?.id === id &&
+    !state.loading &&
+    state.threadAccess?.status !== "loadError"
+      ? id
+      : null;
+  if (!readingThreadId || !state.unreadCompletions[id]) return;
+  const unreadCompletions = { ...state.unreadCompletions };
+  delete unreadCompletions[id];
+  set({ unreadCompletions });
 }
 export function openSubAgent(agent) {
   set({
@@ -143,13 +182,10 @@ export function selectModel(model) {
   });
 }
 export function useStore() {
-  return useSyncExternalStore(
-    (cb) => {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-    () => state,
-  );
+  return useSyncExternalStore(subscribe, () => sharedState);
+}
+export function useDraft() {
+  return useSyncExternalStore(subscribe, () => state.draft);
 }
 export function onEvent(fn) {
   eventListeners.add(fn);
@@ -437,7 +473,12 @@ async function boot() {
     if (!current()) return;
     // 初始化只恢复启动时的选择，保留期间新建、发送和切换的对话。
     if (epoch === opening && !state.busy) {
-      if (id)
+      if (id && state.current?.id === id && !state.loading)
+        await Promise.all([
+          loadHistory(epoch),
+          refreshThreadAccess({ background: true }),
+        ]);
+      else if (id)
         await openThread(id, {
           preserveServiceTier: state.current?.id === id,
           activate: false,
@@ -605,20 +646,42 @@ export async function openThread(
     if (epoch === opening) set({ loading: false });
   }
 }
-export async function refreshThreadAccess({ preserveServiceTier = true } = {}) {
-  if (state.loading || state.threadAccess?.status === "checking") return false;
+export async function refreshThreadAccess({
+  preserveServiceTier = true,
+  background = false,
+} = {}) {
+  if (
+    state.loading ||
+    (state.threadAccess?.status === "checking" && !background)
+  )
+    return false;
   if (state.threadAccess?.status === "loadError")
     return openThread(state.threadAccess.threadId, { preserveServiceTier });
   const id = state.current?.id;
   if (!id) return false;
   const epoch = opening;
+  const connection = socket;
+  const revision = bootRevision;
   const turnRevision = turnRevisions.get(id);
   const selection = {
     model: state.model,
     effort: state.effort,
     serviceTier: state.serviceTier,
   };
-  const checking = { threadId: id, status: "checking" };
+  const checking = {
+    threadId: id,
+    status: "checking",
+    background:
+      background &&
+      (state.threadAccess?.status === "ready" ||
+        state.threadAccess?.background === true),
+  };
+  const current = () =>
+    epoch === opening &&
+    connection === socket &&
+    revision === bootRevision &&
+    state.connected &&
+    state.threadAccess === checking;
   set({ threadAccess: checking, error: "" });
   let resumed = false;
   try {
@@ -626,7 +689,7 @@ export async function refreshThreadAccess({ preserveServiceTier = true } = {}) {
       threadId: id,
       excludeTurns: true,
     });
-    if (epoch !== opening || state.threadAccess !== checking) return false;
+    if (!current()) return false;
     resumed = true;
     set({
       threadAccess: { threadId: id, status: "ready" },
@@ -642,7 +705,7 @@ export async function refreshThreadAccess({ preserveServiceTier = true } = {}) {
         }),
     });
   } catch (error) {
-    if (epoch !== opening || state.threadAccess !== checking) return false;
+    if (!current()) return false;
     set({
       threadAccess: {
         threadId: id,
@@ -659,7 +722,14 @@ export async function refreshThreadAccess({ preserveServiceTier = true } = {}) {
   const access = state.threadAccess;
   rpc("thread/turns/list", { threadId: id, limit: 20, itemsView: "summary" })
     .then((page) => {
-      if (epoch !== opening || state.threadAccess !== access) return;
+      if (
+        epoch !== opening ||
+        connection !== socket ||
+        revision !== bootRevision ||
+        !state.connected ||
+        state.threadAccess !== access
+      )
+        return;
       const active = { ...state.active };
       const running = page.data.find((t) => t.status === "inProgress");
       if (turnRevisions.get(id) === turnRevision) {
@@ -674,11 +744,22 @@ export async function refreshThreadAccess({ preserveServiceTier = true } = {}) {
 export async function loadHistory(epoch = opening) {
   if (!state.current) return;
   const id = state.current.id;
-  const current = () => epoch === opening && state.current?.id === id;
+  const connection = socket;
+  const revision = bootRevision;
+  const previous = new Map(state.items.map((item) => [item.id, item]));
+  const current = () =>
+    epoch === opening &&
+    state.current?.id === id &&
+    connection === socket &&
+    revision === bootRevision &&
+    state.connected;
   const history = await readThreadHistory(rpc, id, { current });
   if (!current()) return;
   const map = new Map(history.map((item) => [item.id, item]));
-  for (const item of state.items) map.set(item.id, item);
+  // 历史补齐断线期间的更新，读取期间收到的实时记录继续优先。
+  for (const item of state.items)
+    if (!map.has(item.id) || previous.get(item.id) !== item)
+      map.set(item.id, item);
   set({ items: [...map.values()] });
 }
 function put(item) {
@@ -834,6 +915,7 @@ function handle({ method, params: p = {} }) {
     set({ active: { ...state.active, [p.threadId]: p.turn.id } });
   }
   if (method === "turn/completed") {
+    const observedTurn = state.active[p.threadId] === p.turn.id;
     refreshUsage();
     const entry = state.compactions[p.threadId];
     if (isCompacting(entry) && entry.turnId === p.turn.id)
@@ -859,6 +941,17 @@ function handle({ method, params: p = {} }) {
     threadOrdering.completed(p.threadId, p.turn);
     const active = { ...state.active };
     if (active[p.threadId] === p.turn.id) delete active[p.threadId];
+    const unreadCompletions = { ...state.unreadCompletions };
+    if (
+      observedTurn &&
+      p.turn.status === "completed" &&
+      !(
+        readingThreadId === p.threadId &&
+        state.current?.id === p.threadId &&
+        !state.loading
+      )
+    )
+      unreadCompletions[p.threadId] = p.turn.id;
     const completedAt = p.turn.completedAt;
     const update = (thread) =>
       thread?.id === p.threadId && Number.isFinite(completedAt)
@@ -869,6 +962,7 @@ function handle({ method, params: p = {} }) {
         : thread;
     set({
       active,
+      unreadCompletions,
       threads: sortThreads(state.threads.map(update)),
       current: update(state.current),
     });
@@ -1167,10 +1261,13 @@ function syncArchivedThread(id) {
     localStorage.removeItem("cx-current");
   const active = { ...state.active };
   delete active[id];
+  const unreadCompletions = { ...state.unreadCompletions };
+  delete unreadCompletions[id];
   const compactions = { ...state.compactions };
   delete compactions[id];
   set({
     active,
+    unreadCompletions,
     compactions,
     threads: state.archived
       ? state.threads
@@ -1203,6 +1300,7 @@ function forgetThread(id) {
   const patch = {};
   for (const key of [
     "active",
+    "unreadCompletions",
     "compactions",
     "turns",
     "turnTimings",
@@ -1232,6 +1330,23 @@ export async function deleteThread(thread) {
   await loadThreads().catch(report);
 }
 export async function fork(thread = state.current, lastTurnId) {
+  const revision = nameRevision;
+  const records = [];
+  for (const archived of [false, true]) {
+    let cursor;
+    do {
+      const page = await rpc("thread/list", {
+        archived,
+        limit: 100,
+        ...(cursor ? { cursor } : {}),
+      });
+      records.push(...page.data);
+      cursor = page.nextCursor;
+    } while (cursor);
+  }
+  const threads = records.map((record) => preserveThreadName(record, revision));
+  const source = threads.find((record) => record.id === thread.id) || thread;
+  const name = nextForkTitle(source, threads);
   const r = await rpc("thread/fork", {
     threadId: thread.id,
     excludeTurns: true,
@@ -1244,8 +1359,9 @@ export async function fork(thread = state.current, lastTurnId) {
   persist("cx-pending-forks", pendingForks);
   await rpc("thread/name/set", {
     threadId: r.thread.id,
-    name: titleOf(thread).slice(0, 70) + " (分支)",
+    name,
   });
+  updateThreadName(r.thread.id, name);
   await openThread(r.thread.id);
   await loadThreads();
   notice("已创建对话分支");
@@ -1404,6 +1520,43 @@ export function addProject(path) {
 }
 export function addAttachment(a) {
   set({ attachments: [...state.attachments, a] });
+}
+export function editUserMessage(item) {
+  const parsed = parseUserMessage(item.content);
+  const threadId = state.current?.id;
+  const annotations = readAnnotationDrafts(threadId);
+  for (const [index, entry] of parsed.annotations.entries()) {
+    const id = `message-${item.id}-${index}`;
+    if (!annotations.some((draft) => draft.id === id))
+      annotations.push({ ...entry, id });
+  }
+  writeAnnotationDrafts(threadId, annotations);
+  const attachments = [
+    ...parsed.references.map((file) => ({
+      name: file.name,
+      input: fileReferenceInput(file),
+    })),
+    ...parsed.attachments.map((input) => ({
+      name: input.name || basename(input.path || "") || "图片附件",
+      ...(input.type === "image" && { preview: input.url }),
+      input,
+    })),
+  ];
+  setDraft(parsed.text);
+  set({
+    attachments: [
+      ...state.attachments,
+      ...attachments
+        .filter(
+          (entry) =>
+            !state.attachments.some(
+              (current) =>
+                JSON.stringify(current.input) === JSON.stringify(entry.input),
+            ),
+        )
+        .map((entry) => ({ ...entry, id: uid() })),
+    ],
+  });
 }
 export async function attachFile(file) {
   if (file.type.startsWith("image/")) {

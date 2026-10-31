@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
 import { PanelLeft, Plus, RefreshCw, Square, Send, LogOut } from "lucide-react";
 import {
   useClaude,
@@ -108,6 +108,27 @@ export function ClaudeSidebar() {
     </section>
   );
 }
+// Draft changes must not reparse Markdown or serialize every historical tool.
+const ClaudeHistory = memo(function ClaudeHistory({ messages, cwd }) {
+  return (
+    <>
+      {messages.map((m) => (
+        <article
+          key={m.id}
+          className={
+            "claude-message " +
+            (m.role === "user" && m.content.some((c) => c.type === "text")
+              ? "claude-user"
+              : "claude-assistant")
+          }
+        >
+          <Content message={m} cwd={cwd} />
+        </article>
+      ))}
+    </>
+  );
+});
+
 function Content({ message, cwd }) {
   return message.content.filter(Boolean).map((block, index) => {
     if (block.type === "text")
@@ -222,10 +243,14 @@ export function ClaudeWorkspace() {
   const s = useClaude(),
     [cwd, setCwd] = useState(""),
     [model, setModel] = useState(""),
+    [customModel, setCustomModel] = useState(false),
     [effort, setEffort] = useState(""),
     [configuring, setConfiguring] = useState(false);
   useEffect(() => {
     setModel(s.session?.model || "");
+    setCustomModel(
+      !["", "opus", "sonnet", "haiku"].includes(s.session?.model || ""),
+    );
     setEffort(s.session?.effort || "");
   }, [s.selected, s.session?.model, s.session?.effort]);
   const pane = useRef(null),
@@ -315,19 +340,7 @@ export function ClaudeWorkspace() {
               </label>
             </div>
           )}
-          {s.messages.map((m) => (
-            <article
-              key={m.id}
-              className={
-                "claude-message " +
-                (m.role === "user" && m.content.some((c) => c.type === "text")
-                  ? "claude-user"
-                  : "claude-assistant")
-              }
-            >
-              <Content message={m} cwd={session?.cwd} />
-            </article>
-          ))}
+          <ClaudeHistory messages={s.messages} cwd={session?.cwd} />
           {s.loading && <p className="claude-status">正在载入历史…</p>}
           {running && (
             <p className="claude-status" role="status">
@@ -342,20 +355,39 @@ export function ClaudeWorkspace() {
         <div className="claude-settings">
           <label>
             模型{" "}
-            <input
+            <select
               aria-label="Claude 模型"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder={session?.actualModel || "默认"}
-              list="claude-models"
+              value={customModel ? "custom" : model}
+              onChange={(e) => {
+                const custom = e.target.value === "custom";
+                setCustomModel(custom);
+                setModel(custom ? "" : e.target.value);
+              }}
               disabled={configuring || running || blocked}
-            />
+            >
+              <option value="">
+                {session?.actualModel
+                  ? `默认（${session.actualModel}）`
+                  : "默认"}
+              </option>
+              <option value="opus">Opus</option>
+              <option value="sonnet">Sonnet</option>
+              <option value="haiku">Haiku</option>
+              <option value="custom">自定义模型</option>
+            </select>
           </label>
-          <datalist id="claude-models">
-            <option value="opus" />
-            <option value="sonnet" />
-            <option value="haiku" />
-          </datalist>
+          {customModel && (
+            <label>
+              模型名称{" "}
+              <input
+                aria-label="Claude 自定义模型"
+                value={model}
+                placeholder="输入完整模型名"
+                onChange={(e) => setModel(e.target.value)}
+                disabled={configuring || running || blocked}
+              />
+            </label>
+          )}
           <label>
             思考强度{" "}
             <select
@@ -383,7 +415,7 @@ export function ClaudeWorkspace() {
                 try {
                   await claudeRpc("configure", {
                     id: s.selected,
-                    model,
+                    model: model.trim(),
                     effort,
                   });
                   await retryClaude(s.selected);
@@ -434,7 +466,7 @@ export function ClaudeWorkspace() {
                 ) {
                   e.preventDefault();
                   if (s.connected && !s.loading)
-                    sendClaude({ cwd, model, effort });
+                    sendClaude({ cwd, model: model.trim(), effort });
                 }
               }}
             />
@@ -458,7 +490,7 @@ export function ClaudeWorkspace() {
                 disabled={
                   !s.connected || s.sending || s.loading || !draft.trim()
                 }
-                onClick={() => sendClaude({ cwd, model, effort })}
+                onClick={() => sendClaude({ cwd, model: model.trim(), effort })}
               >
                 <Send size={14} />
                 {s.sending ? "发送中…" : running ? "补充" : "发送"}

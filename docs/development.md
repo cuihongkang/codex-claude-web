@@ -76,15 +76,21 @@ npm run check
 
 `format` 使用 Prettier 格式化项目。`test` 包含单元测试、隔离的桥接协议测试和 React 组件测试；`check` 依次执行版本一致性、格式检查、全部测试、生产构建和发行包安装测试。提交修改前执行 `npm run check`。
 
+分支标题回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/fork-titles.mjs`。脚本使用隔离模拟历史和生产构建，实际点击回复分支按钮与侧栏菜单，验证兼容客户端编号、连续分支到两位数、刷新恢复、深浅主题及手机侧栏；截图和构建信息保存到 `.cache/fork-titles-browser/after`。修改前将旧 `client/dist` 与 `build-info.json` 复制到 `.cache/fork-titles-before/`，以 `BROWSER_BEFORE=1` 运行同一脚本，复现后缀逐次叠加并保存对照截图。单元与组件测试另覆盖旧后缀、手动改名、独立同名对话、60 字符截断、归档分页和筛选外编号。README 的现有演示图片未展示分支标题，相关图片继续使用既有演示内容。
+
 测试采用模拟后端，不消耗模型额度，也不修改真实聊天。协议或生命周期变更应补充对应回归测试；真实后端验证使用临时会话或明确的测试数据。各测试目录的覆盖范围见[架构说明中的测试章节](architecture.md#测试)。
 
+输入性能回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/composer-performance.mjs`。脚本使用独立浏览器配置和模拟 WebSocket，载入 60 轮 Markdown 历史及 31 个侧栏对话，通过浏览器输入事件一次写入大段文字并连续补充，记录输入事件到下一绘制帧的耗时和 React 历史渲染次数；断言输入期间历史渲染次数为零，耗时作为同机对照记录。继续验证组合输入、Enter 换行、刷新恢复、发送失败与等待期间继续编辑，保存桌面深浅主题和窄屏截图。结果和构建来源保存在 `.cache/composer-performance/after`；修改前将 `client/dist` 与 `build-info.json` 复制到 `.cache/composer-performance-before/`，分别保存为 `dist` 与 `build-info.json`，以 `BROWSER_BEFORE=1` 运行同一脚本记录历史随输入重渲染的对照结果。`tests/components/composer-performance.mjs` 独立验证共享快照引用、渲染次数、即时发送值、持久化、草稿清理与对话切换。此修复保留界面布局，README 及其他文档引用的现有截图仍与页面一致。
+
 批注浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/annotations.mjs`。脚本复制当前生产资源，在独立浏览器配置目录中使用模拟 WebSocket 历史，验证多批注草稿、悬浮编辑、缩放、窄屏、刷新恢复、失败重试及正文统一提交；截图和构建来源记录默认写入 `.cache/annotations-browser`，可通过 `BROWSER_OUTPUT_DIR` 指定目录。
+
+后台恢复浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/connection-recovery.mjs`。脚本使用隔离模拟 WebSocket 与真实标签切换，在桌面和手机尺寸下验证连接正常时持续更新、断线后延迟重连、后台历史补齐、工作过程展开状态、同步期间编辑草稿及向上翻阅位置。记录消息和输入框的 DOM 实例及移除事件，确认恢复期间保留已有界面，并核对页面时间来源保持一致。截图及构建路径写入 `.cache/background-recovery-browser/after`。修改前将旧 `client/dist` 复制到 `.cache/background-recovery-before/dist`，以 `BROWSER_BEFORE=1` 运行同一脚本，复现消息与输入框被移除、显示加载提示和工作过程收起，结果写入 `before` 目录。
 
 视觉调整的浏览器检查使用生产构建与隔离的模拟历史，覆盖正文、代码块、工作过程、输入框草稿、右侧详情、设置弹窗及欢迎页。浅色、深色、跟随系统深色和窄屏分别核对文字对比度、选中状态、换行、控件位置及全宽布局。80%、100%、125%、150% 和 200% 缩放按物理窗口尺寸除以缩放倍数设置 CSS 视口，并同步设置设备像素比，检查发送按钮和底栏的可见性。修改前后采用相同数据和视口截图，图片及构建信息保存在 `.cache` 中。
 
 账户额度浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/account-usage.mjs`。脚本注入隔离的 Pro 和 Plus 账户，核对默认圆环、账户行高度和单行重置信息，通过实际点击、Enter、空格、Esc 与外部点击验证详情收放；推进本地时钟并触发 30 秒倒计时回调，确认时间更新及后端请求数量。额度自动读取测试把 60 秒轮询缩短至 200 毫秒并按需启用，组件测试另行断言两个生产间隔。继续验证额度通知、接口失败、回到前台与设置页精简，覆盖浅色、深色、跟随系统深色、五档缩放、390px 窄屏和基础字号放大。截图及构建来源写入 `.cache/account-usage-compact-browser/after`。修改前先将旧 `client/dist` 与 `build-info.json` 复制到 `.cache/account-usage-compact-before/`，分别命名为 `dist` 与 `build-info.json`，再以 `BROWSER_BEFORE=1` 运行同一脚本，记录原有展开大卡片的对照结果。
 
-README 的界面截图维护在 `docs/images/`：`desktop-light.png` 与 `desktop-dark.png` 使用相同演示数据和 1440 × 900 的桌面视口，`mobile.png` 使用 390 × 844 的手机视口及 2 倍设备像素比。更新截图前重新构建，在独立浏览器配置中使用隔离演示项目和模拟消息，实际打开文件预览、切换主题与布局；核对正文、变更汇总和输入框可见，并将构建来源与检查记录留在 `.cache`。README 通过 `picture` 随阅读环境切换桌面截图，手机截图放在可展开区域；更新后实际渲染 Markdown，检查图片、相对链接、折叠区域及窄屏排版。
+界面发生可见变化时，同步检查 README 和其他文档引用的仓库图片，在同一提交中更新受影响的截图。README 的界面截图维护在 `docs/images/`：`desktop-light.png` 与 `desktop-dark.png` 使用相同演示数据和 1440 × 900 的桌面视口，`mobile.png` 与 `mobile-sidebar.png` 使用 390 × 844 的手机视口及 2 倍设备像素比，分别展示对话与侧栏额度。执行 `npm run build` 后运行 `CHROME_PATH=/path/to/chromium node tests/browser/readme.mjs`，脚本在独立浏览器配置中使用隔离演示项目、Plus 双窗口额度和模拟消息，实际打开文件预览、切换主题与手机侧栏，并检查默认折叠圆环及展开后的单行重置信息。生成的截图默认写入 `docs/images/`，可通过 `BROWSER_OUTPUT_DIR` 指定其他目录；展开状态的检查截图、构建来源和检查记录写入 `.cache/readme-screenshots/after`。README 通过 `picture` 随阅读环境切换桌面截图，手机截图放在可展开区域；更新后运行 Markdown HTML 浏览器回归，检查实际渲染中的图片、相对链接、折叠区域及窄屏排版。
 
 Markdown HTML 回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/markdown-html.mjs`。脚本使用当前 README、仓库内图片和隔离演示消息，通过程序实际消息区与文件面板验证 HTML 排版、折叠块、图标尺寸、本地候选图、深浅主题与系统主题、文内导航、大图预览及焦点恢复；另核对脚本过滤和窄屏布局。截图与构建来源写入 `.cache/markdown-html-browser/after`。修改前将旧 `client/dist` 和 `build-info.json` 复制到 `.cache/markdown-html-before/`，以 `BROWSER_BEFORE=1` 运行同一脚本复现消息与文件预览直接显示 HTML 文字，结果写入 `before` 目录。组件回归包含安全属性过滤、代码原文、相对路径、候选图失败与迟到读取、实际 README，以及既有的公式、Mermaid 和批注测试。
 
@@ -99,6 +105,10 @@ npm run test:package
 ```
 
 该测试在临时 npm prefix 中全局安装打包产物，检查命令入口、静态资源、构建来源、用户配置和服务生成。后端与服务管理命令使用模拟实现。安装优先复用 npm 缓存，缺少包元数据或依赖时访问配置的 registry，因此执行环境需要相应缓存或网络连接。
+
+文件引用与批注展示回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium USER_CONTEXT=1 BROWSER_OUTPUT_DIR=.cache/user-message-context/after node tests/browser/annotations.mjs`。脚本使用隔离模拟历史，验证目录与文件引用、目录定位及子文件打开、批注原文收放、文件打开、编辑恢复、移除引用、批注修改与统一提交、刷新，以及深浅主题、80% 至 200% 缩放和窄屏。旧构建通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定，以 `BROWSER_BEFORE=1` 复现引用说明外露和编辑时批注协议进入输入框；截图与构建记录写入指定目录。目录跳转的修改前对照使用 `REFERENCE_NAVIGATION_BEFORE=1` 及旧构建，实际点击目录引用后确认面板保持折叠。单元与组件检查覆盖完整封装解析、普通文本保留、批注来源、编辑去重及失败重试，以及目录切换的未保存编辑确认、读取失败、目录与文件的迟到响应隔离。README 现有图片展示普通任务消息，未包含文件引用或批注，图片内容保持适用。
+
+此次交互对照使用本机 Codex VS Code 客户端 `26.1021.22027` 的打包资源：`app-initial` 中的 `Ht`、`Ut` 与 `Sn` 分离上下文和用户请求；`src` 中的 `Su`、`Cu` 恢复文件引用，提交时生成文件上下文并保留正文；`comment-editor` 保留引用标签和路径，并在编辑模式转换时恢复。实际客户端界面控制连接不可用时，以这些实现作为行为证据，客户端运行界面的视觉对照另行记录。提取资源与查验记录仅保存在 `.cache/client-inspection/`。
 
 ## 从源码运行后台服务
 
@@ -176,3 +186,5 @@ node tests/browser/claude.mjs
 测试覆盖两种后端在同一侧栏展示、完整历史分页、外部会话只读、授权、两个浏览器共享进程、停止、刷新恢复草稿及手机布局，截图写入 `.cache/claude-browser/`。可用 `BROWSER_OUTPUT_DIR` 指定截图目录。`BASELINE_ONLY=1 STATIC_TEST_DIR=/path/to/old/client/dist` 可生成原版本的隔离基线截图。
 
 `tests/fixtures/claude-live-probe.mjs` 和 `claude-control-probe.mjs` 是手动启用的真实接口验证，会调用本机 Claude、创建专用临时会话并消耗少量模型额度，不属于默认测试。后者只测试临时目录中的一个文件和运行中取消；不会续接既有用户会话。
+
+Claude 输入性能回归同样运行 `tests/browser/claude.mjs`，使用 220 条包含工具内容的隔离历史，验证连续输入不再重复序列化历史、草稿合并保存、中文组合输入不误发送、会话切换及立即刷新保留草稿。`TYPING_BASELINE=1` 用于修改前构建，`BROWSER_OUTPUT_DIR` 区分前后截图与 `typing.json` 测量记录。计时是当前机器上的输入事件至下一动画帧延迟，仅作比较，不代表所有设备。

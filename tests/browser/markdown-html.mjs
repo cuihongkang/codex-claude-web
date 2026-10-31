@@ -47,6 +47,7 @@ const files = Object.fromEntries(
       "docs/images/desktop-light.png",
       "docs/images/desktop-dark.png",
       "docs/images/mobile.png",
+      "docs/images/mobile-sidebar.png",
     ].map(async (path) => [
       path,
       (await readFile(join(root, path))).toString("base64"),
@@ -472,6 +473,9 @@ try {
     );
     await waitFor(
       '[...document.querySelectorAll(".file-markdown-preview img")].some(i=>i.alt.includes("手机界面") && i.naturalWidth===780)',
+    );
+    await waitFor(
+      '[...document.querySelectorAll(".file-markdown-preview img")].some(i=>i.alt.includes("手机侧栏") && i.naturalWidth===780)',
     );
     await screenshot("readme-expanded");
     await click(".file-markdown-preview summary");

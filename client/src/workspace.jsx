@@ -233,6 +233,7 @@ export function FilePanel() {
     [change, setChange] = useState(null),
     [fileChange, setFileChange] = useState(null);
   const opening = useRef(0);
+  const directoryOpening = useRef(0);
   const markdownFile = file && isMarkdownFile(file);
   const changesMatch = useMemo(
     () =>
@@ -241,10 +242,23 @@ export function FilePanel() {
         .matches,
     [original, fileChange],
   );
-  async function load(p) {
+  async function load(p, { navigate = false } = {}) {
+    if (
+      navigate &&
+      file &&
+      text !== original &&
+      !window.confirm("当前文件有未保存的修改。放弃修改并打开其他目录？")
+    )
+      return;
+    const request = ++directoryOpening.current;
+    const target = navigate ? ++opening.current : null;
+    const current = () =>
+      request === directoryOpening.current &&
+      (target === null || target === opening.current);
     setLoading(true);
     try {
       const r = await rpc("fs/readDirectory", { path: p });
+      if (!current()) return;
       setEntries(
         r.entries.sort(
           (a, b) =>
@@ -253,10 +267,19 @@ export function FilePanel() {
         ),
       );
       setPath(p);
+      if (navigate) {
+        setFile(null);
+        setFileKind(null);
+        setChange(null);
+        setFileChange(null);
+        setFilter("");
+        setText("");
+        setOriginal("");
+      }
     } catch (e) {
-      report(e);
+      if (current()) report(e);
     } finally {
-      setLoading(false);
+      if (request === directoryOpening.current) setLoading(false);
     }
   }
   function returnToFile() {
@@ -321,6 +344,8 @@ export function FilePanel() {
   useEffect(() => {
     if (s.panelFile) {
       if (typeof s.panelFile === "string") open(s.panelFile);
+      else if (s.panelFile.view === "directory")
+        load(s.panelFile.path, { navigate: true });
       else if (s.panelFile.view === "full") open(s.panelFile.path, s.panelFile);
       else {
         opening.current++;
@@ -332,6 +357,7 @@ export function FilePanel() {
   useEffect(
     () => () => {
       opening.current++;
+      directoryOpening.current++;
     },
     [],
   );

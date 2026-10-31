@@ -33,6 +33,7 @@ import {
   useStore,
   get,
   set,
+  setReadingThread,
   selectModel,
   rpc,
   newChat,
@@ -127,6 +128,16 @@ function ThreadRow({ thread }) {
     [tooltip, setTooltip] = useState(null);
   const tooltipId = useId();
   const title = titleOf(thread);
+  const running = !!s.active[thread.id];
+  const unread = !!s.unreadCompletions[thread.id];
+  const pinned = s.pins.includes(thread.id);
+  const status = running
+    ? "进行中"
+    : unread
+      ? "已完成，未读"
+      : pinned
+        ? "已置顶"
+        : null;
   const showTitle = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setTooltip({
@@ -185,12 +196,16 @@ function ThreadRow({ thread }) {
           openThread(thread.id);
         }}
       >
-        {s.active[thread.id] ? (
-          <span className="pulse-dot" />
-        ) : s.pins.includes(thread.id) ? (
-          <Pin size={12} />
-        ) : (
-          <span className="thread-indent" />
+        {status && (
+          <span className="thread-status" role="img" aria-label={status}>
+            {running ? (
+              <LoaderCircle className="spin" size={12} aria-hidden="true" />
+            ) : unread ? (
+              <span className="thread-completed-dot" />
+            ) : (
+              <Pin size={12} aria-hidden="true" />
+            )}
+          </span>
         )}
         <span>{title}</span>
         <small title={thread.completedAt == null ? "创建时间" : "最近完成时间"}>
@@ -827,6 +842,24 @@ function Modal() {
 }
 function App() {
   const s = useStore();
+  const readingId =
+    s.provider === "codex" &&
+    !s.loading &&
+    s.threadAccess?.status !== "loadError"
+      ? s.current?.id
+      : null;
+  useEffect(() => {
+    const read = () =>
+      setReadingThread(
+        document.visibilityState === "hidden" ? null : readingId,
+      );
+    read();
+    document.addEventListener("visibilitychange", read);
+    return () => {
+      document.removeEventListener("visibilitychange", read);
+      setReadingThread(null);
+    };
+  }, [readingId]);
   useEffect(() => {
     document.documentElement.dataset.theme = s.theme;
   }, [s.theme]);

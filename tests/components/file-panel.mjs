@@ -8,6 +8,7 @@ export async function testFilePanel(app, requests, setResponse) {
   const listeners = new Map();
   let discard = false;
   let finishRead;
+  let finishDirectory;
   globalThis.window = {
     addEventListener: (name, handler) => listeners.set(name, handler),
     removeEventListener: (name) => listeners.delete(name),
@@ -44,7 +45,20 @@ export async function testFilePanel(app, requests, setResponse) {
     ["/file-fixture/notes.markdown", "# 另一份文档"],
   ]);
   setResponse(({ method, params }) => {
-    if (method === "fs/readDirectory") return { entries: [] };
+    if (method === "fs/readDirectory") {
+      if (params.path === "/file-fixture/slow-directory")
+        return new Promise((resolve) => {
+          finishDirectory = resolve;
+        });
+      if (params.path === "/file-fixture/missing-directory")
+        return { error: { message: "目录不存在" } };
+      return {
+        entries:
+          params.path === "/file-fixture/src"
+            ? [{ fileName: "main.mjs", isDirectory: false }]
+            : [],
+      };
+    }
     if (method === "fs/readFile" && params.path.endsWith("/slow.mjs"))
       return new Promise((resolve) => {
         finishRead = resolve;
@@ -429,6 +443,83 @@ export async function testFilePanel(app, requests, setResponse) {
     assert.equal(view.root.findAllByType("textarea").length, 0);
     await open(documentPath);
     assert.equal(view.root.findByType("h1").props.children, "修改后的文档");
+    await open("/file-fixture/src/main.mjs");
+    await act(async () =>
+      button("文件源码").props.onChange({
+        target: { value: "保留目录跳转前的编辑" },
+      }),
+    );
+    discard = false;
+    const directory = { path: "/file-fixture/src", view: "directory" };
+    const directoryReads = requests.filter(
+      ({ method, params }) =>
+        method === "fs/readDirectory" && params.path === directory.path,
+    ).length;
+    await open(directory);
+    assert.equal(button("文件源码").props.value, "保留目录跳转前的编辑");
+    assert.equal(
+      requests.filter(
+        ({ method, params }) =>
+          method === "fs/readDirectory" && params.path === directory.path,
+      ).length,
+      directoryReads,
+    );
+    discard = true;
+    await open(directory);
+    assert.equal(
+      view.root.findAllByProps({ "aria-label": "文件源码" }).length,
+      0,
+    );
+    assert(
+      view.root
+        .findByProps({ className: "file-location" })
+        .findByProps({ title: directory.path }),
+    );
+    assert.equal(listeners.has("beforeunload"), false);
+    await act(async () =>
+      view.root.findByProps({ className: "tree-row" }).props.onClick(),
+    );
+    assert.equal(
+      button("文件源码").props.value,
+      files.get("/file-fixture/src/main.mjs"),
+    );
+    await open({ path: "/file-fixture/missing-directory", view: "directory" });
+    assert.equal(
+      button("文件源码").props.value,
+      files.get("/file-fixture/src/main.mjs"),
+    );
+    await open({ path: "/file-fixture/slow-directory", view: "directory" });
+    await open(directory);
+    await act(async () =>
+      finishDirectory({
+        entries: [{ fileName: "late.mjs", isDirectory: false }],
+      }),
+    );
+    assert(
+      view.root
+        .findByProps({ className: "file-location" })
+        .findByProps({ title: directory.path }),
+    );
+    assert(!JSON.stringify(view.toJSON()).includes("late.mjs"));
+    await open("/file-fixture/slow.mjs");
+    await open(directory);
+    await act(async () =>
+      finishRead({ dataBase64: app.b64encode("迟到的文件内容") }),
+    );
+    assert.equal(
+      view.root.findAllByProps({ "aria-label": "文件源码" }).length,
+      0,
+    );
+    await open({ path: "/file-fixture/slow-directory", view: "directory" });
+    await open("/file-fixture/src/main.mjs");
+    await act(async () => finishDirectory({ entries: [] }));
+    assert.equal(
+      button("文件源码").props.value,
+      files.get("/file-fixture/src/main.mjs"),
+    );
+    console.log(
+      "PASS 目录跳转、子文件打开、未保存编辑确认、失败保留，以及文件与目录迟到读取隔离",
+    );
     console.log(
       "PASS 文件侧栏区分差异片段、全文变更与普通源文件，保留草稿、正文保存及迟到读取隔离，以及 Markdown 预览与源码编辑",
     );

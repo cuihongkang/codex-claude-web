@@ -1,6 +1,6 @@
 {
   "name": "codex-web",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "type": "module",
   "description": "基于本机 Codex app-server 的浏览器客户端",
   "license": "GPL-3.0-only",

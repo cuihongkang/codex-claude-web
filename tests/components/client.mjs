@@ -9,17 +9,22 @@ import { testMarkdownHtml } from "./markdown-html.mjs";
 import { testToolActivities } from "./tool-activities.mjs";
 import { testThreadAccess } from "./thread-access.mjs";
 import { testThreadArchive } from "./thread-archive.mjs";
+import { testThreadUnread } from "./thread-unread.mjs";
 import { testThreadNames } from "./thread-names.mjs";
+import { testForkTitles } from "./fork-titles.mjs";
 import { testAnnotations } from "./annotations.mjs";
+import { testUserMessage } from "./user-message.mjs";
 import { testFilePanel } from "./file-panel.mjs";
 import { testFileChanges } from "./file-changes.mjs";
 import { testProcessTiming } from "./process-timing.mjs";
 import { testQuestions } from "./questions.mjs";
 import { testConnectionLifecycle } from "./connection-lifecycle.mjs";
+import { testConnectionRecovery } from "./connection-recovery.mjs";
 import { testAccountUsage } from "./account-usage.mjs";
 import { testHistory } from "./history.mjs";
 import { testHistoryTranslations } from "./history-translations.mjs";
 import { testConversationScroll } from "./conversation-scroll.mjs";
+import { testComposerPerformance } from "./composer-performance.mjs";
 import { testMessageNavigation } from "./message-navigation.mjs";
 import { testContextPanel } from "./context-panel.mjs";
 import { testCommands } from "./commands.mjs";
@@ -113,6 +118,7 @@ await testMermaid(app);
       (method, params) => socket.emit(method, params),
     );
     await testConversationScroll(app);
+    await testComposerPerformance(app);
     await testHistoryTranslations(app);
     await testMessageNavigation(app);
     await testContextPanel(
@@ -130,6 +136,12 @@ await testMermaid(app);
     await testThreadArchive(
       app,
       requests,
+      (respond) => (responseFor = respond),
+      (method, params) => socket.emit(method, params),
+    );
+    await testForkTitles(app, requests, (respond) => (responseFor = respond));
+    await testThreadUnread(
+      app,
       (respond) => (responseFor = respond),
       (method, params) => socket.emit(method, params),
     );
@@ -151,6 +163,7 @@ await testMermaid(app);
       (method, params) => socket.emit(method, params),
     );
     await testAnnotations(app, requests, (respond) => (responseFor = respond));
+    await testUserMessage(app, requests, (respond) => (responseFor = respond));
     await testFilePanel(app, requests, (respond) => (responseFor = respond));
     await testFileChanges(
       app,
@@ -176,6 +189,12 @@ await testMermaid(app);
       (respond) => (responseFor = respond),
       (method, params) => socket.emit(method, params),
       () => socket,
+    );
+    await testConnectionRecovery(
+      app,
+      requests,
+      (respond) => (responseFor = respond),
+      (method, params) => socket.emit(method, params),
     );
   } finally {
     responseFor = previousResponse;

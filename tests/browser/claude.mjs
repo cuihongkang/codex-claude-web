@@ -56,9 +56,23 @@ await writeFile(
 );
 await writeFile(
   join(project, long + ".jsonl"),
-  Array.from({ length: 220 }, (_, i) =>
-    rec(i % 2 ? "assistant" : "user", "history-" + String(i).padStart(3, "0")),
-  )
+  Array.from({ length: 220 }, (_, i) => {
+    const message = rec(
+      i % 2 ? "assistant" : "user",
+      "history-" + String(i).padStart(3, "0"),
+    );
+    if (i % 2)
+      message.message.content.push({
+        type: "tool_use",
+        id: randomUUID(),
+        name: "Bash",
+        input: {
+          typingProbe: true,
+          command: "echo isolated-browser-fixture\n".repeat(100),
+        },
+      });
+    return message;
+  })
     .map(JSON.stringify)
     .join("\n") + "\n",
 );
@@ -275,6 +289,10 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
   });
+  let blockClaude = false;
+  await page.routeWebSocket("**/claude/rpc", (ws) => {
+    if (!blockClaude) ws.connectToServer();
+  });
   const errors = [];
   page.on("requestfailed", (r) =>
     console.error("Request failed", r.url(), r.failure()?.errorText),
@@ -319,6 +337,92 @@ try {
     assert.equal(texts.length, 220);
     assert(texts[0].includes("history-000"));
     assert(texts[219].includes("history-219"));
+    // Measure repeated history work and disk writes while typing.
+    await page.evaluate(() => {
+      window.typingProbe = {
+        historySerializations: 0,
+        draftWrites: 0,
+        durations: [],
+      };
+      const stringify = JSON.stringify;
+      JSON.stringify = function (value, ...args) {
+        if (value?.typingProbe) window.typingProbe.historySerializations++;
+        return stringify.call(this, value, ...args);
+      };
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key === "claude-drafts") window.typingProbe.draftWrites++;
+        return setItem.call(this, key, value);
+      };
+      document.addEventListener(
+        "input",
+        () => {
+          const start = performance.now();
+          requestAnimationFrame(() =>
+            window.typingProbe.durations.push(performance.now() - start),
+          );
+        },
+        true,
+      );
+    });
+    const longInput = page.getByRole("textbox", {
+      name: "发送给 Claude",
+      exact: true,
+    });
+    await longInput.pressSequentially("typing into long history", {
+      delay: 15,
+    });
+    await page.keyboard.insertText(" 中文输入正常");
+    assert.equal(
+      await longInput.inputValue(),
+      "typing into long history 中文输入正常",
+    );
+    await page.waitForTimeout(600);
+    const typing = await page.evaluate(() => window.typingProbe);
+    await writeFile(
+      join(output, "typing.json"),
+      JSON.stringify(typing, null, 2),
+    );
+    await page.screenshot({
+      path: join(output, "typing-long-history.png"),
+      fullPage: true,
+    });
+    if (process.env.TYPING_BASELINE) {
+      assert(typing.historySerializations > 0);
+      assert(typing.draftWrites > 10);
+    } else {
+      assert.equal(
+        typing.historySerializations,
+        0,
+        "typing must not rerender history",
+      );
+      assert(typing.draftWrites <= 2, "typing must batch draft persistence");
+    }
+    console.log("Typing metrics", JSON.stringify(typing));
+    await longInput.dispatchEvent("compositionstart");
+    await longInput.dispatchEvent("keydown", {
+      key: "Enter",
+      ctrlKey: true,
+      isComposing: true,
+    });
+    await longInput.dispatchEvent("compositionend", { data: "中文" });
+    assert.equal(spawned, 0, "IME confirmation must not send");
+    await page
+      .getByRole("button")
+      .filter({ hasText: "图片上传 · Claude" })
+      .click();
+    await longInput.fill("separate conversation draft");
+    await page.getByRole("button").filter({ hasText: "history-000" }).click();
+    assert.equal(
+      await longInput.inputValue(),
+      "typing into long history 中文输入正常",
+    );
+    // Reload before the debounce expires: pagehide must flush the last edit.
+    await longInput.fill("刷新前最后输入 中文");
+    await page.reload();
+    await page.getByText("history-219", { exact: true }).waitFor();
+    assert.equal(await longInput.inputValue(), "刷新前最后输入 中文");
+
     await page
       .getByRole("button")
       .filter({ hasText: "坐标变换 · VS Code" })
@@ -328,6 +432,7 @@ try {
       await page.locator('textarea[aria-label="发送给 Claude"]').count(),
       0,
     );
+    await page.getByText("检查相机坐标变换", { exact: true }).waitFor();
     const beforeRetry = historyRequests;
     await page.evaluate(() => {
       window.retryMessage = document.querySelector(".claude-message");
@@ -389,6 +494,14 @@ try {
     );
     await page.getByRole("button", { name: "重试", exact: true }).click();
     await page.getByText("与插件共享", { exact: true }).waitFor();
+    for (const socket of codex.clients) socket.terminate();
+    await page.waitForTimeout(2600);
+    assert.equal(
+      await page.locator(".claude-workspace").count(),
+      1,
+      "Codex 重连不切走 Claude 会话",
+    );
+    await page.getByText("与插件共享", { exact: true }).waitFor();
     assert.equal(historyRequests, beforeRetry);
     await page
       .locator('textarea[aria-label="发送给 Claude"]')
@@ -415,7 +528,9 @@ try {
       .first()
       .click();
     const input = page.locator('textarea[aria-label="发送给 Claude"]');
-    await page.getByLabel("Claude 模型", { exact: true }).fill("sonnet");
+    await page
+      .getByLabel("Claude 模型", { exact: true })
+      .selectOption("sonnet");
     await page
       .getByRole("combobox", { name: "Claude 思考强度", exact: true })
       .selectOption("high");
@@ -424,7 +539,7 @@ try {
       .getByRole("button", { name: "发送给 Claude", exact: true })
       .click();
     await page.getByText("已收到：hello from phone", { exact: true }).waitFor();
-    await page.getByLabel("Claude 模型", { exact: true }).fill("opus");
+    await page.getByLabel("Claude 模型", { exact: true }).selectOption("opus");
     await page
       .getByRole("combobox", { name: "Claude 思考强度", exact: true })
       .selectOption("low");
@@ -464,7 +579,47 @@ try {
     assert.equal(spawned, 1);
     await second.close();
     await input.fill("draft survives reload");
+    await page.waitForTimeout(600);
+    await page.evaluate(() => sessionStorage.setItem("seed-stale-cache", "1"));
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem("seed-stale-cache")) return;
+      sessionStorage.removeItem("seed-stale-cache");
+      const cache = JSON.parse(localStorage.getItem("claude-history-v1"));
+      cache.messages.push({
+        id: "stale-cache-only",
+        role: "assistant",
+        content: [{ type: "text", text: "缓存占位：等待后台校准" }],
+      });
+      localStorage.setItem("claude-history-v1", JSON.stringify(cache));
+    });
+    blockClaude = true;
     await page.reload();
+    await page.getByText("已收到：hello from phone", { exact: true }).waitFor();
+    assert.equal(
+      await page
+        .getByRole("textbox", { name: "发送给 Claude", exact: true })
+        .inputValue(),
+      "draft survives reload",
+    );
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(350);
+    if (
+      await page
+        .locator(".sidebar")
+        .evaluate((el) => el.getBoundingClientRect().right > 1)
+    )
+      await page.getByRole("button", { name: "收起侧栏", exact: true }).click();
+    await page.getByText("缓存占位：等待后台校准", { exact: true }).waitFor();
+    await page.screenshot({
+      path: join(output, "mobile-cached-offline.png"),
+      fullPage: true,
+    });
+    blockClaude = false;
+    await page.reload();
+    await page.getByText("已收到：hello from phone", { exact: true }).waitFor();
+    await page
+      .getByText("缓存占位：等待后台校准", { exact: true })
+      .waitFor({ state: "detached" });
     await page.locator('textarea[aria-label="发送给 Claude"]').waitFor();
     assert.equal(
       await page.locator('textarea[aria-label="发送给 Claude"]').inputValue(),
@@ -488,6 +643,30 @@ try {
     await page.waitForFunction(
       () =>
         document.querySelector(".sidebar").getBoundingClientRect().right < 1,
+    );
+    await page.getByLabel("Claude 模型", { exact: true }).selectOption("haiku");
+    await page.getByRole("button", { name: "应用", exact: true }).click();
+    await page.waitForFunction(
+      () => !document.querySelector('[aria-label="Claude 模型"]').disabled,
+    );
+    assert.equal(configured.model, "haiku");
+    await page
+      .getByLabel("Claude 模型", { exact: true })
+      .selectOption("custom");
+    await page.getByLabel("Claude 自定义模型").fill("vendor-custom-model");
+    await page.getByRole("button", { name: "应用", exact: true }).click();
+    await page.waitForFunction(
+      () => !document.querySelector('[aria-label="Claude 模型"]').disabled,
+    );
+    assert.equal(configured.model, "vendor-custom-model");
+    await page.screenshot({
+      path: join(output, "mobile-custom-model.png"),
+      fullPage: true,
+    });
+    await page.getByLabel("Claude 模型", { exact: true }).selectOption("opus");
+    await page.getByRole("button", { name: "应用", exact: true }).click();
+    await page.waitForFunction(
+      () => !document.querySelector('[aria-label="Claude 模型"]').disabled,
     );
     await page.screenshot({
       path: join(output, "mobile.png"),

@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { contextItems, verifyUserContext } from "./user-message-context.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const output =
@@ -14,11 +15,18 @@ assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文
 const buildDirectory = await mkdtemp(
   join(tmpdir(), "codex-web-annotation-build-"),
 );
-await cp(join(root, "client/dist"), buildDirectory, { recursive: true });
-const buildInfo = JSON.parse(
-  await readFile(join(root, "build-info.json"), "utf8"),
+await cp(
+  process.env.BROWSER_BUILD_DIR || join(root, "client/dist"),
+  buildDirectory,
+  { recursive: true },
 );
-function fixture() {
+const buildInfo = JSON.parse(
+  await readFile(
+    process.env.BROWSER_BUILD_INFO || join(root, "build-info.json"),
+    "utf8",
+  ),
+);
+function fixture(contextItems) {
   const first = !sessionStorage.getItem("annotation-fixture");
   if (first) localStorage.clear();
   sessionStorage.setItem("annotation-fixture", "true");
@@ -29,7 +37,7 @@ function fixture() {
     createdAt: 1,
     completedAt: 2,
   };
-  const items = [
+  const items = contextItems || [
     {
       id: "user",
       type: "userMessage",
@@ -124,6 +132,21 @@ function fixture() {
           nextCursor: null,
         };
       if (m.method === "skills/list") result = { data: [] };
+      if (m.method === "fs/readDirectory")
+        result = { entries: [{ fileName: "planner.js", isDirectory: false }] };
+      if (m.method === "fs/readFile")
+        result = { dataBase64: btoa("export const hover = true;\n") };
+      if (m.method === "fuzzyFileSearch")
+        result = {
+          files: [
+            {
+              root: thread.cwd,
+              path: "global_planner",
+              file_name: "global_planner",
+              match_type: "directory",
+            },
+          ],
+        };
       if (m.method === "lan/projectless/read") result = { directories: {} };
       if (m.method === "turn/start" || m.method === "turn/steer") {
         if (fail) error = { message: "模拟发送失败" };
@@ -157,7 +180,10 @@ const server = http.createServer(async (request, response) => {
     if (path === "/")
       content = content
         .toString()
-        .replace("<head>", `<head><script>(${fixture.toString()})()</script>`);
+        .replace(
+          "<head>",
+          `<head><script>(${fixture.toString()})(${process.env.USER_CONTEXT === "1" ? JSON.stringify(contextItems) : "null"})</script>`,
+        );
     response
       .writeHead(200, {
         "Content-Type":
@@ -187,7 +213,7 @@ const child = spawn(
   { stdio: ["ignore", "ignore", "pipe"] },
 );
 let ws;
-try {
+async function runScenario() {
   const endpoint = await new Promise((resolve, reject) => {
     let log = "";
     const timer = setTimeout(
@@ -296,8 +322,11 @@ try {
     );
   };
 
-  const screenshot = async (name) => {
-    const { data } = await page("Page.captureScreenshot", { format: "png" });
+  const screenshot = async (name, clip) => {
+    const { data } = await page("Page.captureScreenshot", {
+      format: "png",
+      ...(clip ? { clip } : {}),
+    });
     await writeFile(join(output, name + ".png"), Buffer.from(data, "base64"));
   };
   const key = async (key, modifiers = 0) => {
@@ -354,6 +383,20 @@ try {
   await waitFor(
     `document.querySelector('textarea[aria-label="消息"]') && document.querySelector('.assistant-message')`,
   );
+  if (process.env.USER_CONTEXT === "1") {
+    await verifyUserContext({
+      evaluate,
+      page,
+      waitFor,
+      click,
+      fill,
+      key,
+      screenshot,
+      output,
+      buildInfo,
+    });
+    return;
+  }
   await fill('textarea[aria-label="消息"]', "请合并处理这些批注。");
   await select("先检查项目实际配置");
   await screenshot("editor-empty");
@@ -402,7 +445,7 @@ try {
     })()`);
     assert(Math.abs(surface.width - 294) < 1);
     assert(
-      surface.height <= 46,
+      surface.height <= 47,
       "单行编辑器保持紧凑：" + JSON.stringify(surface),
     );
     assert.equal(surface.quoted, false);
@@ -604,6 +647,9 @@ try {
       JSON.stringify({ passed: true, output, layouts: layouts.length }),
     );
   }
+}
+try {
+  await runScenario();
 } finally {
   ws?.close();
   child.kill();

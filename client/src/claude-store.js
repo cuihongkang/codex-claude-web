@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { readClaudeCache, writeClaudeCache } from "./claude-cache.js";
 const listeners = new Set(),
   pending = new Map();
 function saved(key, fallback) {
@@ -13,13 +14,18 @@ function persist(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {}
 }
+const cached = readClaudeCache();
+const selectedId = saved("claude-selected", null);
+const restored = cached?.selected === selectedId ? cached : null;
+let cacheTimer, draftTimer;
+let liveHistory = null;
 let state = {
   connected: false,
-  sessions: [],
+  sessions: cached?.sessions || [],
   next: null,
-  selected: saved("claude-selected", null),
-  session: null,
-  messages: [],
+  selected: selectedId,
+  session: restored?.session || null,
+  messages: restored?.messages || [],
   permissions: [],
   loading: false,
   sending: false,
@@ -35,7 +41,33 @@ let socket,
 const update = (patch) => {
   state = { ...state, ...patch };
   for (const fn of listeners) fn();
+  if (
+    patch.messages ||
+    patch.sessions ||
+    patch.session ||
+    "selected" in patch
+  ) {
+    if (!cacheTimer) cacheTimer = setTimeout(flushCache, 500);
+  }
 };
+function flushCache() {
+  clearTimeout(cacheTimer);
+  cacheTimer = null;
+  writeClaudeCache(state);
+}
+function flushDrafts() {
+  clearTimeout(draftTimer);
+  draftTimer = null;
+  persist("claude-drafts", state.drafts);
+}
+function flushSavedState() {
+  flushDrafts();
+  flushCache();
+}
+window.addEventListener("pagehide", flushSavedState);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushSavedState();
+});
 export function useClaude() {
   return useSyncExternalStore(
     (fn) => {
@@ -50,8 +82,10 @@ export function claudeState() {
 }
 export function setClaudeDraft(id, text) {
   const drafts = { ...state.drafts, [id || "new"]: text };
-  persist("claude-drafts", drafts);
   update({ drafts });
+  // Keep send/switch synchronous in memory; batch disk writes after typing stops.
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(flushDrafts, 300);
 }
 export function claudeError(error) {
   update({ error: error?.message || String(error || "") });
@@ -119,10 +153,14 @@ export async function openClaude(id, refresh = false) {
     return retryClaude(id);
   const preserve = id && id === state.selected;
   const revision = ++epoch;
+  liveHistory = { revision, messages: [], removed: new Set() };
   persist("claude-selected", id);
   update({
     selected: id,
-    session: state.sessions.find((s) => s.id === id) || null,
+    session:
+      (preserve ? state.session : null) ||
+      state.sessions.find((s) => s.id === id) ||
+      null,
     messages: preserve ? state.messages : [],
     permissions: preserve ? state.permissions : [],
     loading: !!id && !preserve,
@@ -138,7 +176,11 @@ export async function openClaude(id, refresh = false) {
       history = mergeMessages(history, r.messages);
       update({
         session: r.session,
-        messages: mergeMessages(history, state.messages),
+        messages: mergeMessages(
+          r.next !== null ? mergeMessages(state.messages, history) : history,
+          liveHistory.messages,
+          [...liveHistory.removed],
+        ),
         permissions: r.permissions,
       });
       offset = r.next;
@@ -146,7 +188,10 @@ export async function openClaude(id, refresh = false) {
   } catch (e) {
     if (epoch === revision) claudeError(e);
   } finally {
-    if (epoch === revision) update({ loading: false });
+    if (epoch === revision) {
+      liveHistory = null;
+      update({ loading: false });
+    }
   }
 }
 export async function sendClaude({ cwd, model, effort } = {}) {
@@ -220,12 +265,22 @@ function connect() {
     }
     if (m.method === "claude/session") {
       const p = m.params;
-      if (p.session.id === state.selected)
+      if (p.session.id === state.selected) {
+        if (liveHistory) {
+          liveHistory.messages = mergeMessages(
+            liveHistory.messages,
+            p.messages,
+            p.removed,
+          );
+          for (const id of p.removed || []) liveHistory.removed.add(id);
+          for (const m of p.messages || []) liveHistory.removed.delete(m.id);
+        }
         update({
           session: p.session,
           messages: mergeMessages(state.messages, p.messages, p.removed),
           permissions: p.permissions,
         });
+      }
     }
   };
   ws.onclose = () => {
