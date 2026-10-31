@@ -4607,3 +4607,28 @@ select option {
   border-radius: 0.4em;
   padding: 0.3em;
 }
+
+.claude-history-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.claude-scroll-bottom {
+  position: absolute;
+  bottom: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+}

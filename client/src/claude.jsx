@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef, memo } from "react";
-import { PanelLeft, Plus, RefreshCw, Square, Send, LogOut } from "lucide-react";
+import {
+  PanelLeft,
+  Plus,
+  RefreshCw,
+  Square,
+  Send,
+  LogOut,
+  ArrowDown,
+} from "lucide-react";
 import {
   useClaude,
   openClaude,
@@ -245,7 +253,8 @@ export function ClaudeWorkspace() {
     [model, setModel] = useState(""),
     [customModel, setCustomModel] = useState(false),
     [effort, setEffort] = useState(""),
-    [configuring, setConfiguring] = useState(false);
+    [configuring, setConfiguring] = useState(false),
+    [awayFromBottom, setAwayFromBottom] = useState(false);
   useEffect(() => {
     setModel(s.session?.model || "");
     setCustomModel(
@@ -253,17 +262,36 @@ export function ClaudeWorkspace() {
     );
     setEffort(s.session?.effort || "");
   }, [s.selected, s.session?.model, s.session?.effort]);
+  const content = useRef(null);
   const pane = useRef(null),
-    follow = useRef(true);
+    follow = useRef(true),
+    lastScrollTop = useRef(0);
   const draft = s.drafts[s.selected || "new"] || "",
     session = s.session;
   useEffect(() => {
     follow.current = true;
+    setAwayFromBottom(false);
   }, [s.selected]);
   useEffect(() => {
     const el = pane.current;
-    if (el && follow.current) el.scrollTop = el.scrollHeight;
+    if (el && follow.current) {
+      el.scrollTop = el.scrollHeight;
+      lastScrollTop.current = el.scrollTop;
+    }
   }, [s.messages, s.permissions, s.loading]);
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      const el = pane.current;
+      if (follow.current) {
+        el.scrollTop = el.scrollHeight;
+        lastScrollTop.current = el.scrollTop;
+      }
+      setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight >= 80);
+    });
+    observer.observe(pane.current);
+    observer.observe(content.current);
+    return () => observer.disconnect();
+  }, []);
   const running = ["running", "starting"].includes(session?.status),
     blocked = session?.status === "external";
   const act = (method) =>
@@ -317,40 +345,69 @@ export function ClaudeWorkspace() {
         >
           {session?.cwd || cwd || s.defaultCwd}
         </div>
-        <div
-          className="claude-messages"
-          ref={pane}
-          onScroll={() => {
-            const el = pane.current;
-            follow.current =
-              el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-          }}
-        >
-          {!s.selected && (
-            <div className="claude-welcome">
-              <h2>用 Claude 开始工作</h2>
-              <p>任务在这台电脑上运行，手机和电脑可继续同一段对话。</p>
-              <label>
-                工作目录
-                <input
-                  aria-label="Claude 工作目录"
-                  value={cwd || s.defaultCwd}
-                  onChange={(e) => setCwd(e.target.value)}
+        <div className="claude-history-pane">
+          <div
+            className="claude-messages"
+            ref={pane}
+            onScroll={() => {
+              const el = pane.current;
+              const atBottom =
+                el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+              if (atBottom) follow.current = true;
+              else if (el.scrollTop < lastScrollTop.current - 1)
+                follow.current = false;
+              lastScrollTop.current = el.scrollTop;
+              setAwayFromBottom(!atBottom);
+            }}
+          >
+            <div ref={content}>
+              {!s.selected && (
+                <div className="claude-welcome">
+                  <h2>用 Claude 开始工作</h2>
+                  <p>任务在这台电脑上运行，手机和电脑可继续同一段对话。</p>
+                  <label>
+                    工作目录
+                    <input
+                      aria-label="Claude 工作目录"
+                      value={cwd || s.defaultCwd}
+                      onChange={(e) => setCwd(e.target.value)}
+                    />
+                  </label>
+                </div>
+              )}
+              <ClaudeHistory messages={s.messages} cwd={session?.cwd} />
+              {s.loading && <p className="claude-status">正在载入历史…</p>}
+              {running && (
+                <p className="claude-status" role="status">
+                  <span className="pulse-dot" />
+                  Claude 正在工作…
+                </p>
+              )}
+              {s.permissions.map((request) => (
+                <Permission
+                  key={request.id}
+                  id={s.selected}
+                  request={request}
                 />
-              </label>
+              ))}
             </div>
+          </div>
+          {awayFromBottom && (
+            <button
+              className="claude-scroll-bottom"
+              title="回到最新消息"
+              aria-label="回到最新消息"
+              onClick={() => {
+                follow.current = true;
+                pane.current.scrollTop = pane.current.scrollHeight;
+                lastScrollTop.current = pane.current.scrollTop;
+                setAwayFromBottom(false);
+              }}
+            >
+              <ArrowDown size={20} />
+              <span>回到最新消息</span>
+            </button>
           )}
-          <ClaudeHistory messages={s.messages} cwd={session?.cwd} />
-          {s.loading && <p className="claude-status">正在载入历史…</p>}
-          {running && (
-            <p className="claude-status" role="status">
-              <span className="pulse-dot" />
-              Claude 正在工作…
-            </p>
-          )}
-          {s.permissions.map((request) => (
-            <Permission key={request.id} id={s.selected} request={request} />
-          ))}
         </div>
         <div className="claude-settings">
           <label>

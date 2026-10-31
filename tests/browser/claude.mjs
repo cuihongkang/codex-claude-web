@@ -337,6 +337,41 @@ try {
     assert.equal(texts.length, 220);
     assert(texts[0].includes("history-000"));
     assert(texts[219].includes("history-219"));
+    // Desktop and phone: jump to the actual bottom and restore following.
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.locator(".claude-messages").evaluate((el) => {
+        el.scrollTop = 0;
+      });
+      const latest = page.getByRole("button", {
+        name: "回到最新消息",
+        exact: true,
+      });
+      await latest.waitFor();
+      await page.screenshot({
+        path: join(output, `scroll-bottom-${width}.png`),
+        fullPage: true,
+        animations: "disabled",
+      });
+      await latest.click();
+      await page.waitForFunction(() => {
+        const el = document.querySelector(".claude-messages");
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 2;
+      });
+      assert.equal(await latest.count(), 0);
+      await page.locator(".claude-messages > div").evaluate((el) => {
+        const spacer = document.createElement("div");
+        spacer.style.height = "300px";
+        spacer.dataset.scrollProbe = "true";
+        el.append(spacer);
+      });
+      await page.waitForFunction(() => {
+        const el = document.querySelector(".claude-messages");
+        return el.scrollHeight - el.scrollTop - el.clientHeight < 2;
+      });
+      await page.locator("[data-scroll-probe]").evaluate((el) => el.remove());
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
     // Measure repeated history work and disk writes while typing.
     await page.evaluate(() => {
       window.typingProbe = {
