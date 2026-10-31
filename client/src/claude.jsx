@@ -3,6 +3,7 @@ import { PanelLeft, Plus, RefreshCw, Square, Send, LogOut } from "lucide-react";
 import {
   useClaude,
   openClaude,
+  retryClaude,
   loadClaude,
   claudeRpc,
   claudeError,
@@ -220,7 +221,13 @@ function Permission({ request, id }) {
 export function ClaudeWorkspace() {
   const s = useClaude(),
     [cwd, setCwd] = useState(""),
-    [model, setModel] = useState("");
+    [model, setModel] = useState(""),
+    [effort, setEffort] = useState(""),
+    [configuring, setConfiguring] = useState(false);
+  useEffect(() => {
+    setModel(s.session?.model || "");
+    setEffort(s.session?.effort || "");
+  }, [s.selected, s.session?.model, s.session?.effort]);
   const pane = useRef(null),
     follow = useRef(true);
   const draft = s.drafts[s.selected || "new"] || "",
@@ -257,7 +264,7 @@ export function ClaudeWorkspace() {
           <IconButton
             icon={RefreshCw}
             title="刷新 Claude 历史"
-            onClick={() => openClaude(s.selected)}
+            onClick={() => openClaude(s.selected, true)}
           />
           {session?.connected && !running && (
             <IconButton
@@ -306,21 +313,6 @@ export function ClaudeWorkspace() {
                   onChange={(e) => setCwd(e.target.value)}
                 />
               </label>
-              <label>
-                模型
-                <input
-                  aria-label="Claude 模型"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder="沿用本机 Claude 配置"
-                  list="claude-models"
-                />
-                <datalist id="claude-models">
-                  <option value="opus" />
-                  <option value="sonnet" />
-                  <option value="haiku" />
-                </datalist>
-              </label>
             </div>
           )}
           {s.messages.map((m) => (
@@ -347,13 +339,73 @@ export function ClaudeWorkspace() {
             <Permission key={request.id} id={s.selected} request={request} />
           ))}
         </div>
+        <div className="claude-settings">
+          <label>
+            模型{" "}
+            <input
+              aria-label="Claude 模型"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder={session?.actualModel || "默认"}
+              list="claude-models"
+              disabled={configuring || running || blocked}
+            />
+          </label>
+          <datalist id="claude-models">
+            <option value="opus" />
+            <option value="sonnet" />
+            <option value="haiku" />
+          </datalist>
+          <label>
+            思考强度{" "}
+            <select
+              aria-label="Claude 思考强度"
+              value={effort}
+              onChange={(e) => setEffort(e.target.value)}
+              disabled={configuring || running || blocked}
+            >
+              <option value="">
+                {session?.actualEffort
+                  ? `默认（${session.actualEffort}）`
+                  : "默认"}
+              </option>
+              <option value="low">低</option>
+              <option value="medium">中</option>
+              <option value="high">高</option>
+              <option value="xhigh">超高</option>
+            </select>
+          </label>
+          {s.selected && (
+            <button
+              disabled={configuring || running || blocked || !s.connected}
+              onClick={async () => {
+                setConfiguring(true);
+                try {
+                  await claudeRpc("configure", {
+                    id: s.selected,
+                    model,
+                    effort,
+                  });
+                  await retryClaude(s.selected);
+                } catch (e) {
+                  claudeError(e);
+                } finally {
+                  setConfiguring(false);
+                }
+              }}
+            >
+              {configuring ? "应用中…" : "应用"}
+            </button>
+          )}
+          {session?.shared && <small>与插件共享</small>}
+        </div>
         {(s.error || session?.error) && (
           <div className="error-banner" role="alert">
             <span>{s.error || session.error}</span>
             <button
               onClick={() => {
                 claudeError("");
-                if (s.selected) openClaude(s.selected);
+                if (s.selected) retryClaude(s.selected);
               }}
             >
               刷新
@@ -363,8 +415,8 @@ export function ClaudeWorkspace() {
         {blocked ? (
           <div className="claude-blocked">
             此会话正由 {session.owner?.source || "其他客户端"}{" "}
-            持有，可查看历史。结束任务并关闭原会话后，点击重试。
-            <button onClick={() => openClaude(s.selected)}>重试</button>
+            持有，可查看历史。此进程尚未启用共享；启用后重新打开插件会话一次，再点击重试。
+            <button onClick={() => retryClaude(s.selected)}>重试</button>
           </div>
         ) : (
           <div className="claude-composer">
@@ -381,7 +433,8 @@ export function ClaudeWorkspace() {
                   !e.nativeEvent.isComposing
                 ) {
                   e.preventDefault();
-                  if (s.connected && !s.loading) sendClaude({ cwd, model });
+                  if (s.connected && !s.loading)
+                    sendClaude({ cwd, model, effort });
                 }
               }}
             />
@@ -405,7 +458,7 @@ export function ClaudeWorkspace() {
                 disabled={
                   !s.connected || s.sending || s.loading || !draft.trim()
                 }
-                onClick={() => sendClaude({ cwd, model })}
+                onClick={() => sendClaude({ cwd, model, effort })}
               >
                 <Send size={14} />
                 {s.sending ? "发送中…" : running ? "补充" : "发送"}

@@ -19,6 +19,11 @@ import {
   transcriptMessage,
 } from "./claude-history.mjs";
 
+import {
+  findSharedBridge,
+  connectSharedBridge,
+} from "./claude-shared-client.mjs";
+
 export class ClaudeSessions {
   constructor({
     home = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"),
@@ -136,6 +141,10 @@ export class ClaudeSessions {
       cwd: s.cwd,
       updatedAt: s.updatedAt,
       model: s.model || "",
+      effort: s.effort || "",
+      actualModel: s.actualModel || "",
+      actualEffort: s.actualEffort || "",
+      shared: !!r?.shared,
       managed: !!s.managed,
       status: owner ? "external" : r?.status || "idle",
       owner,
@@ -143,7 +152,70 @@ export class ClaudeSessions {
       connected: !!r?.child,
     };
   }
+  async status(id) {
+    const s = await this.require(id);
+    await this.exclusive(id, async () => {
+      if (!this.runtime.get(id)?.child) {
+        const bridge = await findSharedBridge(this.home, id);
+        if (bridge) await this.attach(s, bridge);
+      }
+    });
+    const r = this.runtime.get(id);
+    if (r?.child && r.status === "idle") await this.readSettings(id);
+    return {
+      session: await this.summary(s),
+      messages: [...(r?.messages.values() || [])],
+      permissions: [...(r?.permissions.values() || [])],
+      removed: [...(r?.removed || [])],
+    };
+  }
+  async attach(s, bridge) {
+    const queued = [];
+    let attached = false;
+    const { child, snapshot } = await connectSharedBridge(bridge, (m) => {
+      if (attached) this.event(s.id, m);
+      else queued.push(m);
+    });
+    const r = {
+      child,
+      shared: true,
+      status: snapshot.status,
+      messages: new Map(snapshot.messages.map((m) => [m.id, m])),
+      permissions: new Map(snapshot.permissions.map((p) => [p.id, p])),
+      removed: new Set(),
+      controls: new Map(),
+      outstanding: new Set(),
+      error: "",
+      stderr: "",
+      timer: null,
+    };
+    r.partial = snapshot.messages.find((m) => m.partial) || null;
+    this.runtime.set(s.id, r);
+    child.on("bridgeError", (e) => this.fail(s.id, e.message));
+    child.once("close", () => {
+      if (this.runtime.get(s.id) !== r) return;
+      r.child = null;
+      r.status = "error";
+      r.error = "插件共享连接已断开，请重试";
+      r.permissions.clear();
+      for (const c of r.controls.values()) {
+        clearTimeout(c.timer);
+        c.reject(Error(r.error));
+      }
+      r.controls.clear();
+      this.notify(s.id, true);
+    });
+    attached = true;
+    for (const m of queued) this.event(s.id, m);
+    return r;
+  }
   async open(id, offset = 0) {
+    let connectionError = "";
+    try {
+      await this.status(id);
+    } catch (e) {
+      connectionError = e.message;
+    }
     const s = await this.require(id),
       r = this.runtime.get(id);
     // Resume discovers CLI transcript names even for newly created sessions.
@@ -175,13 +247,16 @@ export class ClaudeSessions {
     const messages = [...merged.values()];
     offset = Math.max(0, Number(offset) || 0);
     return {
-      session: await this.summary(current),
+      session: {
+        ...(await this.summary(current)),
+        ...(connectionError ? { error: connectionError } : {}),
+      },
       messages: messages.slice(offset, offset + 100),
       next: offset + 100 < messages.length ? offset + 100 : null,
       permissions: [...(r?.permissions.values() || [])],
     };
   }
-  async create({ cwd, model = "" } = {}) {
+  async create({ cwd, model = "", effort = "" } = {}) {
     await this.initialized;
     if (this.loadError)
       throw Error("无法读取 Claude 网页会话索引：" + this.loadError.message);
@@ -190,10 +265,12 @@ export class ClaudeSessions {
       throw Error("请选择有效的绝对工作目录");
     if (typeof model !== "string" || model.length > 200)
       throw Error("无效的模型名称");
+    this.validateSettings(model, effort);
     const s = {
       id: randomUUID(),
       cwd,
       model,
+      effort,
       title: "新 Claude 对话",
       updatedAt: Date.now(),
       managed: true,
@@ -232,6 +309,8 @@ export class ClaudeSessions {
   async start(s) {
     let r = this.runtime.get(s.id);
     if (r?.child) return r;
+    const bridge = await findSharedBridge(this.home, s.id);
+    if (bridge) return this.attach(s, bridge);
     const owner = await externalOwner(this.home, s.id);
     if (owner)
       throw Error(
@@ -253,6 +332,7 @@ export class ClaudeSessions {
     ];
     args.push(s.path ? "--resume" : "--session-id", s.id);
     if (s.model) args.push("--model", s.model);
+    if (s.effort) args.push("--effort", s.effort);
     const child = this.launch(this.executable, args, {
       cwd: s.cwd,
       env: { ...process.env, CLAUDE_CONFIG_DIR: this.home },
@@ -383,6 +463,8 @@ export class ClaudeSessions {
       this.notify(id, true);
       return;
     }
+    if (r.shared && (m.type === "user" || m.type === "stream_event"))
+      r.status = "running";
     if (m.type === "stream_event") {
       const e = m.event;
       if (e.type === "message_start") {
@@ -463,6 +545,48 @@ export class ClaudeSessions {
       this.notify(id, true);
       this.emit({ method: "claude/listChanged" });
       return { accepted: true };
+    });
+  }
+  async readSettings(id) {
+    const result = await this.control(id, { subtype: "get_settings" });
+    const s = this.sessions.get(id);
+    if (result?.applied) {
+      s.actualModel = result.applied.model || "";
+      s.actualEffort = result.applied.effort || "";
+    }
+  }
+  validateSettings(model, effort) {
+    if (typeof model !== "string" || model.length > 200)
+      throw Error("无效的模型名称");
+    if (!["", "low", "medium", "high", "xhigh"].includes(effort))
+      throw Error("无效的思考强度");
+  }
+  async configure({ id, model = "", effort = "" }) {
+    this.validateSettings(model, effort);
+    return this.exclusive(id, async () => {
+      const s = await this.require(id);
+      const r = await this.start(s);
+      if (["running", "starting"].includes(r.status) || r.permissions.size)
+        throw Error("请等待当前任务完成后修改模型和思考强度");
+      {
+        await this.control(id, { subtype: "set_model", model: model || null });
+        s.model = model;
+      }
+      try {
+        {
+          await this.control(id, {
+            subtype: "apply_flag_settings",
+            settings: { effortLevel: effort || null },
+          });
+          s.effort = effort;
+        }
+      } finally {
+        s.managed = true;
+        await this.save();
+        this.notify(id, true);
+      }
+      await this.readSettings(id);
+      return { session: await this.summary(s) };
     });
   }
   async interrupt(id) {

@@ -94,15 +94,38 @@ export async function loadClaude(more = false, query = state.query) {
     ...(selected ? { session: { ...state.session, ...selected } } : {}),
   });
 }
-export async function openClaude(id) {
+export async function retryClaude(id = state.selected) {
+  if (!id) return;
+  const revision = epoch;
+  try {
+    const r = await claudeRpc("status", { id });
+    if (revision !== epoch || id !== state.selected) return;
+    update({
+      session: r.session,
+      permissions: r.permissions,
+      messages: mergeMessages(
+        state.messages,
+        r.messages || [],
+        r.removed || [],
+      ),
+      error: "",
+    });
+  } catch (e) {
+    if (revision === epoch) claudeError(e);
+  }
+}
+export async function openClaude(id, refresh = false) {
+  if (id && id === state.selected && state.session && !refresh)
+    return retryClaude(id);
+  const preserve = id && id === state.selected;
   const revision = ++epoch;
   persist("claude-selected", id);
   update({
     selected: id,
     session: state.sessions.find((s) => s.id === id) || null,
-    messages: [],
-    permissions: [],
-    loading: !!id,
+    messages: preserve ? state.messages : [],
+    permissions: preserve ? state.permissions : [],
+    loading: !!id && !preserve,
     error: "",
   });
   if (!id) return;
@@ -126,7 +149,7 @@ export async function openClaude(id) {
     if (epoch === revision) update({ loading: false });
   }
 }
-export async function sendClaude({ cwd, model } = {}) {
+export async function sendClaude({ cwd, model, effort } = {}) {
   if (state.sending) return;
   const originalId = state.selected,
     text = state.drafts[originalId || "new"] || "",
@@ -139,6 +162,7 @@ export async function sendClaude({ cwd, model } = {}) {
       const r = await claudeRpc("create", {
         cwd: cwd || state.defaultCwd,
         model,
+        effort,
       });
       id = r.session.id;
       if (epoch === revision) {
@@ -187,7 +211,7 @@ function connect() {
     if (m.method === "claude/ready") {
       update({ connected: true });
       loadClaude().catch(claudeError);
-      if (state.selected) openClaude(state.selected);
+      if (state.selected) openClaude(state.selected, true);
       return;
     }
     if (m.method === "claude/listChanged") {
@@ -223,6 +247,6 @@ setInterval(() => {
 window.addEventListener("focus", () => {
   if (state.connected) {
     loadClaude().catch(() => {});
-    if (state.selected) openClaude(state.selected);
+    if (state.selected) retryClaude(state.selected);
   }
 });

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
+import { findSharedBridge } from "../../server/src/claude-shared-client.mjs";
 import http from "node:http";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -169,6 +172,7 @@ const server = http.createServer(async (req, res) => {
     res.end();
   }
 });
+let historyRequests = 0;
 const manager = attachClaude(
   server,
   { defaultCwd: home },
@@ -179,6 +183,11 @@ const manager = attachClaude(
     launch,
   },
 );
+const originalOpen = manager.open.bind(manager);
+manager.open = (...args) => {
+  historyRequests++;
+  return originalOpen(...args);
+};
 const codex = new WebSocketServer({ noServer: true });
 server.on("upgrade", (req, socket, head) => {
   if (req.url === "/rpc")
@@ -251,6 +260,7 @@ codex.on("connection", (s) => {
   });
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
+let sharedHost;
 const browser = await chromium.launch({
   headless: true,
   args: [
@@ -318,16 +328,117 @@ try {
       await page.locator('textarea[aria-label="发送给 Claude"]').count(),
       0,
     );
+    const beforeRetry = historyRequests;
+    await page.evaluate(() => {
+      window.retryMessage = document.querySelector(".claude-message");
+    });
+    await page.getByRole("button", { name: "重试", exact: true }).click();
+    await page.waitForTimeout(300);
+    assert.equal(historyRequests, beforeRetry, "retry must not read history");
+    assert(
+      await page.evaluate(
+        () => window.retryMessage === document.querySelector(".claude-message"),
+      ),
+    );
+    await page.screenshot({
+      path: join(output, "retry-preserved.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+    sharedHost = spawn(
+      process.execPath,
+      [
+        join(root, "bin/claude-shared.mjs"),
+        process.execPath,
+        join(root, "tests/fixtures/claude-shared-fake.mjs"),
+        "--input-format",
+        "stream-json",
+        "--resume",
+        external,
+      ],
+      {
+        env: { ...process.env, CLAUDE_CONFIG_DIR: home },
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    const hostMessages = [];
+    createInterface({ input: sharedHost.stdout }).on("line", (line) =>
+      hostMessages.push(JSON.parse(line)),
+    );
+    sharedHost.stdin.write(
+      JSON.stringify({
+        type: "control_request",
+        request_id: "init",
+        request: { subtype: "initialize" },
+      }) + "\n",
+    );
+    let bridge;
+    for (let n = 0; n < 100; n++) {
+      bridge = await findSharedBridge(home, external);
+      if (bridge) break;
+      await page.waitForTimeout(30);
+    }
+    assert(bridge);
+    await writeFile(
+      join(home, "sessions", "owner.json"),
+      JSON.stringify({
+        pid: bridge.childPid,
+        sessionId: external,
+        entrypoint: "claude-vscode",
+      }),
+    );
+    await page.getByRole("button", { name: "重试", exact: true }).click();
+    await page.getByText("与插件共享", { exact: true }).waitFor();
+    assert.equal(historyRequests, beforeRetry);
+    await page
+      .locator('textarea[aria-label="发送给 Claude"]')
+      .fill("shared phone message");
+    await page
+      .getByRole("button", { name: "发送给 Claude", exact: true })
+      .click();
+    await page
+      .getByText("received shared phone message", { exact: true })
+      .waitFor();
+    assert(
+      hostMessages.some(
+        (m) =>
+          m.type === "user" && m.message.content === "shared phone message",
+      ),
+    );
+    await page.screenshot({
+      path: join(output, "shared-desktop.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
     await page
       .getByRole("button", { name: "新建 Claude 对话", exact: true })
       .first()
       .click();
     const input = page.locator('textarea[aria-label="发送给 Claude"]');
+    await page.getByLabel("Claude 模型", { exact: true }).fill("sonnet");
+    await page
+      .getByRole("combobox", { name: "Claude 思考强度", exact: true })
+      .selectOption("high");
     await input.fill("hello from phone");
     await page
       .getByRole("button", { name: "发送给 Claude", exact: true })
       .click();
     await page.getByText("已收到：hello from phone", { exact: true }).waitFor();
+    await page.getByLabel("Claude 模型", { exact: true }).fill("opus");
+    await page
+      .getByRole("combobox", { name: "Claude 思考强度", exact: true })
+      .selectOption("low");
+    await page.getByRole("button", { name: "应用", exact: true }).click();
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[aria-label="Claude 模型"]').value === "opus" &&
+        !document.querySelector('[aria-label="Claude 模型"]').disabled,
+    );
+    const configured = [...manager.sessions.values()].find(
+      (s) => s.title === "hello from phone",
+    );
+    assert.equal(configured.model, "opus");
+    assert.equal(configured.effort, "low");
     await input.fill("approval");
     await page
       .getByRole("button", { name: "发送给 Claude", exact: true })
@@ -404,6 +515,11 @@ try {
   }
 } finally {
   await browser.close();
+  if (sharedHost) {
+    const closed = new Promise((r) => sharedHost.once("close", r));
+    sharedHost.stdin.end();
+    await closed;
+  }
   for (const s of codex.clients) s.terminate();
   codex.close();
   manager.close();

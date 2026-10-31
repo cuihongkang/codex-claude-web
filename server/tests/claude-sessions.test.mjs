@@ -228,3 +228,38 @@ test("corrupt Claude metadata reports an error without an unhandled startup reje
   await assert.rejects(manager.list(), /无法读取/);
   manager.close();
 });
+
+test("status retries never read history and settings persist with live controls", async (t) => {
+  const { manager, children, root } = await fixture(t);
+  const { session } = await manager.create({
+    cwd: root,
+    model: "sonnet",
+    effort: "high",
+  });
+  await manager.configure({ id: session.id, model: "opus", effort: "low" });
+  assert(children[0].args.includes("--effort"));
+  assert.equal(
+    children[0].child.received
+      .filter((m) => m.request?.subtype === "set_model")
+      .at(-1).request.model,
+    "opus",
+  );
+  manager.sessions.get(session.id).path = join(root, "missing-history.jsonl");
+  const status = await manager.status(session.id);
+  assert.equal(status.session.model, "opus");
+  assert.equal(status.session.effort, "low");
+  await assert.rejects(
+    manager.configure({ id: session.id, effort: "invalid" }),
+    /无效/,
+  );
+  manager.event(session.id, { type: "result", is_error: false });
+  await manager.send({
+    id: session.id,
+    text: "running",
+    messageId: randomUUID(),
+  });
+  await assert.rejects(
+    manager.configure({ id: session.id, model: "sonnet" }),
+    /等待/,
+  );
+});

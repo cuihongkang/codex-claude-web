@@ -30,6 +30,11 @@ export function attachClaude(server, config, options = {}) {
       case "open":
         socket.selected = p.id;
         return sessions.open(p.id, p.offset);
+      case "status":
+        socket.selected = p.id;
+        return sessions.status(p.id);
+      case "configure":
+        return sessions.configure(p);
       case "send":
         return sessions.send(p);
       case "interrupt":
