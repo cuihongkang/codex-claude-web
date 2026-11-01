@@ -336,7 +336,11 @@ function Sidebar() {
             </div>
           )}
           {[...groups].map(([path, threads]) => (
-            <ProjectGroup key={path} path={path}>
+            <ProjectGroup
+              key={path}
+              path={path}
+              pinned={s.projects.includes(path)}
+            >
               {threads.map((t) => (
                 <ThreadRow key={t.id} thread={t} />
               ))}
@@ -350,14 +354,6 @@ function Sidebar() {
                   ? "还没有归档的对话"
                   : "创建一段新对话，开始工作。"}
             </div>
-          )}
-          {s.threadCursor && (
-            <button
-              className="load-more"
-              onClick={() => loadThreads(true).catch(report)}
-            >
-              加载更多对话
-            </button>
           )}
         </div>
         <div className="sidebar-footer">

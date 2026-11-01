@@ -58,7 +58,6 @@ let state = {
   booting: true,
   serverVersion: null,
   threads: [],
-  threadCursor: null,
   archived: false,
   search: "",
   current: null,
@@ -587,7 +586,7 @@ async function boot() {
           : state.serviceTier,
       booting: false,
     });
-    await loadThreads(false);
+    await loadThreads();
     if (!current()) return;
     // 初始化只恢复启动时的选择，保留期间新建、发送和切换的对话。
     if (epoch === opening && !state.busy) {
@@ -611,10 +610,9 @@ async function boot() {
     if (epoch === opening) report(e);
   }
 }
-export async function loadThreads(more = false) {
+export async function loadThreads() {
   const epoch = ++listing;
   const revision = nameRevision;
-  const limit = Math.max(60, state.threads.length + (more ? 60 : 0));
   const [data, projectless] = await Promise.all([
     listThreads({
       archived: state.archived,
@@ -668,8 +666,7 @@ export async function loadThreads(more = false) {
         .filter((path) => !state.projectOrder?.includes(path)),
       ...(state.projectOrder || []),
     ],
-    threads: sorted.filter((t) => !deletedThreads.has(t.id)).slice(0, limit),
-    threadCursor: sorted.length > limit ? String(limit) : null,
+    threads: sorted.filter((t) => !deletedThreads.has(t.id)),
     current: state.current
       ? sorted.find((t) => t.id === state.current.id) || state.current
       : null,
@@ -1670,6 +1667,14 @@ export function addProject(path) {
     persist("cx-projects", projects);
   }
   newChat(path);
+}
+export function toggleProjectPin(path) {
+  if (!path) return;
+  const projects = state.projects.includes(path)
+    ? state.projects.filter((value) => value !== path)
+    : [...state.projects, path];
+  persist("cx-projects", projects);
+  set({ projects });
 }
 export function addAttachment(a) {
   set({ attachments: [...state.attachments, a] });

@@ -28,8 +28,8 @@ test("完成时间决定对话和项目初始顺序，打开时间、项目添�
       ["/c", []],
       ["/b", ["done", "new"]],
       ["/a", ["opened"]],
-      ["", []],
       ["/empty", []],
+      ["", []],
     ],
   );
   assert.equal(threadTime(threads[3]), 15);
@@ -110,11 +110,31 @@ test("客户端自动目录合并到未分类，CLI 与外部对话保留实际�
       pinned: scratch + "/pin",
     }).map(([path, list]) => [path, list.map((t) => t.id)]),
     [
-      ["", ["desktop-b", "desktop-a", "missing-cwd"]],
       ["/code/x", ["cli"]],
       ["/code/mu-q", ["external"]],
+      ["", ["desktop-b", "desktop-a", "missing-cwd"]],
     ],
   );
+});
+
+test("未分类始终位于末尾，保留其他项目快照顺序", () => {
+  const threads = [
+    { id: "unclassified", createdAt: 999 },
+    { id: "project", cwd: "/a", createdAt: 1 },
+  ];
+  for (const order of [[], ["", "/empty", "/a"], ["/empty", "", "/a"]]) {
+    const groups = projectGroups(threads, ["/empty"], [], {}, "", order);
+    assert.equal(groups.at(-1)[0], "");
+    assert.deepEqual(
+      groups.at(-1)[1].map((t) => t.id),
+      ["unclassified"],
+    );
+    if (order.length)
+      assert.deepEqual(
+        groups.map(([path]) => path),
+        ["/empty", "/a", ""],
+      );
+  }
 });
 
 test("明确项目归属、改变后的目录和未被记录的相似目录保持文件夹分组", () => {

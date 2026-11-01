@@ -81,6 +81,7 @@ function fixture(data) {
   };
   localStorage.setItem("cx-current", thread.id);
   localStorage.setItem("cx-theme", JSON.stringify("light"));
+  localStorage.setItem("cx-projects", JSON.stringify([thread.cwd]));
   window.demoRequests = [];
   window.WebSocket = class {
     static OPEN = 1;

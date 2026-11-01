@@ -55,6 +55,7 @@ export function projectGroups(
   }
   return [...groups].sort(
     ([a], [b]) =>
+      Number(!a) - Number(!b) ||
       (positions.get(a) ?? -1) - (positions.get(b) ?? -1) ||
       (times.get(b) || 0) - (times.get(a) || 0) ||
       a.localeCompare(b),

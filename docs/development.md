@@ -68,6 +68,10 @@ package-lock.json      全项目依赖锁文件
 
 ## 格式与验证
 
+侧栏收纳回归执行 `SIDEBAR_DENSITY=1 CHROME_PATH=/path/to/chromium node tests/browser/project-pins.mjs`，使用隔离的 Atlas/Beacon 与最近有活动的未分类对话、超过 60 条的后端分页，验证未分类始终位于末尾、固定与未固定的默认收放、每组最新五条、全部展开及收起、刷新重置、键盘操作、深浅主题、80% 至 200% 缩放和手机布局。截图与构建信息保存在 `.cache/sidebar-density-browser/after/`。旧构建及来源位于 `.cache/sidebar-density-before/`，追加 `SIDEBAR_DENSITY_BEFORE=1` 保存旧版全部展开的对照截图。
+
+固定文件夹回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/project-pins.mjs`。脚本使用生产构建、隔离浏览器与模拟 Atlas/Beacon 对话，实际点击图钉和归档按钮，验证固定后全部归档、刷新恢复、空项目新建、取消固定、草稿与顺序保留、键盘操作、深浅主题及手机布局，结果和截图写入 `.cache/project-pins-browser/after/`。旧构建及来源保存在 `.cache/project-pins-before/dist` 与 `.cache/project-pins-before/build-info.json`，通过 `BROWSER_BEFORE=1` 复现重新加载后空文件夹消失，保存对照截图。取消固定的鼠标与键盘焦点回归同时核对图钉及加号的实际透明度：鼠标移开后隐藏，Tab 聚焦时显示；固定状态仅常显图钉，加号在点击新建对话并移开鼠标后隐藏。通过 `PIN_VISIBILITY_BEFORE=1` 读取 `.cache/project-pin-visibility-before/` 保存的构建及来源，复现鼠标点击保留焦点导致按钮常显，结果保存到 `.cache/project-pins-browser/visibility-before/`。固定记录复用 `cx-projects`，已有手动项目继续保留。README 的桌面及手机侧栏图片使用当前生产构建重新生成。
+
 项目模型偏好回归执行 `CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，使用生产构建、隔离的 Atlas/Beacon 项目与模拟后端，通过模型选择框和强度滑块的键盘操作验证保留强度、最近档位、项目切换、刷新恢复及实际发送参数，保存桌面深浅主题和手机截图。修改前的构建及来源分别保存在 `.cache/project-model-before/dist` 和 `.cache/project-model-before/build-info.json`，以 `BROWSER_BEFORE=1` 复现切换模型重置强度；执行证据写入 `.cache/project-model-browser/`。组件回归同时覆盖历史及迟到恢复、未分类隔离和选择目录时保留草稿附件。README 图片使用当前生产构建重新生成，并通过 Markdown HTML 浏览器回归检查加载与排版。
 
 同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CODEX_HOME` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
