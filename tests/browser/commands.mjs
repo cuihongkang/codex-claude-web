@@ -8,6 +8,11 @@ import { fileURLToPath } from "node:url";
 import { testCompactionReload } from "./compaction-reload.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
+const beforeDismiss = process.env.COMPACTION_DISMISS_BEFORE === "1";
+const buildRoot = join(
+  root,
+  beforeDismiss ? ".cache/compaction-dismiss-before" : "client",
+);
 const output =
   process.env.BROWSER_OUTPUT_DIR || join(root, ".cache/commands-browser");
 await mkdir(output, { recursive: true });
@@ -356,7 +361,7 @@ const server = http.createServer(async (request, response) => {
   try {
     const path = new URL(request.url, "http://fixture").pathname;
     let content = await readFile(
-      join(root, "client/dist", path === "/" ? "index.html" : path),
+      join(buildRoot, "dist", path === "/" ? "index.html" : path),
     );
     if (path === "/")
       content = content
@@ -867,11 +872,17 @@ try {
   })()`);
   assert(Math.abs(completedLayout.titleTop - completedLayout.closeTop) < 20);
   assert(completedLayout.scrollWidth <= completedLayout.width);
-  await click('button[title="关闭整理状态"]');
+  await click('button[aria-label="发送消息"]');
+  await waitFor(
+    `document.querySelector('textarea[aria-label="消息"]').value === ''`,
+  );
+  await screenshot("compact-after-send-button-dark-390");
   assert.equal(
     await evaluate(`!!document.querySelector('.compaction-status')`),
-    false,
+    beforeDismiss,
+    "发送按钮提交新消息后自动关闭整理完成提示",
   );
+  if (beforeDismiss) await click('button[title="关闭整理状态"]');
   await page("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 1000,
@@ -905,7 +916,17 @@ try {
     "失败后继续保留的草稿",
   );
   await screenshot("compact-retried-completed");
-  await click('button[title="关闭整理状态"]');
+  await submit("整理完成后通过快捷键继续对话");
+  await waitFor(
+    `document.querySelector('textarea[aria-label="消息"]').value === ''`,
+  );
+  await screenshot("compact-after-send-keyboard-light-1440");
+  assert.equal(
+    await evaluate(`!!document.querySelector('.compaction-status')`),
+    beforeDismiss,
+    "Ctrl+Enter 提交新消息后自动关闭整理完成提示",
+  );
+  if (beforeDismiss) await click('button[title="关闭整理状态"]');
   await evaluate("commandFixture.holdCompact(false)");
   await submit("/compact");
   await evaluate("commandFixture.startCompact()");
@@ -954,7 +975,13 @@ try {
   await pause(350);
   await screenshot("compact-background-recovered-dark-390");
   const proof = {
-    build: JSON.parse(await readFile(join(root, "build-info.json"), "utf8")),
+    build: JSON.parse(
+      await readFile(
+        join(beforeDismiss ? buildRoot : root, "build-info.json"),
+        "utf8",
+      ),
+    ),
+    beforeDismiss,
     data: "隔离 WebSocket 模拟后端",
     layouts,
     reloadProof,

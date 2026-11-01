@@ -1312,6 +1312,11 @@ export async function sendMessage(
     };
     if (!running) rememberModelSelection();
     const startedAt = Date.now() / 1000;
+    if (state.compactions[thread.id]?.status === "completed") {
+      const compactions = { ...state.compactions };
+      delete compactions[thread.id];
+      set({ compactions });
+    }
     const r = await rpc(
       running ? "turn/steer" : "turn/start",
       running
