@@ -1,0 +1,163 @@
+.composer-wrap {
+  position: relative;
+}
+.shortcut-popover {
+  position: absolute;
+  bottom: calc(100% - 2px);
+  left: 32px;
+  right: 32px;
+  z-index: 24;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  box-shadow: 0 8px 35px #00000016;
+  overflow: hidden;
+}
+.shortcut-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.923077rem 1.153846rem;
+  font-size: 0.846154rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.shortcut-heading small {
+  font: 0.846154rem/var(--ui-line-height) var(--mono);
+}
+.shortcut-options {
+  max-height: min(340px, 45dvh);
+  overflow: auto;
+  padding: 0.384615rem;
+  scrollbar-width: thin;
+}
+.shortcut-options > button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.769231rem;
+  gap: 0.846154rem;
+  border-radius: 7px;
+  text-align: left;
+  min-width: 0;
+}
+.shortcut-options > button.selected {
+  background: var(--hover);
+}
+.shortcut-icon {
+  width: 2.076923rem;
+  height: 2.076923rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  flex: none;
+}
+.shortcut-options > button > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.shortcut-options b {
+  font-size: 0.923077rem;
+  font-weight: 500;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shortcut-options small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.769231rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.307692rem;
+}
+.shortcut-options em {
+  font-size: 0.769231rem;
+  color: var(--muted);
+  font-style: normal;
+}
+.shortcut-options > button > svg {
+  color: var(--muted);
+}
+.shortcut-footer {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding: 0.615385rem 1rem;
+  font-size: 0.692308rem;
+  color: var(--muted);
+}
+.shortcut-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.615385rem;
+  padding: 1.538462rem;
+  color: var(--muted);
+  font-size: 0.846154rem;
+}
+.model-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.461538rem;
+}
+.model-options > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0.923077rem 1rem;
+  text-align: left;
+  gap: 1.153846rem;
+}
+.model-options > button.selected {
+  border-color: var(--muted);
+  background: var(--subtle);
+}
+.model-options b {
+  font-size: 0.923077rem;
+  font-weight: 500;
+}
+.model-options small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.846154rem;
+  margin-top: 0.384615rem;
+  line-height: 1.6;
+}
+.dialog-done {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1.538462rem;
+}
+@media (max-width: 800px) {
+  .shortcut-popover {
+    left: 20px;
+    right: 20px;
+  }
+}
+@media (max-width: 480px) {
+  .shortcut-popover {
+    left: 12px;
+    right: 12px;
+  }
+  .shortcut-options {
+    max-height: min(290px, 40dvh);
+  }
+  .shortcut-options > button {
+    padding: 0.692308rem 0.538462rem;
+    gap: 0.538462rem;
+  }
+  .shortcut-footer {
+    font-size: 0.692308rem;
+  }
+}
+@media (max-width: 350px) {
+  .composer:has(.stop-button) .model-select select {
+    max-width: 85px;
+  }
+}

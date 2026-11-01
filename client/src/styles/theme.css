@@ -1,0 +1,108 @@
+:root {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
+    "Noto Sans SC", sans-serif;
+  color-scheme: light;
+  --bg: #fff;
+  --sidebar: #f9f9f9;
+  --subtle: #f7f7f8;
+  --fg: #202123;
+  --muted: #6b6b6b;
+  --border: #e8e8e8;
+  --border-strong: #d4d4d4;
+  --hover: #ededed;
+  --selected: #e5e5e5;
+  --bubble: #f1f1f1;
+  --composer: #fff;
+  --accent: #181818;
+  --accent-fg: #fff;
+  --green: #23845d;
+  --red: #b64339;
+  --link: #245cc0;
+  --link-hover: #174798;
+  --syntax-keyword: #8b3da3;
+  --syntax-string: #287346;
+  --syntax-number: #985b20;
+  --syntax-title: #205caa;
+  --syntax-type: #8c4d22;
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --shadow: 0 8px 30px #0000000d, 0 2px 6px #00000005;
+  --composer-shadow: 0 2px 8px #00000008;
+  font-size: 13px;
+  --chat-font-size: 1.153846rem;
+  --chat-line-height: 1.6666667;
+  --aux-line-height: 1.6666667;
+  --ui-line-height: 1.5;
+  --code-font-size: 0.923077rem;
+  --code-line-height: 1.4;
+  --terminal-line-height: 1;
+  background: var(--bg);
+  color: var(--fg);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #212121;
+  --sidebar: #181818;
+  --subtle: #282828;
+  --fg: #ececec;
+  --muted: #ababab;
+  --border: #363636;
+  --border-strong: #505050;
+  --hover: #333;
+  --selected: #393939;
+  --bubble: #303030;
+  --composer: #303030;
+  --accent: #f4f4f4;
+  --accent-fg: #171717;
+  --green: #7ad0a5;
+  --red: #f19083;
+  --link: #8ab4f8;
+  --link-hover: #b6d2ff;
+  --syntax-keyword: #d89aeb;
+  --syntax-string: #8bcca3;
+  --syntax-number: #e5b07b;
+  --syntax-title: #8ab4f8;
+  --syntax-type: #e2ba8c;
+  --shadow: 0 8px 30px #0004, 0 2px 6px #0002;
+  --composer-shadow: 0 2px 8px #00000014;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+    --bg: #212121;
+    --sidebar: #181818;
+    --subtle: #282828;
+    --fg: #ececec;
+    --muted: #ababab;
+    --border: #363636;
+    --border-strong: #505050;
+    --hover: #333;
+    --selected: #393939;
+    --bubble: #303030;
+    --composer: #303030;
+    --accent: #f4f4f4;
+    --accent-fg: #171717;
+    --green: #7ad0a5;
+    --red: #f19083;
+    --link: #8ab4f8;
+    --link-hover: #b6d2ff;
+    --syntax-keyword: #d89aeb;
+    --syntax-string: #8bcca3;
+    --syntax-number: #e5b07b;
+    --syntax-title: #8ab4f8;
+    --syntax-type: #e2ba8c;
+    --shadow: 0 8px 30px #0004, 0 2px 6px #0002;
+    --composer-shadow: 0 2px 8px #00000014;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+  line-height: var(--ui-line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

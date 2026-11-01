@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readThreadHistory } from "../src/thread-history.js";
+import { readThreadHistory } from "../src/domain/thread-history.js";
 
 test("消息接口不支持时按完整轮次分页恢复消息与轮内顺序", async () => {
   for (const sortDirection of ["asc", "desc"]) {

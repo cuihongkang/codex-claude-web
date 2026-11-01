@@ -1,15 +1,47 @@
 import { execFileSync } from "node:child_process";
+import https from "node:https";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import WebSocket from "ws";
 import { readConfig } from "../server/src/config.mjs";
+import { readTls, localTlsClient } from "../server/src/tls.mjs";
 import { isCompacting } from "../server/src/compaction.mjs";
 
 const config = readConfig();
-const origin = `http://127.0.0.1:${config.port}`;
-const url = origin.replace("http:", "ws:") + "/rpc";
+const tls = await readTls(config);
+const localTls = localTlsClient(tls.cert);
+const origin = `https://127.0.0.1:${config.port}`;
+const url = origin.replace("https:", "wss:") + "/maintenance";
+const token = await readFile(
+  join(config.codexHome, "codex-web", "auth", "maintenance-token"),
+  "utf8",
+);
+function health() {
+  return new Promise((resolve) => {
+    const request = https.get(origin + "/healthz", localTls, (response) => {
+      let body = "";
+      response.on("data", (bytes) => {
+        body += bytes;
+      });
+      response.on("end", () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+    request.setTimeout(5000, () => request.destroy());
+    request.on("error", () => resolve(null));
+  });
+}
 let timer,
   restarting = false;
 function connect() {
-  const socket = new WebSocket(url);
+  const socket = new WebSocket(url, {
+    ...localTls,
+    headers: { Authorization: `Bearer ${token}` },
+  });
   let ready = false;
   const turns = new Map(),
     compactions = new Map();
@@ -36,14 +68,10 @@ function connect() {
           { stdio: "inherit" },
         );
         for (let attempt = 0; attempt < 30; attempt++) {
-          const health = await fetch(origin + "/healthz", {
-            signal: AbortSignal.timeout(5000),
-          })
-            .then((response) => response.json())
-            .catch(() => null);
-          if (health?.ready) {
+          const status = await health();
+          if (status?.ready) {
             console.log(
-              `网页服务已重启并通过健康检查，运行版本：${health.version?.displayVersion || "未知"}。`,
+              `网页服务已重启并通过健康检查，运行版本：${status.version?.displayVersion || "未知"}。`,
             );
             return;
           }

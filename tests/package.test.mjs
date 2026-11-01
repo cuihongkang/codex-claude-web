@@ -1,3 +1,4 @@
+import { authenticationFixture, httpsFetch } from "./helpers/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
@@ -29,6 +30,8 @@ test(
       "bin/codex-web.mjs",
       "client/dist/index.html",
       "client/dist/app.js",
+      "client/dist/file-panel.js",
+      "client/dist/terminal-panel.js",
       "client/dist/mermaid.core.js",
       "client/dist/style.css",
       "client/dist/favicon.ico",
@@ -36,6 +39,11 @@ test(
       "client/dist/apple-touch-icon.png",
       "build-info.json",
       "server/src/version.mjs",
+      "server/src/bridge/create-bridge.mjs",
+      "server/src/http/router.mjs",
+      "shared/file-types.mjs",
+      "shared/compaction-state.mjs",
+      "shared/rpc-limits.mjs",
       "CHANGELOG.md",
       ".env.example",
     ])
@@ -120,6 +128,9 @@ test(
     await writeFile(join(dir, ".env"), "PORT=invalid\n");
     run("config", "init");
     assert.equal(await readFile(join(configDir, ".env"), "utf8"), config);
+    const auth = await authenticationFixture(join(dir, "codex-home"));
+    env.CODEX_HOME = join(dir, "codex-home");
+    const fetch = httpsFetch(auth.tls.cert);
     const child = spawn(cli, [], {
       cwd: dir,
       env,
@@ -137,7 +148,7 @@ test(
         reject(new Error(`网页进程提前退出：${code}`)),
       );
       child.stdout.on("data", (bytes) => {
-        const match = bytes.toString().match(/http:\/\/127\.0\.0\.1:\d+/);
+        const match = bytes.toString().match(/https:\/\/127\.0\.0\.1:\d+/);
         if (match) resolve(match[0]);
       });
     });
@@ -177,7 +188,7 @@ test(
     }
     const script = await fetch(url + "/app.js");
     assert.equal(script.status, 200);
-    assert.ok((await script.text()).includes(version.displayVersion));
+    assert.ok((await script.text()).includes(version.version));
     assert.equal((await fetch(url + "/style.css")).status, 200);
     for (const path of paths.filter(
       (path) =>

@@ -6,7 +6,7 @@ import {
   subAgentAction,
   subAgents,
   withParentMessages,
-} from "../src/sub-agents.js";
+} from "../src/domain/sub-agents.js";
 
 test("主代理消息定位到对应轮次和活动前，刷新去重且保留相同正文的后续发送", () => {
   const incoming = (id, turnId, beforeItemId) => ({
@@ -97,7 +97,10 @@ test("协作工具合并多个接收者及状态，旧记录保持可区分的�
   assert.equal(agents.length, 2);
   assert.equal(agents[0].status, "running");
   assert.equal(agents[1].message, "模拟失败");
-  assert.notEqual(agents[0].name, agents[1].name);
+  assert.deepEqual(
+    agents.map((agent) => agent.name),
+    ["子代理 1", "子代理 2"],
+  );
   assert.equal(subAgentAction(item), "创建子代理");
   assert.equal(
     subAgents([

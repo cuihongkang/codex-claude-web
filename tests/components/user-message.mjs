@@ -4,8 +4,8 @@ import { create } from "react-test-renderer";
 import {
   annotationMessage,
   parseAnnotations,
-} from "../../client/src/annotations.js";
-import { fileReferenceInput } from "../../client/src/user-message.js";
+} from "../../client/src/domain/annotations.js";
+import { fileReferenceInput } from "../../client/src/domain/user-message.js";
 
 export async function testUserMessage(app, requests, setResponse) {
   const original = app.get();

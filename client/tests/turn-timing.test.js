@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { turnElapsedMs, formatElapsed } from "../src/turn-timing.js";
+import { turnElapsedMs, formatElapsed } from "../src/domain/turn-timing.js";
 
 test("运行耗时从轮次开始时间计算，跨分钟和小时显示", () => {
   assert.equal(turnElapsedMs({ startedAt: 100 }, true, 161900), 61900);

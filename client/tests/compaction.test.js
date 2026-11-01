@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { recoverCompaction } from "../src/compaction.js";
+import { recoverCompaction } from "../src/domain/compaction.js";
 
 const entry = { id: "request", status: "reconnecting", startedAt: 100 };
 const active = { status: { type: "active" } };

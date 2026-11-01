@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { annotationMessage } from "../src/annotations.js";
+import { annotationMessage } from "../src/domain/annotations.js";
 import {
   fileReferenceInput,
   parseUserMessage,
   userMessageText,
-} from "../src/user-message.js";
+} from "../src/domain/user-message.js";
 
 test("目录引用与批注从传输正文恢复为独立数据", () => {
   const file = {

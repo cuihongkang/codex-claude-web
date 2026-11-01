@@ -100,8 +100,9 @@ async function main() {
         await import("../scripts/install-services.mjs");
       await installServices({ configDir, cli: true });
       console.log('开机运行用户服务：loginctl enable-linger "$USER"');
+      const config = readConfig();
       console.log(
-        `查看连接状态：curl http://127.0.0.1:${readConfig().port}/healthz`,
+        `HTTPS 健康检查：https://127.0.0.1:${config.port}/healthz；证书：${config.tlsCert || join(config.codexHome, "codex-web", "tls", "certificate.pem")}`,
       );
       break;
     }

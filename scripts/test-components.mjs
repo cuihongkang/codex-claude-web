@@ -8,10 +8,7 @@ const cache = root + ".cache/component-tests";
 await mkdir(cache, { recursive: true });
 try {
   await build({
-    stdin: {
-      contents: `export {Conversation, Composer, RichText} from './src/chat.jsx'; export {AccountFooter} from './src/account-usage.jsx'; export {CommandDialog} from './src/command-dialog.jsx'; export * from './src/composer-commands.js'; export {ContextWorkspace} from './src/context-panel.jsx'; export {ReasoningEffortControl} from './src/reasoning-effort.jsx'; export {TerminalPanel, FilePanel} from './src/workspace.jsx'; export {VersionDetails} from './src/version.jsx'; export {ProjectGroup} from './src/project-group.jsx'; export * from './src/store.js';`,
-      resolveDir: root + "client",
-    },
+    entryPoints: [root + "tests/components/entry.jsx"],
     banner: {
       js: "import {createRequire} from 'node:module'; const require=createRequire(import.meta.url);",
     },
@@ -35,10 +32,13 @@ try {
       {
         name: "editor-fixture",
         setup(builder) {
-          builder.onResolve({ filter: /^\.\/code-editor$/ }, () => ({
-            path: "code-editor",
-            namespace: "editor-fixture",
-          }));
+          builder.onResolve(
+            { filter: /(?:^|\/)code-editor(?:\.jsx)?$/ },
+            () => ({
+              path: "code-editor",
+              namespace: "editor-fixture",
+            }),
+          );
           builder.onLoad({ filter: /.*/, namespace: "editor-fixture" }, () => ({
             contents: `import React from 'react'; export function CodeEditor({path,text,onChange,diff,patches}) {return React.createElement('textarea', {'aria-label': '文件源码', 'data-change-diff': diff, 'data-change-patches': patches, value: text, onChange: e => onChange(e.target.value)})}`,
           }));

@@ -7,7 +7,7 @@ import {
   fileLanguage,
   isMarkdownFile,
   codeHighlightStyle,
-} from "../src/editor-language.js";
+} from "../src/features/workspace/editor-language.js";
 
 test("根据文件名识别 Markdown，覆盖大小写与常见扩展名", () => {
   for (const path of [

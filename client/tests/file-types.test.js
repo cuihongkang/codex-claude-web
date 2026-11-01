@@ -1,9 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  filePresentation,
-  decodeTextFile,
-} from "../../server/src/file-types.mjs";
+import { filePresentation, decodeTextFile } from "../../shared/file-types.mjs";
 
 test("文件预览按大小写无关扩展名分类，代码、配置和无扩展名正文继续编辑", () => {
   for (const [path, kind] of [

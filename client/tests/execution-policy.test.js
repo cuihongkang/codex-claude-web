@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fullAccessParams } from "../src/execution-policy.js";
+import { fullAccessParams } from "../src/domain/execution-policy.js";
 
 test("新建、恢复和分支统一覆盖旧的权限设置", () => {
   for (const method of ["thread/start", "thread/resume", "thread/fork"]) {

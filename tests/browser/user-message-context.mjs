@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { annotationMessage } from "../../client/src/annotations.js";
+import { annotationMessage } from "../../client/src/domain/annotations.js";
 
 export const contextItems = [
   {

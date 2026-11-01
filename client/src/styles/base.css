@@ -1,0 +1,136 @@
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+button {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.538462rem;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+button:not(:disabled):hover {
+  background: var(--hover);
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+}
+input,
+textarea {
+  outline: none;
+}
+input:focus,
+textarea:focus {
+  border-color: var(--muted);
+}
+svg {
+  flex: none;
+}
+a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+button,
+kbd {
+  user-select: none;
+}
+kbd {
+  font: 0.769231rem/var(--ui-line-height) var(--mono);
+  color: var(--muted);
+}
+p {
+  line-height: 1.65;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.muted {
+  color: var(--muted);
+}
+.icon-button {
+  width: 2.307692rem;
+  height: 2.307692rem;
+  padding: 0;
+  border-radius: 9px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.icon-button:hover,
+.icon-button.active {
+  color: var(--fg);
+  background: var(--hover);
+}
+.primary,
+.secondary {
+  padding: 0.692308rem 1.153846rem;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.primary:not(:disabled):hover {
+  background: var(--accent);
+  opacity: 0.86;
+}
+.secondary {
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.app-shell {
+  height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  container: app-shell / inline-size;
+}
+.main-shell {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.sidebar {
+  --sidebar-min: 17rem;
+  --sidebar-default: clamp(var(--sidebar-min), 20cqi, 24rem);
+  --sidebar-max: max(
+    var(--sidebar-min),
+    min(36rem, 40cqi, calc(100cqi - 32rem))
+  );
+  position: relative;
+  width: calc(var(--sidebar-default) * var(--sidebar-scale, 1));
+  min-width: var(--sidebar-min);
+  max-width: var(--sidebar-max);
+  flex-shrink: 0;
+  background: var(--sidebar);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid transparent;
+  padding: 0.923077rem 0.846154rem 0.692308rem;
+  z-index: 30;
+}
