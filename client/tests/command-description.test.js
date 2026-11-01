@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { commandDescription } from "../src/command-description.js";
+import { commandDescription } from "../src/domain/command-description.js";
 
 test("读取文件和技能，保留路径与带空格的文件名", () => {
   for (const [command, expected] of [

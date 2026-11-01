@@ -8,7 +8,7 @@ import {
   quotaShortLabel,
   quotaSnapshot,
   quotaWindows,
-} from "../src/account-usage.js";
+} from "../src/domain/account-usage.js";
 
 const weekly = {
   usedPercent: 41,

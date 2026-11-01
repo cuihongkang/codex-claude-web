@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { completePasswordLogin } from "../src/password-manager.js";
+import { completePasswordLogin } from "../src/infrastructure/password-manager.js";
 
 test("登录成功通知浏览器保存密码，兼容未支持、禁止保存和等待确认", async () => {
   const originalWindow = globalThis.window;

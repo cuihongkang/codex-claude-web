@@ -1,0 +1,101 @@
+.login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+  background: var(--sidebar);
+}
+.login-card {
+  width: min(100%, 30rem);
+  padding: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+.login-card h1 {
+  font-size: 1.65rem;
+  line-height: 1.4;
+  margin: 0 0 1.75rem;
+}
+.login-card .field-label {
+  margin-bottom: 1.25rem;
+}
+.login-card input {
+  width: 100%;
+  min-height: 3rem;
+}
+.login-submit {
+  width: 100%;
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.75rem;
+}
+.login-settings button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.certificate-help {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.certificate-help summary {
+  cursor: pointer;
+}
+.certificate-content {
+  padding-top: 0.6rem;
+  line-height: 1.6;
+}
+.certificate-content p {
+  margin: 0.6rem 0;
+}
+.certificate-content a {
+  color: var(--link);
+  text-decoration: underline;
+}
+.certificate-content select {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.5rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+.certificate-content ol {
+  padding-left: 1.5rem;
+}
+.certificate-content li + li {
+  margin-top: 0.5rem;
+}
+.certificate-details code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 0.5rem;
+}
+.certificate-content .certificate-download {
+  display: inline-block;
+  margin: 0.8rem 0;
+}
+.certificate-content > details:last-child {
+  margin-top: 1rem;
+}
+@media (max-width: 480px) {
+  .login-card {
+    padding: 1.75rem;
+  }
+}

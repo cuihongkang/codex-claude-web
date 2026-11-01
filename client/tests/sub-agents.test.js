@@ -6,7 +6,7 @@ import {
   subAgentAction,
   subAgents,
   withParentMessages,
-} from "../src/sub-agents.js";
+} from "../src/domain/sub-agents.js";
 
 test("主代理消息定位到对应轮次和活动前，刷新去重且保留相同正文的后续发送", () => {
   const incoming = (id, turnId, beforeItemId) => ({

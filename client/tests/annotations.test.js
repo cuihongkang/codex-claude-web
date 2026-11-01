@@ -4,7 +4,7 @@ import {
   annotationContexts,
   annotationMessage,
   parseAnnotations,
-} from "../src/annotations.js";
+} from "../src/domain/annotations.js";
 
 test("桌面批注格式保留编号、选中原文、批注及来源位置", () => {
   const entries = [

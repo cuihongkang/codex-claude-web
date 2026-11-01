@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { actionableMessages } from "../src/message-actions.js";
+import { actionableMessages } from "../src/domain/message-actions.js";
 const progress = {
   id: "progress",
   turnId: "turn-1",

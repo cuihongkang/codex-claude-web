@@ -4,7 +4,7 @@ import {
   createSummaryTranslator,
   needsTranslation,
   translateSummaries,
-} from "../src/summary-translator.js";
+} from "../src/infrastructure/summary-translator.js";
 
 test("中文摘要与纯代码直接显示，英文摘要请求翻译", () => {
   assert.equal(needsTranslation("检查当前 Git 分支"), false);

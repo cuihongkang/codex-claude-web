@@ -4,7 +4,7 @@ import { create } from "react-test-renderer";
 import {
   annotationMessage,
   parseAnnotations,
-} from "../../client/src/annotations.js";
+} from "../../client/src/domain/annotations.js";
 
 export async function testAnnotations(app, requests, setResponse) {
   const original = app.get();

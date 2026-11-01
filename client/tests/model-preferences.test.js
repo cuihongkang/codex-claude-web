@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compatibleEffort } from "../src/model-preferences.js";
+import { compatibleEffort } from "../src/domain/model-preferences.js";
 
 const model = (values, fallback = "medium") => ({
   defaultReasoningEffort: fallback,

@@ -109,6 +109,7 @@ codex-web service restart-when-idle
 - [部署与维护](docs/deployment.md)：完整配置、服务管理、回退和故障排查。
 - [数据保存与迁移](docs/deployment.md#数据保存与迁移)：数据位置、摘要翻译与模型用量说明。
 - [开发者指南](docs/development.md)：从源码运行、参与开发和验证修改。
+- [架构设计](docs/architecture.md)：模块边界、状态与请求流程、代码规模约束和扩展方式。
 - [变更日志](CHANGELOG.md)：各版本的新增功能、改进与修复。
 
 ## 许可证

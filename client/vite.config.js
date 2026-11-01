@@ -40,6 +40,7 @@ export default defineConfig(async ({ mode, command }) => {
       },
     },
     build: {
+      cssCodeSplit: false,
       assetsInlineLimit: Infinity,
       rollupOptions: {
         output: {

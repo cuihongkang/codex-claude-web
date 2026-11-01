@@ -1,0 +1,116 @@
+.dropdown > .danger-action {
+  color: var(--red);
+  border-top: 1px solid var(--border);
+  margin-top: 0.307692rem;
+  border-radius: 0 0 5px 5px;
+}
+.dropdown > .danger-action > svg {
+  color: inherit;
+}
+.danger-button {
+  padding: 0.692308rem 1.153846rem;
+  border-radius: 8px;
+  background: #b64339;
+  color: white;
+  font-weight: 500;
+}
+.danger-button:not(:disabled):hover {
+  background: #a2362d;
+}
+.modal-delete {
+  width: 440px;
+}
+.delete-dialog > p {
+  margin: 0 1.692308rem 1.076923rem;
+  overflow-wrap: anywhere;
+}
+.delete-dialog strong {
+  font-weight: 500;
+}
+
+.command-dialog {
+  padding: 1rem 1.25rem;
+  overflow: auto;
+  min-height: 0;
+}
+.command-dialog textarea {
+  width: 100%;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  font: inherit;
+  resize: vertical;
+}
+.command-dialog .modal-actions {
+  flex-wrap: wrap;
+}
+.command-dialog .inline-error .secondary {
+  margin-left: 0.5rem;
+}
+.command-dialog small {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.command-record {
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0;
+  overflow-wrap: anywhere;
+}
+.command-dialog form {
+  padding: 0;
+}
+.command-dialog .field-label + .field-label {
+  margin-top: 0.75rem;
+}
+
+.compaction-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--subtle);
+  color: var(--fg);
+}
+.compaction-status > svg {
+  flex: none;
+}
+.compaction-status-content {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.compaction-status strong {
+  font-weight: 500;
+}
+.compaction-status .process-duration {
+  margin-left: 0.55rem;
+  white-space: nowrap;
+}
+.compaction-status .secondary {
+  flex: none;
+  align-self: center;
+}
+.compaction-status.completed > svg {
+  color: var(--green);
+}
+.compaction-status.failed > svg,
+.compaction-status.interrupted > svg {
+  color: var(--red);
+}
+@media (max-width: 600px) {
+  .compaction-status {
+    flex-wrap: wrap;
+  }
+  .compaction-status-content {
+    flex-basis: calc(100% - 5rem);
+  }
+  .compaction-status .process-duration {
+    display: inline-block;
+  }
+}

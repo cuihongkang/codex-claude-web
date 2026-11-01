@@ -1,0 +1,267 @@
+.reply-actions {
+  opacity: 1;
+  margin: 0 0 0.615385rem;
+}
+.turn-file-changes:has(+ .reply-actions) {
+  margin-bottom: 0.461538rem;
+}
+.message-actions .icon-button {
+  width: 2rem;
+  height: 1.538462rem;
+}
+.message-actions svg {
+  width: 1.076923rem;
+  height: 1.076923rem;
+}
+.annotation-add,
+.annotation-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.307692rem;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.923077rem;
+}
+.annotation-add {
+  position: fixed;
+  z-index: 40;
+  padding: 0.615385rem 0.923077rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+.annotation-marker {
+  padding: 0.076923rem 0.384615rem;
+  border-radius: 5px;
+  background: var(--bubble);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.annotation-reference {
+  position: relative;
+}
+.annotation-note {
+  display: block;
+  margin: 0.461538rem 0;
+  padding: 0.769231rem 0.923077rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--subtle);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.annotation-note > span,
+.annotation-note > strong {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.annotation-note > strong {
+  color: var(--muted);
+  font-size: 0.923077rem;
+  margin-top: 0.307692rem;
+}
+.annotation-card {
+  margin: 0.384615rem 0;
+  min-width: 0;
+}
+.user-reference-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.384615rem;
+}
+.user-file-reference {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.230769rem;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  text-decoration: none;
+  font: inherit;
+  line-height: inherit;
+  overflow-wrap: anywhere;
+  vertical-align: baseline;
+  text-align: start;
+}
+.user-file-reference svg {
+  flex-shrink: 0;
+  align-self: center;
+}
+.user-file-reference > span {
+  min-width: 0;
+}
+.annotation-card-label {
+  margin-left: 0.461538rem;
+  color: var(--fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.annotation-editor {
+  position: fixed;
+  z-index: 45;
+  width: min(22.6154rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 1rem);
+  min-height: 3.3846rem;
+  margin: 0;
+  padding: 0.7692rem 5.6923rem 0.7692rem 1.2308rem;
+  border: 1px solid color-mix(in srgb, var(--fg) 12%, var(--bg));
+  border-radius: 1.6923rem;
+  background: var(--bg);
+  box-shadow:
+    0 0.3077rem 1.2308rem #00000014,
+    0 0.0769rem 0.2308rem #0000000a;
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+}
+.annotation-editor[data-expanded="true"] {
+  padding: 0.9231rem 1.2308rem 3.3846rem;
+}
+.annotation-draft-marker {
+  position: fixed;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 1px solid var(--link);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--link);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.annotation-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  max-height: 5.5rem;
+  overflow: auto;
+  padding: 0.375rem 0.5rem;
+}
+.annotation-attachment {
+  display: flex;
+  max-width: min(18rem, 100%);
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--subtle);
+}
+.annotation-attachment button {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0.25rem 0.375rem;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.annotation-attachment svg {
+  flex-shrink: 0;
+}
+.annotation-attachment span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.annotation-card summary {
+  cursor: pointer;
+  color: var(--link);
+}
+.annotation-card summary svg {
+  margin-right: 0.384615rem;
+  vertical-align: middle;
+}
+.annotation-card blockquote {
+  margin: 0.615385rem 0;
+  padding-left: 0.769231rem;
+  border-left: 3px solid var(--border);
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.annotation-card p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0.615385rem 0 0;
+}
+.annotation-editor-actions {
+  position: absolute;
+  right: 0.6154rem;
+  bottom: 0.6154rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3077rem;
+}
+.annotation-editor-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1538rem;
+  height: 2.1538rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.annotation-editor-remove {
+  background: transparent;
+  color: var(--muted);
+}
+.annotation-editor-remove:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.annotation-editor-done {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.annotation-editor-done:hover {
+  opacity: 0.85;
+}
+.annotation-editor[data-expanded="true"] .annotation-editor-actions {
+  left: 0.6154rem;
+  justify-content: space-between;
+}
+.annotation-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 1lh;
+  max-height: 5lh;
+  resize: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  line-height: inherit;
+}
+.annotation-editor textarea::placeholder {
+  color: var(--muted);
+}
+.assistant-message {
+  padding: 0.153846rem 0 0;
+}
+.markdown {
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+  overflow-wrap: anywhere;
+}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { commandDescription } from "../src/command-description.js";
+import { commandDescription } from "../src/domain/command-description.js";
 
 test("Git 检查和查询按用途展示，保留暂存区、目录和文件范围", () => {
   for (const [command, expected] of [

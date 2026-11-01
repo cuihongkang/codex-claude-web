@@ -1,0 +1,38 @@
+/* 文字排版参考本机 Codex 客户端，聊天区域占满可用宽度。 */
+.markdown h1 {
+  font-size: 1.75em;
+  line-height: 1.222;
+  margin-bottom: 0.615385rem;
+}
+.markdown h2 {
+  font-size: 1.5em;
+  line-height: 1.222;
+  margin: 2.461538rem 0 1.230769rem;
+}
+.markdown h3 {
+  font-size: 1.25em;
+  line-height: 1.3;
+  margin: 1.384615rem 0 0.769231rem;
+}
+.markdown h4 {
+  font-size: 1em;
+  line-height: 1.5;
+  margin: 1.230769rem 0 0.615385rem;
+}
+.markdown pre code {
+  line-height: 1.5;
+}
+.markdown li > :first-child {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.markdown li ul,
+.markdown li ol {
+  margin-top: 0.25em;
+}
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}

@@ -7,7 +7,7 @@ import {
   threadTime,
   threadGroupPath,
   PROJECTLESS_SOURCE,
-} from "../src/thread-order.js";
+} from "../src/domain/thread-order.js";
 
 test("完成时间决定对话和项目初始顺序，打开时间、项目添加顺序与置顶不干扰初始排序", () => {
   const threads = [

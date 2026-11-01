@@ -2,7 +2,7 @@
 
 对照基于 2026-10-29 本机安装的 `codex-cli 0.162.1`，检查其命令定义、命令分发及 `codex app-server generate-ts --experimental` 生成的协议。网页按已确认的功能范围增加 `/init`、`/goal` 和清理后台终端的 `/stop`。
 
-统一注册表位于 `client/src/composer-commands.js`，共 18 个命令，各命令使用独立名称。菜单选择、Ctrl+Enter 和发送按钮共用分发逻辑。Enter 在普通消息中换行，在命令建议中确认选项。未知命令和不支持的参数显示错误并保留输入；命令执行失败保留草稿和附件以便重试。
+统一注册表位于 `client/src/features/commands/composer-commands.js`，共 18 个命令，各命令使用独立名称。菜单选择、Ctrl+Enter 和发送按钮共用分发逻辑。Enter 在普通消息中换行，在命令建议中确认选项。未知命令和不支持的参数显示错误并保留输入；命令执行失败保留草稿和附件以便重试。
 
 ## 新增能力
 

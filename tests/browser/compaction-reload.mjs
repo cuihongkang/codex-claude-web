@@ -11,8 +11,14 @@ export async function testCompactionReload({
   type,
   screenshot,
 }) {
-  const ready = () =>
-    waitFor(`document.querySelector('textarea[aria-label="消息"]')`);
+  const reload = async () => {
+    await evaluate("commandFixture.reloading = true");
+    await page("Page.reload", {});
+    // 等待新文档的模拟后端和输入框，避免读取刷新前仍存在的 DOM。
+    await waitFor(
+      `window.commandFixture && !commandFixture.reloading && document.querySelector('textarea[aria-label="消息"]') && document.querySelector('.breadcrumb > span')?.textContent === '核对快捷命令'`,
+    );
+  };
   const status = () =>
     evaluate(`document.querySelector('.compaction-status')?.textContent || ''`);
   const start = async () => {
@@ -26,14 +32,12 @@ export async function testCompactionReload({
   };
   await evaluate("commandFixture.useLegacy(true)");
   // 重新建连使初始化快照也与旧桥接一致。
-  await page("Page.reload", {});
-  await ready();
+  await reload();
   await type("立即刷新后保留的草稿");
   await start();
   const before = await evaluate("commandFixture.compaction()");
   await screenshot("reload-before-start-submitted");
-  await page("Page.reload", {});
-  await ready();
+  await reload();
   await screenshot("reload-before-start-restored");
   const restored = await status();
   await evaluate("commandFixture.startCompact()");
@@ -68,8 +72,7 @@ export async function testCompactionReload({
   );
 
   // 开始通知已在刷新前发出，刷新后只能通过持久任务与后端记录恢复。
-  await page("Page.reload", {});
-  await ready();
+  await reload();
   await waitFor(
     `document.querySelector('.compaction-status')?.textContent.includes('正在整理上下文')`,
   );
@@ -86,8 +89,7 @@ export async function testCompactionReload({
     false,
   );
   await click('button[title="关闭整理状态"]');
-  await page("Page.reload", {});
-  await ready();
+  await reload();
   assert.equal(await status(), "", "已结束任务清理持久占用，刷新后保持关闭");
   for (const [result, title] of [
     ["completed", "上下文整理完成"],
@@ -97,8 +99,7 @@ export async function testCompactionReload({
     await start();
     await evaluate("commandFixture.startCompact()");
     await evaluate(`commandFixture.finishOnReload(${JSON.stringify(result)})`);
-    await page("Page.reload", {});
-    await ready();
+    await reload();
     await waitFor(
       `document.querySelector('.compaction-status')?.textContent.includes(${JSON.stringify(title)})`,
     );
@@ -117,8 +118,7 @@ export async function testCompactionReload({
     await click('button[title="关闭整理状态"]');
   }
   await evaluate("commandFixture.useLegacy(false)");
-  await page("Page.reload", {});
-  await ready();
+  await reload();
   if (await status()) await click('button[title="关闭整理状态"]');
   await type("");
   return { submitted: before.status, running: running.status, restored };

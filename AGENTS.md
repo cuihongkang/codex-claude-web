@@ -6,6 +6,14 @@
 
 本仓库是 Codex Web 的独立源码项目。前端位于 `client`，桥接服务位于 `server`，维护脚本位于 `scripts`。生产服务直接读取 `client/dist`，支持其根部的 JavaScript 与 CSS 分块；增加按需加载功能时验证资源路由和发行包中的对应分块。依赖通过根目录 npm workspaces 和单一 `package-lock.json` 管理。
 
+架构设计统一维护在 `docs/architecture.md`，跨模块行为维护在 `docs/architecture/behavior.md`。修改模块边界、状态归属、协议生命周期或构建方式时同步维护文档和对应回归。新增功能先确定规则、用例、外部访问和展示各自的职责，沿既有边界实现。
+
+生产源码（`client/src`、`server/src`、`shared`、`scripts`、`bin` 中的 JavaScript、JSX、MJS、CSS）单文件最多 500 行，计入注释和空行；保持 Prettier 的正常排版，接近上限时按职责拆分。测试按业务场景和隔离夹具拆分，入口只负责组装与调度。新增职责先检查模块规模，禁止通过压缩排版或建立通用杂物模块规避拆分。
+
+前端 `main.jsx` 只负责挂载，`store.js` 只提供 React 订阅适配与应用动作出口。`application` 管理用例、状态和请求版本，`domain` 管理规则与转换，`infrastructure` 管理外部访问，`app` 与 `features` 组织界面。核心三层保持与 React 无关；领域层只依赖本层和共享模块。跨端纯逻辑放在 `shared`，随发行包交付；前后端源码通过协议协作。服务端入口只组装配置与应用，HTTP 路由与桥接业务分离，通过参数取得状态与服务。样式由 `style.css` 有序导入 `styles` 中的职责模块，移动规则保持原有层叠顺序。
+
+`npm run architecture:check` 检查源码行数、缺失依赖、循环依赖和分层方向，并纳入 `npm run check` 与 CI。调整依赖边界时同步更新架构文档、检查实现及回归；验证新增状态的所有者、迟到响应隔离、断线恢复与卸载清理。按需加载的文件面板保留首次挂载后的编辑缓冲区，终端与文件分块同时验证生产路由及发行包安装。
+
 全局 npm 命令入口为 `bin/codex-web.mjs`。发行包由根 `package.json` 的 `files` 白名单控制，`prepack` 构建前端。全局安装的配置放在用户配置目录，与 npm 包分离；源码运行继续读取项目根 `.env`。修改安装和分发逻辑时维护两种运行方式，保留已有 Codex 后端服务及用户配置。
 
 GitHub Release 由 `.github/workflows/release.yml` 在推送版本标签后检查并发布，附件包含预构建 npm 包和 SHA-256 文件。版本标签必须匹配根包版本，并提供 `docs/releases/标签名.md`；发布页每项变更在末尾括号内标注对应提交及链接。发布时同步维护 README 和部署文档的下载链接，验证发布附件可安装。

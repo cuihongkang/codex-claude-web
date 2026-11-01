@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { messageNavigationEntries } from "../src/message-navigation.js";
-import { conversationGroups } from "../src/conversation-groups.js";
-import { annotationMessage } from "../src/annotations.js";
+import { messageNavigationEntries } from "../src/domain/message-navigation.js";
+import { conversationGroups } from "../src/domain/conversation-groups.js";
+import { annotationMessage } from "../src/domain/annotations.js";
 
 const user = (id, text, turnId = "turn") => ({
   id,

@@ -42,17 +42,28 @@ npm run dev
 ```text
 bin/codex-web.mjs      全局命令入口和用户配置加载
 client/
-  src/                 前端组件、状态和 JSON-RPC 客户端
+  src/app/             页面布局、侧栏、登录和弹窗
+  src/application/     状态容器、用例和请求生命周期
+  src/domain/          消息、历史、排序、差异和命令规则
+  src/infrastructure/  RPC、存储、翻译和浏览器适配
+  src/features/        按功能组织的界面与交互
+  src/ui/              基础控件与纯展示
+  src/styles/          有序加载的职责样式模块
   tests/               消息、过程分组、翻译和权限策略测试
   vite.config.js       构建与开发代理
 server/
   src/config.mjs       环境配置和默认目录
-  src/server.mjs       HTTPS、WSS 转发与终端恢复
+  src/server.mjs       进程启动与依赖组装
+  src/application.mjs  HTTPS/WSS 应用生命周期
+  src/http/            HTTP 路由与静态资源
+  src/bridge/          请求、事件、订阅与后端连接
   src/summary-translation.mjs  TranSmart 匿名 HTTP API 与本站翻译接口
   src/version.mjs      正式版本与 Git / 安装包构建来源
   tests/               配置和桥接集成测试
 scripts/               后端启动、组件测试、systemd 安装及发布脚本
+shared/                跨端纯逻辑和传输限制
 tests/components/      隔离环境中的实际 React 组件测试
+tests/helpers/         认证、桥接和输入事件等测试夹具
 docs/architecture.md   架构与协议实现
 docs/deployment.md     使用者部署、配置与故障处理
 docs/versioning.md     版本管理与发布流程
@@ -78,15 +89,20 @@ package-lock.json      全项目依赖锁文件
 
 ```bash
 npm run format
+npm run architecture:check
 npm test
 npm run check
 ```
 
-`format` 使用 Prettier 格式化项目。`test` 包含单元测试、隔离的桥接协议测试和 React 组件测试；`check` 依次执行版本一致性、格式检查、全部测试、生产构建和发行包安装测试。提交修改前执行 `npm run check`。
+`format` 使用 Prettier 格式化项目。`architecture:check` 检查生产源码单文件 500 行上限、导入完整性、循环和分层依赖；`test` 包含单元测试、隔离的桥接协议测试和 React 组件测试；`check` 依次执行版本一致性、架构检查、格式检查、全部测试、生产构建和发行包安装测试。提交修改前执行 `npm run check`。
+
+`.github/workflows/check.yml` 对分支推送和 PR 执行同一完整检查，使用只读仓库权限；同一引用有新检查时取消旧运行。发布工作流在版本标签上独立重复完整检查。
+
+状态容器和 RPC 客户端的单元回归分别位于 `client/tests/application-state.test.js` 和 `client/tests/rpc-client.test.js`。服务应用生命周期回归位于 `server/tests/application.test.mjs`，使用临时 HTTPS 服务验证实例缓存隔离、监听失败和关闭后连接清理。组件总入口 `tests/components/client.mjs` 只组织夹具和场景，新增场景放入对应模块；桥接订阅、写入与整理分别维护测试文件并复用 `tests/helpers/bridge.mjs`。
 
 分支标题回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/fork-titles.mjs`。脚本使用隔离模拟历史和生产构建，实际点击回复分支按钮与侧栏菜单，验证兼容客户端编号、连续分支到两位数、刷新恢复、深浅主题及手机侧栏；截图和构建信息保存到 `.cache/fork-titles-browser/after`。修改前将旧 `client/dist` 与 `build-info.json` 复制到 `.cache/fork-titles-before/`，以 `BROWSER_BEFORE=1` 运行同一脚本，复现后缀逐次叠加并保存对照截图。单元与组件测试另覆盖旧后缀、手动改名、独立同名对话、60 字符截断、归档分页和筛选外编号。README 的现有演示图片未展示分支标题，相关图片继续使用既有演示内容。
 
-测试采用模拟后端，不消耗模型额度，也不修改真实聊天。协议或生命周期变更应补充对应回归测试；真实后端验证使用临时会话或明确的测试数据。各测试目录的覆盖范围见[架构说明中的测试章节](architecture.md#测试)。
+测试采用模拟后端，不消耗模型额度，也不修改真实聊天。协议或生命周期变更应补充对应回归测试；真实后端验证使用临时会话或明确的测试数据。各测试目录的覆盖范围见[架构设计中的验证章节](architecture.md#7-可执行约束与验证)。
 
 输入性能回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/composer-performance.mjs`。脚本使用独立浏览器配置和模拟 WebSocket，载入 60 轮 Markdown 历史及 31 个侧栏对话，通过浏览器输入事件一次写入大段文字并连续补充，记录输入事件到下一绘制帧的耗时和 React 历史渲染次数；断言输入期间历史渲染次数为零，耗时作为同机对照记录。继续验证组合输入、Enter 换行、刷新恢复、发送失败与等待期间继续编辑，保存桌面深浅主题和窄屏截图。结果和构建来源保存在 `.cache/composer-performance/after`；修改前将 `client/dist` 与 `build-info.json` 复制到 `.cache/composer-performance-before/`，分别保存为 `dist` 与 `build-info.json`，以 `BROWSER_BEFORE=1` 运行同一脚本记录历史随输入重渲染的对照结果。`tests/components/composer-performance.mjs` 独立验证共享快照引用、渲染次数、即时发送值、持久化、草稿清理与对话切换。此修复保留界面布局，README 及其他文档引用的现有截图仍与页面一致。
 
