@@ -41,7 +41,7 @@
 在安装 Codex 的电脑上，以运行 Codex 的普通用户执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.2/codex-web-2.4.2.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.0.0/codex-web-3.0.0.tgz
 codex-web service install
 codex-web service status
 ```
@@ -97,7 +97,7 @@ codex-web config init
 升级时，从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.2/codex-web-2.4.2.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.0.0/codex-web-3.0.0.tgz
 codex-web service install
 codex-web service restart-when-idle
 ```
