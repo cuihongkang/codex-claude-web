@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, memo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -73,36 +73,43 @@ function mathDelimiters(text) {
     .join("");
 }
 
-export function RichText({ text, annotations = [], cwd }) {
-  return (
-    <div className="markdown">
-      <DirectoryContext.Provider value={cwd}>
-        <AnnotationContext.Provider value={annotations}>
-          <Markdown
-            urlTransform={messageUrlTransform}
-            remarkPlugins={[remarkGfm, remarkMath, remarkAnnotations]}
-            rehypePlugins={[
-              rehypeRaw,
-              [rehypeSanitize, htmlSchema],
-              [rehypeSlug, { prefix: "user-content-" }],
-              rehypeKatex,
-              [rehypeHighlight, { plainText: ["mermaid"] }],
-            ]}
-            components={{
-              a: MarkdownLink,
-              pre: CodeBlock,
-              img: MarkdownImage,
-              picture: Picture,
-              "annotation-ref": AnnotationReference,
-            }}
-          >
-            {mathDelimiters(text)}
-          </Markdown>
-        </AnnotationContext.Provider>
-      </DirectoryContext.Provider>
-    </div>
-  );
-}
+export const RichText = memo(
+  function RichText({ text, annotations = [], cwd }) {
+    return (
+      <div className="markdown">
+        <DirectoryContext.Provider value={cwd}>
+          <AnnotationContext.Provider value={annotations}>
+            <Markdown
+              urlTransform={messageUrlTransform}
+              remarkPlugins={[remarkGfm, remarkMath, remarkAnnotations]}
+              rehypePlugins={[
+                rehypeRaw,
+                [rehypeSanitize, htmlSchema],
+                [rehypeSlug, { prefix: "user-content-" }],
+                rehypeKatex,
+                [rehypeHighlight, { plainText: ["mermaid"] }],
+              ]}
+              components={{
+                a: MarkdownLink,
+                pre: CodeBlock,
+                img: MarkdownImage,
+                picture: Picture,
+                "annotation-ref": AnnotationReference,
+              }}
+            >
+              {mathDelimiters(text)}
+            </Markdown>
+          </AnnotationContext.Provider>
+        </DirectoryContext.Provider>
+      </div>
+    );
+  },
+  (previous, next) =>
+    previous.text === next.text &&
+    previous.cwd === next.cwd &&
+    JSON.stringify(previous.annotations || []) ===
+      JSON.stringify(next.annotations || []),
+);
 
 function CodeBlock({ children }) {
   const language = children?.props?.className?.match(/language-([\w-]+)/)?.[1];

@@ -37,6 +37,7 @@ import { testConnectionRecovery } from "./connection-recovery.mjs";
 import { testProjectModels } from "./project-models.mjs";
 import { testAccountUsage } from "./account-usage.mjs";
 import { testHistory } from "./history.mjs";
+import { testProgressiveHistory } from "./progressive-history.mjs";
 import { testHistoryTranslations } from "./history-translations.mjs";
 import { testConversationScroll } from "./conversation-scroll.mjs";
 import { testComposerPerformance } from "./composer-performance.mjs";
@@ -132,6 +133,12 @@ await testMermaid(app);
       () => fixture.socket,
     );
     await testHistory(
+      app,
+      requests,
+      (respond) => (fixture.responseFor = respond),
+      (method, params) => fixture.socket.emit(method, params),
+    );
+    await testProgressiveHistory(
       app,
       requests,
       (respond) => (fixture.responseFor = respond),

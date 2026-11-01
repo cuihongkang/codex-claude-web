@@ -1,9 +1,9 @@
 export async function readThreadHistory(
   call,
   threadId,
-  { current = () => true, sortDirection = "desc" } = {},
+  { current = () => true, sortDirection = "desc", onFirstPage } = {},
 ) {
-  async function pages(method, params) {
+  async function pages(method, params, messages) {
     const data = [];
     let cursor;
     do {
@@ -15,14 +15,20 @@ export async function readThreadHistory(
         ...(cursor ? { cursor } : {}),
       });
       if (!current()) return [];
+      if (!cursor && onFirstPage) {
+        const first =
+          sortDirection === "desc" ? page.data.toReversed() : page.data;
+        onFirstPage(messages(first));
+      }
       data.push(...page.data);
       cursor = page.nextCursor;
     } while (cursor);
     return sortDirection === "desc" ? data.reverse() : data;
   }
   try {
-    const records = await pages("thread/items/list", {});
-    return records.map(({ item, turnId }) => ({ ...item, turnId }));
+    const messages = (records) =>
+      records.map(({ item, turnId }) => ({ ...item, turnId }));
+    return messages(await pages("thread/items/list", {}, messages));
   } catch (error) {
     if (!current()) return [];
     if (
@@ -31,9 +37,12 @@ export async function readThreadHistory(
       )
     )
       throw error;
-    const turns = await pages("thread/turns/list", { itemsView: "full" });
-    return turns.flatMap((turn) =>
-      turn.items.map((item) => ({ ...item, turnId: turn.id })),
+    const messages = (turns) =>
+      turns.flatMap((turn) =>
+        turn.items.map((item) => ({ ...item, turnId: turn.id })),
+      );
+    return messages(
+      await pages("thread/turns/list", { itemsView: "full" }, messages),
     );
   }
 }

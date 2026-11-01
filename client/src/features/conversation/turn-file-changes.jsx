@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FileDiff,
   RotateCcw,
@@ -19,11 +19,11 @@ export function TurnFileChanges({ turnId, items }) {
   const turn = s.turns[threadId]?.find((turn) => turn.id === turnId);
   const working =
     s.active[threadId] === turnId || turn?.status === "inProgress";
-  if (working) return null;
-  const files = turnFileChanges(
-    items,
-    s.turnDiffs[threadId]?.[turnId],
-    s.current.cwd || s.cwd,
+  const diff = s.turnDiffs[threadId]?.[turnId];
+  const cwd = s.current.cwd || s.cwd;
+  const files = useMemo(
+    () => (working ? [] : turnFileChanges(items, diff, cwd)),
+    [working, items, diff, cwd],
   );
   if (!files.length) return null;
   return (

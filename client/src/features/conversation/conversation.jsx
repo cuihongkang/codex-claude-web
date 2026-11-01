@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+} from "react";
 import codexWebIcon from "../../assets/codex-web.svg";
 import {
   ArrowDown,
@@ -20,6 +26,7 @@ import { Message, ReplyActions } from "./message.jsx";
 
 import { Question } from "./questions.jsx";
 import { ProcessGroup } from "./process-group.jsx";
+const EMPTY_ITEMS = [];
 export function ReadOnlyConversation({ items, cwd, turns }) {
   const annotations = annotationContexts(items);
   const groups = conversationGroups(items, [], turns);
@@ -53,7 +60,16 @@ export function Conversation({ children }) {
     column = useRef(),
     follow = useRef(true);
   const [below, setBelow] = useState(false);
-  const annotations = annotationContexts(s.items);
+  const viewport = useRef();
+  const annotations = useMemo(() => annotationContexts(s.items), [s.items]);
+  const turnItems = useMemo(() => {
+    const turns = new Map();
+    for (const item of s.items) {
+      if (!turns.has(item.turnId)) turns.set(item.turnId, []);
+      turns.get(item.turnId).push(item);
+    }
+    return turns;
+  }, [s.items]);
   const active = s.active[s.current?.id],
     plan = s.plans[s.current?.id];
   const compacting = isCompacting(s.compactions[s.current?.id]);
@@ -86,11 +102,26 @@ export function Conversation({ children }) {
   }
   useLayoutEffect(() => {
     follow.current = true;
+    viewport.current = null;
     setBelow(false);
   }, [s.current?.id]);
   useLayoutEffect(() => {
     const element = scroll.current;
-    if (element && follow.current) element.scrollTop = element.scrollHeight;
+    if (!element) return;
+    const previous = viewport.current;
+    if (follow.current) element.scrollTop = element.scrollHeight;
+    else if (
+      previous?.first &&
+      previous.first !== s.items[0]?.id &&
+      s.items.some((item) => item.id === previous.first)
+    )
+      element.scrollTop = previous.top + element.scrollHeight - previous.height;
+    viewport.current = {
+      first: s.items[0]?.id,
+      top: element.scrollTop,
+      height: element.scrollHeight,
+      clientHeight: element.clientHeight,
+    };
   }, [
     s.current?.id,
     s.items,
@@ -106,6 +137,11 @@ export function Conversation({ children }) {
     if (!element || !content) return;
     const observer = new ResizeObserver(() => {
       if (follow.current) element.scrollTop = element.scrollHeight;
+      if (viewport.current) {
+        viewport.current.top = element.scrollTop;
+        viewport.current.height = element.scrollHeight;
+        viewport.current.clientHeight = element.clientHeight;
+      }
     });
     observer.observe(element);
     observer.observe(content, { box: "border-box" });
@@ -163,8 +199,20 @@ export function Conversation({ children }) {
           ref={scroll}
           onScroll={() => {
             const e = scroll.current;
-            follow.current =
-              e.scrollHeight - e.scrollTop - e.clientHeight < 100;
+            const previous = viewport.current;
+            const resized =
+              previous &&
+              (previous.height !== e.scrollHeight ||
+                previous.clientHeight !== e.clientHeight);
+            if (follow.current && resized) e.scrollTop = e.scrollHeight;
+            else
+              follow.current =
+                e.scrollHeight - e.scrollTop - e.clientHeight < 100;
+            if (viewport.current) {
+              viewport.current.top = e.scrollTop;
+              viewport.current.height = e.scrollHeight;
+              viewport.current.clientHeight = e.clientHeight;
+            }
             setBelow(!follow.current);
           }}
         >
@@ -200,9 +248,7 @@ export function Conversation({ children }) {
                       <>
                         <TurnFileChanges
                           turnId={turnId}
-                          items={s.items.filter(
-                            (item) => item.turnId === turnId,
-                          )}
+                          items={turnItems.get(turnId) || EMPTY_ITEMS}
                         />
                         {replies.has(turnId) && (
                           <ReplyActions item={replies.get(turnId)} />

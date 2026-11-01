@@ -86,9 +86,20 @@ export function createThreadNavigation({
     try {
       const r = await rpc("thread/read", { threadId: id, includeTurns: false });
       if (epoch !== opening || records.deletedThreads.has(id)) return;
-      const [hydrated] = await records.threadOrdering.hydrate([r.thread]);
-      if (epoch !== opening || records.deletedThreads.has(id)) return;
-      const thread = records.preserveThreadName(hydrated, revision);
+      const known = get().threads.find((thread) => thread.id === id);
+      const thread = records.preserveThreadName(
+        records.threadOrdering.apply({
+          ...r.thread,
+          activityAt: Math.max(
+            known?.activityAt ?? 0,
+            r.thread.activityAt ?? 0,
+          ),
+          completedAt:
+            Math.max(known?.completedAt ?? 0, r.thread.completedAt ?? 0) ||
+            null,
+        }),
+        revision,
+      );
       const projectless = !threadGroupPath(
         thread,
         get().projects,
@@ -113,10 +124,34 @@ export function createThreadNavigation({
         draft: localStorage.getItem("cx-draft-" + id) || "",
       });
       localStorage.setItem("cx-current", id);
-      await loadHistory(epoch);
+      const ordering = records.threadOrdering
+        .hydrate([r.thread])
+        .then(([hydrated]) => {
+          if (epoch !== opening || records.deletedThreads.has(id)) return;
+          const update = (thread) =>
+            thread?.id === id
+              ? records.threadOrdering.apply({
+                  ...thread,
+                  activityAt: hydrated.activityAt,
+                  completedAt: hydrated.completedAt,
+                })
+              : thread;
+          set({
+            current: update(get().current),
+            threads: sortThreads(get().threads.map(update)),
+          });
+        });
+      let access;
+      await loadHistory(epoch, {
+        onFirstPage: () => {
+          set({ loading: false });
+          access = refreshThreadAccess({ preserveServiceTier });
+        },
+      });
+      await ordering;
       if (epoch !== opening || records.deletedThreads.has(id)) return;
       set({ loading: false });
-      await refreshThreadAccess({ preserveServiceTier });
+      await (access || refreshThreadAccess({ preserveServiceTier }));
     } catch (e) {
       if (epoch === opening)
         set({
@@ -232,7 +267,7 @@ export function createThreadNavigation({
       .catch(() => {});
     return access.status === "ready";
   }
-  async function loadHistory(epoch = opening) {
+  async function loadHistory(epoch = opening, { onFirstPage } = {}) {
     if (!get().current) return;
     const id = get().current.id;
     const connection = transport.connection;
@@ -244,14 +279,29 @@ export function createThreadNavigation({
       connection === transport.connection &&
       revision === getConnectionRevision() &&
       get().connected;
-    const history = await readThreadHistory(rpc, id, { current });
-    if (!current()) return;
-    const map = new Map(history.map((item) => [item.id, item]));
-    // 历史补齐断线期间的更新，读取期间收到的实时记录继续优先。
-    for (const item of get().items)
-      if (!map.has(item.id) || previous.get(item.id) !== item)
-        map.set(item.id, item);
-    set({ items: [...map.values()] });
+    function apply(history) {
+      if (!current()) return;
+      const map = new Map(history.map((item) => [item.id, item]));
+      // 只让读取期间真正更新的记录覆盖历史；首屏快照仍属于本次读取。
+      for (const item of get().items)
+        if (!map.has(item.id) || previous.get(item.id) !== item)
+          map.set(item.id, item);
+      const items = [...map.values()];
+      set({ items });
+      for (const item of history)
+        if (map.get(item.id) === item) previous.set(item.id, item);
+    }
+    const history = await readThreadHistory(rpc, id, {
+      current,
+      ...(onFirstPage && {
+        onFirstPage: (items) => {
+          if (!current()) return;
+          apply(items);
+          onFirstPage();
+        },
+      }),
+    });
+    apply(history);
   }
   async function ensureThread() {
     if (get().current) return get().current;

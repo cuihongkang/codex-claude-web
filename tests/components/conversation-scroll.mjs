@@ -94,6 +94,9 @@ export async function testConversationScroll(app) {
     scroller.scrollHeight += 300;
     await resize();
     assert.equal(gap(), 0, "图片或图表延迟增高超过跟随阈值时仍保持底部");
+    scroller.clientHeight -= 150;
+    await act(async () => onScroll());
+    assert.equal(gap(), 0, "布局变化先触发滚动事件时继续自动跟随");
 
     await act(async () => {
       scroller.scrollTop -= 400;
