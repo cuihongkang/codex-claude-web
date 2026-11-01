@@ -20,6 +20,7 @@ import { testProcessTiming } from "./process-timing.mjs";
 import { testQuestions } from "./questions.mjs";
 import { testConnectionLifecycle } from "./connection-lifecycle.mjs";
 import { testConnectionRecovery } from "./connection-recovery.mjs";
+import { testProjectModels } from "./project-models.mjs";
 import { testAccountUsage } from "./account-usage.mjs";
 import { testHistory } from "./history.mjs";
 import { testHistoryTranslations } from "./history-translations.mjs";
@@ -191,6 +192,12 @@ await testMermaid(app);
       () => socket,
     );
     await testConnectionRecovery(
+      app,
+      requests,
+      (respond) => (responseFor = respond),
+      (method, params) => socket.emit(method, params),
+    );
+    await testProjectModels(
       app,
       requests,
       (respond) => (responseFor = respond),
@@ -506,7 +513,7 @@ await testMermaid(app);
   await act(async () => trigger().props.onClick());
   assert.deepEqual(
     [range().props.max, range().props.value, range().props["aria-valuetext"]],
-    [2, 0, "无"],
+    [2, 1, "高"],
   );
   await act(async () => {
     range().props.onChange({ target: { value: "2" } });

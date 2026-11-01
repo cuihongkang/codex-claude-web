@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import WebSocket, { WebSocketServer } from "ws";
 import { readConfig } from "./config.mjs";
+import { createProjectModels } from "./project-models.mjs";
 import { readVersion } from "./version.mjs";
 import { createCompactions } from "./compaction.mjs";
 import { findCompactionTurn, recoverCompaction } from "./compaction-state.mjs";
@@ -18,6 +19,7 @@ import {
 } from "./thread-projects.mjs";
 
 const config = readConfig();
+const projectModels = createProjectModels(config.codexHome);
 const version = readVersion();
 const threadNaming = createThreadNaming({
   call: callUpstream,
@@ -214,6 +216,7 @@ function state() {
       version,
       defaultCwd: config.defaultCwd,
       projectlessRoot: config.projectlessRoot,
+      projectModels: true,
       questions: [...questions.values()],
       activeTurns: Object.fromEntries(activeTurns),
       compactions: Object.fromEntries(compactions.entries),
@@ -524,6 +527,30 @@ clients.on("connection", (client) => {
           directories: await readProjectlessDirectories(config.codexHome),
         },
       });
+      return;
+    }
+    if (
+      ["lan/projectModels/read", "lan/projectModels/set"].includes(
+        message.method,
+      )
+    ) {
+      try {
+        const projects =
+          message.method === "lan/projectModels/read"
+            ? await projectModels.read()
+            : await projectModels.set(message.params);
+        if (message.method === "lan/projectModels/set")
+          broadcast({
+            method: "lan/projectModels/updated",
+            params: { projects },
+          });
+        send(client, { id: message.id, result: { projects } });
+      } catch (error) {
+        send(client, {
+          id: message.id,
+          error: { code: -32000, message: error.message },
+        });
+      }
       return;
     }
     const threadId = message.params?.threadId;

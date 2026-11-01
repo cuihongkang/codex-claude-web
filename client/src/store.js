@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { fullAccessParams } from "./execution-policy";
 import { modelServiceTiers, resolveServiceTier } from "./service-tier";
+import { compatibleEffort } from "./model-preferences";
 import { inputRequestItem } from "./question-state";
 import { readThreadHistory } from "./thread-history";
 import { isCompacting, recoverCompaction } from "./compaction";
@@ -25,6 +26,11 @@ const listeners = new Set(),
   eventListeners = new Set(),
   pending = new Map();
 const checkingCompactions = new Map();
+let defaultModelSelection = { model: "", effort: "" };
+let modelSelectionRevision = 0;
+let projectModelsRemote = false;
+let projectModelsSupported = false;
+let projectModelsWriting = null;
 let compactionTracking = false;
 const saved = (key, fallback) => {
   try {
@@ -170,13 +176,112 @@ export function openSubAgent(agent) {
 }
 export function selectModel(model) {
   const tier = resolveServiceTier(state.serviceTier, model);
+  const previous = state.models.find((entry) => entry.model === state.model);
   set({
     model: model.model,
-    effort: model.defaultReasoningEffort || "",
+    effort: compatibleEffort(
+      state.effort || previous?.defaultReasoningEffort,
+      model,
+    ),
     serviceTier: modelServiceTiers(model).some((option) => option.id === tier)
       ? tier
       : null,
   });
+  rememberModelSelection();
+}
+export function selectEffort(effort) {
+  set({ effort });
+  rememberModelSelection();
+}
+function rememberModelSelection() {
+  if (!state.model) return;
+  modelSelectionRevision++;
+  const key = state.projectless ? "" : state.cwd;
+  const model = state.models.find((entry) => entry.model === state.model);
+  const selection = {
+    model: state.model,
+    effort: state.effort || model?.defaultReasoningEffort || "",
+  };
+  persist("cx-project-models", {
+    ...saved("cx-project-models", {}),
+    [key]: selection,
+  });
+  persist("cx-project-models-pending", {
+    ...saved("cx-project-models-pending", {}),
+    [key]: { selection, id: uid() },
+  });
+  flushProjectModels().catch(report);
+}
+function mergeProjectModels(projects) {
+  const pending = saved("cx-project-models-pending", {});
+  persist("cx-project-models", {
+    ...projects,
+    ...Object.fromEntries(
+      Object.entries(pending).map(([key, entry]) => [key, entry.selection]),
+    ),
+  });
+}
+function flushProjectModels() {
+  if (!projectModelsRemote || !state.connected) return Promise.resolve();
+  if (projectModelsWriting) return projectModelsWriting;
+  projectModelsWriting = (async () => {
+    while (state.connected) {
+      const [entry] = Object.entries(saved("cx-project-models-pending", {}));
+      if (!entry) return;
+      const [cwd, pending] = entry;
+      const result = await rpc("lan/projectModels/set", {
+        cwd,
+        ...pending.selection,
+        ifAbsent: pending.ifAbsent || false,
+      });
+      const remaining = saved("cx-project-models-pending", {});
+      if (remaining[cwd]?.id === pending.id) delete remaining[cwd];
+      persist("cx-project-models-pending", remaining);
+      mergeProjectModels(result.projects);
+    }
+  })()
+    .catch((error) => {
+      throw new Error("项目模型设置保存失败：" + error.message);
+    })
+    .finally(() => {
+      projectModelsWriting = null;
+    });
+  return projectModelsWriting;
+}
+export async function syncProjectModels() {
+  const connection = socket;
+  const result = await rpc("lan/projectModels/read");
+  if (connection !== socket) return;
+  projectModelsRemote = Boolean(result.projects);
+  if (!projectModelsRemote) return;
+  const pending = saved("cx-project-models-pending", {});
+  for (const [key, selection] of Object.entries(saved("cx-project-models", {})))
+    if (
+      !Object.hasOwn(result.projects, key) &&
+      !Object.hasOwn(pending, key) &&
+      selection.model
+    )
+      pending[key] = { selection, id: uid(), ifAbsent: true };
+  persist("cx-project-models-pending", pending);
+  mergeProjectModels(result.projects);
+  await flushProjectModels();
+}
+function projectModelSelection(
+  cwd,
+  projectless,
+  fallback,
+  models = state.models,
+) {
+  const preferences = saved("cx-project-models", {});
+  const key = projectless ? "" : cwd;
+  const selection = Object.hasOwn(preferences, key)
+    ? preferences[key]
+    : fallback;
+  const model = models.find((entry) => entry.model === selection.model);
+  return {
+    model: selection.model,
+    effort: compatibleEffort(selection.effort, model),
+  };
 }
 export function useStore() {
   return useSyncExternalStore(subscribe, () => sharedState);
@@ -321,7 +426,12 @@ function connect() {
   connection.onmessage = async (e) => {
     if (socket !== connection) return;
     const m = JSON.parse(e.data);
+    if (m.method === "lan/projectModels/updated") {
+      mergeProjectModels(m.params.projects);
+      return;
+    }
     if (m.method === "lan/state") {
+      projectModelsSupported = m.params.projectModels === true;
       const was = state.connected;
       if (!m.params.ready || !was) {
         usageRevision++;
@@ -407,6 +517,7 @@ function connect() {
   };
   connection.onclose = () => {
     if (socket !== connection) return;
+    projectModelsRemote = false;
     bootRevision++;
     usageRevision++;
     usageRequest = null;
@@ -448,18 +559,28 @@ async function boot() {
       rpc("model/list"),
       rpc("account/read", { refreshToken: false }),
       rpc("config/read", { includeLayers: false }),
+      projectModelsSupported
+        ? syncProjectModels().catch(report)
+        : Promise.resolve(),
     ]);
     if (!current()) return;
     const cfg = config.config || {};
+    defaultModelSelection = {
+      model: cfg.model || models.data.find((m) => m.isDefault)?.model || "",
+      effort: cfg.model_reasoning_effort || "",
+    };
     set({
       models: models.data,
       ...(accountEpoch === accountRevision && { account: account.account }),
-      model:
-        state.model ||
-        cfg.model ||
-        models.data.find((m) => m.isDefault)?.model ||
-        "",
-      effort: state.effort || cfg.model_reasoning_effort || "",
+      ...projectModelSelection(
+        state.cwd,
+        state.projectless,
+        {
+          model: state.model || defaultModelSelection.model,
+          effort: state.effort || defaultModelSelection.effort,
+        },
+        models.data,
+      ),
       serviceTier:
         state.serviceTier === undefined
           ? (cfg.service_tier ?? null)
@@ -558,10 +679,31 @@ export function setDraft(draft) {
   set({ draft });
   localStorage.setItem("cx-draft-" + (state.current?.id || "new"), draft);
 }
+export function setProjectDirectory(cwd) {
+  if (!state.loading) rememberModelSelection();
+  set({
+    cwd,
+    projectless: false,
+    projectlessCwd: null,
+    ...projectModelSelection(cwd, false, defaultModelSelection),
+  });
+}
 export function newChat(
   cwd = state.projectless ? "" : state.cwd,
   { reuseDirectory = false } = {},
 ) {
+  const sameProject = (state.projectless ? "" : state.cwd) === (cwd || "");
+  const selection =
+    state.model && !state.loading
+      ? {
+          model: state.model,
+          effort: compatibleEffort(
+            state.effort,
+            state.models.find((model) => model.model === state.model),
+          ),
+        }
+      : null;
+  if (!state.loading) rememberModelSelection();
   const projectlessCwd =
     reuseDirectory &&
     state.projectless &&
@@ -576,6 +718,9 @@ export function newChat(
     cwd: cwd || projectlessCwd || state.defaultCwd,
     projectless: !cwd,
     projectlessCwd,
+    ...(sameProject && selection
+      ? selection
+      : projectModelSelection(cwd, !cwd, defaultModelSelection)),
     draft: localStorage.getItem("cx-draft-new") || "",
     attachments: [],
     error: "",
@@ -587,6 +732,7 @@ export function newChat(
   });
 }
 export async function openThread(id, { preserveServiceTier = false } = {}) {
+  if (state.current && !state.loading) rememberModelSelection();
   const epoch = ++opening;
   const revision = nameRevision;
   set({
@@ -606,6 +752,12 @@ export async function openThread(id, { preserveServiceTier = false } = {}) {
     const [hydrated] = await threadOrdering.hydrate([r.thread]);
     if (epoch !== opening || deletedThreads.has(id)) return;
     const thread = preserveThreadName(hydrated, revision);
+    const projectless = !threadGroupPath(
+      thread,
+      state.projects,
+      state.projectlessDirectories,
+      state.projectlessRoot,
+    );
     set({
       threads: state.threads.some((t) => t.id === id)
         ? state.threads.map((t) =>
@@ -614,15 +766,12 @@ export async function openThread(id, { preserveServiceTier = false } = {}) {
         : sortThreads([thread, ...state.threads]),
       current: thread,
       cwd: r.cwd || r.thread.cwd,
-      projectless: !threadGroupPath(
-        thread,
-        state.projects,
-        state.projectlessDirectories,
-        state.projectlessRoot,
-      ),
+      projectless,
       projectlessCwd: null,
-      model: thread.model || state.model,
-      effort: thread.reasoningEffort || "",
+      ...projectModelSelection(r.cwd || thread.cwd, projectless, {
+        model: thread.model || defaultModelSelection.model,
+        effort: thread.reasoningEffort || "",
+      }),
       items: [],
       draft: localStorage.getItem("cx-draft-" + id) || "",
     });
@@ -657,6 +806,7 @@ export async function refreshThreadAccess({
   const connection = socket;
   const revision = bootRevision;
   const turnRevision = turnRevisions.get(id);
+  const selectionRevision = modelSelectionRevision;
   const selection = {
     model: state.model,
     effort: state.effort,
@@ -685,14 +835,16 @@ export async function refreshThreadAccess({
     });
     if (!current()) return false;
     resumed = true;
+    const modelSelection = projectModelSelection(state.cwd, state.projectless, {
+      model: settings.model || state.model,
+      effort: settings.reasoningEffort || "",
+    });
     set({
       threadAccess: { threadId: id, status: "ready" },
-      ...(state.model === selection.model && {
-        model: settings.model || state.model,
-      }),
-      ...(state.effort === selection.effort && {
-        effort: settings.reasoningEffort || "",
-      }),
+      ...(selectionRevision === modelSelectionRevision &&
+        state.model === selection.model &&
+        state.effort === selection.effort &&
+        modelSelection),
       ...(!preserveServiceTier &&
         state.serviceTier === selection.serviceTier && {
           serviceTier: settings.serviceTier ?? null,
@@ -1158,6 +1310,7 @@ export async function sendMessage(
         },
       },
     };
+    if (!running) rememberModelSelection();
     const startedAt = Date.now() / 1000;
     const r = await rpc(
       running ? "turn/steer" : "turn/start",

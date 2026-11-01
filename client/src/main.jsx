@@ -35,6 +35,7 @@ import {
   set,
   setReadingThread,
   selectModel,
+  setProjectDirectory,
   rpc,
   newChat,
   openThread,
@@ -813,7 +814,7 @@ function Modal() {
             onChoose={(path) => {
               if (type === "project") addProject(path);
               else if (s.current) newChat(path);
-              else set({ cwd: path, projectless: false, projectlessCwd: null });
+              else setProjectDirectory(path);
               set({ modal: null });
             }}
           />

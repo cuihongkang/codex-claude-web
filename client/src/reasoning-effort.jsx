@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
-import { set, useStore } from "./store";
+import { selectEffort, useStore } from "./store";
 
 export const reasoningEffortLabels = {
   none: "无",
@@ -53,7 +53,7 @@ export function ReasoningEffortControl({ inline = false }) {
           "--effort-progress": `${options.length > 1 ? (index / (options.length - 1)) * 100 : 0}%`,
         }}
         onChange={(e) =>
-          set({ effort: options[Number(e.target.value)].reasoningEffort })
+          selectEffort(options[Number(e.target.value)].reasoningEffort)
         }
       />
       <div className="reasoning-effort-labels" aria-hidden="true">

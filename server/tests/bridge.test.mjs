@@ -173,6 +173,47 @@ test(
       return socket;
     }
     const [first, second] = await Promise.all([connect(), connect()]);
+    const projectUpdate = messageFrom(
+      second,
+      (m) => m.method === "lan/projectModels/updated",
+    );
+    const savedModel = messageFrom(first, (m) => m.id === "save-project-model");
+    first.send(
+      JSON.stringify({
+        id: "save-project-model",
+        method: "lan/projectModels/set",
+        params: { cwd: files, model: "fixture-model", effort: "high" },
+      }),
+    );
+    const expectedProjectModels = {
+      [files]: { model: "fixture-model", effort: "high" },
+    };
+    assert.deepEqual((await savedModel).result.projects, expectedProjectModels);
+    assert.deepEqual(
+      (await projectUpdate).params.projects,
+      expectedProjectModels,
+    );
+    const readModels = messageFrom(
+      second,
+      (m) => m.id === "read-project-models",
+    );
+    second.send(
+      JSON.stringify({
+        id: "read-project-models",
+        method: "lan/projectModels/read",
+      }),
+    );
+    assert.deepEqual((await readModels).result.projects, expectedProjectModels);
+    assert.deepEqual(
+      JSON.parse(
+        await readFile(join(files, "codex-web", "project-models.json"), "utf8"),
+      ),
+      expectedProjectModels,
+    );
+    assert.equal(
+      backendMethods.some((method) => method.startsWith("lan/projectModels/")),
+      false,
+    );
     await writeFile(join(files, "edited.txt"), "after\n");
     let undoSequence = 0;
     async function undo(path = join(files, "edited.txt")) {

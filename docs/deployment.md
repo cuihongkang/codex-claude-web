@@ -105,6 +105,7 @@ codex-web service restart-when-idle
 
 - 聊天记录和登录凭据由 Codex 自身管理。
 - 草稿、置顶、项目快捷列表和主题保存在当前浏览器中。
+- 每个项目上次选择的模型和思考强度保存在服务所在电脑的 `CODEX_HOME/codex-web/project-models.json`；未设置 `CODEX_HOME` 时位于 `~/.codex/codex-web/project-models.json`，迁移服务时一并保留。同项目新建沿用当前选择，跨项目及重新打开网页时恢复目标项目设置，清空浏览器数据后可再次从服务端读取。浏览器缓存保留尚未成功保存的选择，恢复连接时重试，保存失败显示错误。切换模型时保留当前思考强度，目标模型缺少该档位时采用最近的可用档位，距离相同时选较低档。
 - “未分类”对话的文件位于 `CODEX_HOME/codex-web/workspaces/chat-XXXXXX`，首次发送时分配；未设置 `CODEX_HOME` 时位于 `~/.codex/codex-web/workspaces`。迁移电脑时，可随 Codex 配置目录一起保留。
 - 网页配置 `.env` 与新建后端服务使用的 `.env.backend` 位于用户配置目录，迁移时应一并保留；已有后端服务的配置按原部署方式迁移。
 - 摘要翻译由服务所在电脑调用免费、免认证的 TranSmart 服务，浏览器仅访问当前网页服务；待译摘要会发送至 TranSmart，代码、路径和链接在发送前替换为占位符。成功译文缓存在当前标签页会话中，刷新页面和切换对话继续复用，关闭标签页或浏览器后清空。
