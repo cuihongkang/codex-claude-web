@@ -180,3 +180,7 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 ## 构建来源
 
 版本来源的生成机制、开发构建标识和正式发布身份见[版本管理](versioning.md#正式版本与开发构建)。网页来源在构建时固定，源码桥接来源在进程启动时固定；排查更新时分别核对网页“设置 → 关于”和 `/healthz` 中的信息。
+
+子代理主代理消息回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/subagent-messages.mjs`。脚本使用隔离模拟后端，实际打开子代理详情，验证初始任务的位置、发送者标注、后续消息自动补齐、刷新去重、只读行为及桌面深浅主题和手机布局。旧构建和构建信息分别保存在 `.cache/subagent-messages-before/dist` 与 `.cache/subagent-messages-before/build-info.json`，使用 `BROWSER_BEFORE=1` 复现只有子代理回复的状态；截图及来源保存在 `.cache/subagent-messages-browser/`。服务端测试使用临时 rollout，覆盖调用与接收者核对、轮次定位、其他代理隔离、未接收消息和写入中的尾行；组件测试覆盖实时补齐及切换隔离。README 与其他文档现有截图展示主对话、文件预览和账户状态，未包含子代理详情，现有图片保持适用。
+
+加密消息回归在上述浏览器命令前增加 `BROWSER_ENCRYPTED=1`，使用临时父子 rollout 和真实桥接读取函数生成消息，检查加密状态、消息顺序、刷新、后续明文与深浅主题及手机布局。截图和构建来源写入 `.cache/subagent-encryption-browser/after/`。修复前的读取模块可保存在 `.cache/subagent-encryption-before/agent-messages.mjs`，再增加 `BROWSER_CIPHERTEXT_BEFORE=1` 复现密文长气泡，截图写入同目录的 `before/`。测试数据均为人工构造的记录；加密状态的单元回归同时覆盖结构化标记、非固定前缀、重复发送和其他发送者隔离。

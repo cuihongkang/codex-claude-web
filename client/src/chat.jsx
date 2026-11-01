@@ -417,6 +417,9 @@ function Message({ item, annotations, readOnly = false, cwd }) {
         tabIndex={-1}
       >
         <div className="user-bubble">
+          {item.authorLabel && (
+            <small className="message-author">{item.authorLabel}</small>
+          )}
           <Content content={item.content} cwd={cwd} />
         </div>
         {!readOnly && (

@@ -13,6 +13,7 @@ import { findCompactionTurn, recoverCompaction } from "./compaction-state.mjs";
 import { MAX_RPC_MESSAGE_BYTES, sendRpcText } from "./rpc-transport.mjs";
 import { createThreadNaming, generateThreadName } from "./thread-names.mjs";
 import { changesForPath, undoFileChanges } from "./file-undo.mjs";
+import { readAgentMessages } from "./agent-messages.mjs";
 import {
   prepareProjectlessDirectory,
   readProjectlessDirectories,
@@ -563,6 +564,20 @@ clients.on("connection", (client) => {
       return;
     }
     if (message.method) {
+      if (message.method === "lan/agents/messages") {
+        try {
+          send(client, {
+            id: message.id,
+            result: await readAgentMessages(callUpstream, threadId),
+          });
+        } catch (error) {
+          send(client, {
+            id: message.id,
+            error: { code: -32000, message: error.message },
+          });
+        }
+        return;
+      }
       if (message.method === "lan/compaction/check") {
         try {
           send(client, {

@@ -18,6 +18,7 @@ import {
   applyAgentEvent,
   mergeAgentHistory,
   subAgents,
+  withParentMessages,
 } from "./sub-agents";
 import { ReadOnlyConversation } from "./chat";
 import { ChangesPanel, FilePanel, IconButton } from "./workspace";
@@ -86,6 +87,8 @@ function SubAgentConversation({ agent }) {
   const { connected } = useStore();
   const [attempt, retry] = useState(0);
   const [history, update] = useState({ items: [], turns: [], loading: true });
+  const [parentMessages, setParentMessages] = useState([]);
+  const [messageError, setMessageError] = useState("");
   const scroll = useRef();
   const heading = useRef();
   const follow = useRef(true);
@@ -98,10 +101,32 @@ function SubAgentConversation({ agent }) {
     let hydrated = false;
     const events = [];
     const liveTurns = new Map();
+    let messageRequest = 0;
+    async function loadMessages() {
+      const request = ++messageRequest;
+      try {
+        const result = await rpc("lan/agents/messages", { threadId: agent.id });
+        if (cancelled || request !== messageRequest) return;
+        setParentMessages(result.messages || []);
+        setMessageError("");
+      } catch (error) {
+        if (!cancelled && request === messageRequest)
+          setMessageError(error.message);
+      }
+    }
+    loadMessages();
     update((previous) => ({ ...previous, loading: true, error: "" }));
     const unsubscribe = onEvent(({ method, params: p }) => {
+      if (
+        p?.threadId === agent.parentId &&
+        p.item &&
+        ["item/started", "item/completed"].includes(method) &&
+        subAgents([p.item]).some((entry) => entry.id === agent.id)
+      )
+        loadMessages();
       if (p?.threadId !== agent.id) return;
       if (["turn/started", "turn/completed"].includes(method)) {
+        loadMessages();
         liveTurns.set(p.turn.id, { ...liveTurns.get(p.turn.id), ...p.turn });
         update((previous) => ({
           ...previous,
@@ -191,11 +216,12 @@ function SubAgentConversation({ agent }) {
       cancelled = true;
       unsubscribe();
     };
-  }, [agent.id, connected, attempt]);
+  }, [agent.id, agent.parentId, connected, attempt]);
+  const items = withParentMessages(history.items, parentMessages);
   useEffect(() => {
     const element = scroll.current;
     if (element && follow.current) element.scrollTop = element.scrollHeight;
-  }, [history.items]);
+  }, [history.items, parentMessages]);
   const turn = history.turns[0];
   const status = turn?.status || agent.status;
   const model = history.thread?.model || agent.model;
@@ -262,11 +288,22 @@ function SubAgentConversation({ agent }) {
             </button>
           </div>
         )}
-        {!history.loading && !history.error && !history.items.length && (
+        {messageError && (
+          <div className="subagent-notice" role="alert">
+            <p>读取主代理消息失败：{messageError}</p>
+            <button
+              className="secondary"
+              onClick={() => retry((value) => value + 1)}
+            >
+              重试读取
+            </button>
+          </div>
+        )}
+        {!history.loading && !history.error && !items.length && (
           <p className="subagent-notice">该子代理暂无可读取的对话记录。</p>
         )}
         <ReadOnlyConversation
-          items={history.items}
+          items={items}
           cwd={history.thread?.cwd}
           turns={history.turns}
         />

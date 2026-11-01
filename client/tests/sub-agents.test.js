@@ -5,7 +5,48 @@ import {
   mergeAgentHistory,
   subAgentAction,
   subAgents,
+  withParentMessages,
 } from "../src/sub-agents.js";
+
+test("主代理消息定位到对应轮次和活动前，刷新去重且保留相同正文的后续发送", () => {
+  const incoming = (id, turnId, beforeItemId) => ({
+    id,
+    turnId,
+    beforeItemId,
+    type: "userMessage",
+    content: [{ type: "text", text: "检查接口" }],
+  });
+  const items = [
+    { id: "first", turnId: "one", type: "reasoning" },
+    { id: "answer", turnId: "one", type: "agentMessage", text: "结果" },
+    { id: "second", turnId: "two", type: "reasoning" },
+  ];
+  const messages = [
+    incoming("task", "one", "first"),
+    incoming("follow", "two", "second"),
+  ];
+  const merged = withParentMessages(items, messages);
+  assert.deepEqual(
+    merged.map((m) => m.id),
+    ["task", "first", "answer", "follow", "second"],
+  );
+  assert.deepEqual(withParentMessages(merged, messages), merged);
+  assert.equal(items.length, 3);
+  assert.equal(
+    withParentMessages([incoming("native", "one")], [messages[0]]).length,
+    1,
+  );
+  assert.equal(
+    withParentMessages([], [incoming("a", "one"), incoming("b", "one")]).length,
+    2,
+  );
+  assert.deepEqual(
+    withParentMessages(items, [incoming("a", "one"), incoming("b", "one")]).map(
+      (item) => item.id,
+    ),
+    ["a", "b", "first", "answer", "second"],
+  );
+});
 
 test("子代理按对话 ID 合并活动，保留名称、模型与明确结束状态", () => {
   const activity = {

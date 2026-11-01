@@ -2715,6 +2715,13 @@ select option {
 .subagent-history .user-bubble {
   white-space: pre-wrap;
 }
+.message-author {
+  display: block;
+  color: var(--muted);
+  font-size: 0.923077rem;
+  line-height: 1.5;
+  margin-bottom: 0.307692rem;
+}
 .subagent-history .message {
   margin-bottom: 0.615385rem;
 }

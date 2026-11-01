@@ -60,6 +60,63 @@ test(
     const upstream = new WebSocketServer({ host: "127.0.0.1", port: 0 });
     await once(upstream, "listening");
     let clientVersion, backend;
+    const agentParentPath = join(files, "agent-parent.jsonl");
+    const agentChildPath = join(files, "agent-child.jsonl");
+    await writeFile(
+      agentParentPath,
+      [
+        {
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            namespace: "collaboration",
+            name: "spawn_agent",
+            call_id: "fixture-spawn",
+            arguments: JSON.stringify({ message: "检查隔离测试接口" }),
+          },
+        },
+        {
+          type: "event_msg",
+          payload: {
+            item: {
+              type: "SubAgentActivity",
+              id: "fixture-spawn",
+              kind: "started",
+              agent_thread_id: "agent-message-child",
+            },
+          },
+        },
+      ]
+        .map(JSON.stringify)
+        .join("\n"),
+    );
+    await writeFile(
+      agentChildPath,
+      [
+        {
+          type: "response_item",
+          payload: {
+            type: "agent_message",
+            id: "incoming",
+            author: "/root",
+            recipient: "/root/check",
+            internal_chat_message_metadata_passthrough: {
+              turn_id: "agent-turn",
+            },
+          },
+        },
+        {
+          type: "event_msg",
+          payload: {
+            type: "item_completed",
+            turn_id: "agent-turn",
+            item: { id: "agent-answer" },
+          },
+        },
+      ]
+        .map(JSON.stringify)
+        .join("\n"),
+    );
     const answers = [],
       backendMethods = [];
     upstream.on("connection", (socket) => {
@@ -73,6 +130,34 @@ test(
         if (request.method === "initialize")
           clientVersion = request.params.clientInfo.version;
         backendMethods.push(request.method);
+        if (
+          request.method === "thread/read" &&
+          ["agent-message-child", "agent-message-parent"].includes(
+            request.params.threadId,
+          )
+        ) {
+          const child = request.params.threadId === "agent-message-child";
+          socket.send(
+            JSON.stringify({
+              id: request.id,
+              result: {
+                thread: child
+                  ? {
+                      id: "agent-message-child",
+                      path: agentChildPath,
+                      parentThreadId: "agent-message-parent",
+                      source: {
+                        subAgent: {
+                          thread_spawn: { agent_path: "/root/check" },
+                        },
+                      },
+                    }
+                  : { id: "agent-message-parent", path: agentParentPath },
+              },
+            }),
+          );
+          return;
+        }
         if (
           request.method === "thread/read" &&
           request.params.threadId === "undo-fixture"
@@ -173,6 +258,23 @@ test(
       return socket;
     }
     const [first, second] = await Promise.all([connect(), connect()]);
+    const agentMessages = messageFrom(first, (m) => m.id === "agent-messages");
+    first.send(
+      JSON.stringify({
+        id: "agent-messages",
+        method: "lan/agents/messages",
+        params: {
+          threadId: "agent-message-child",
+          parentId: "forged-parent",
+          path: "/forged-path",
+        },
+      }),
+    );
+    const restoredMessages = (await agentMessages).result.messages;
+    assert.equal(restoredMessages[0].content[0].text, "检查隔离测试接口");
+    assert.equal(restoredMessages[0].turnId, "agent-turn");
+    assert.equal(restoredMessages[0].beforeItemId, "agent-answer");
+    assert(!backendMethods.includes("lan/agents/messages"));
     const projectUpdate = messageFrom(
       second,
       (m) => m.method === "lan/projectModels/updated",

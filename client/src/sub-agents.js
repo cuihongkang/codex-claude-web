@@ -102,6 +102,44 @@ export function applyAgentEvent(items, method, params) {
   return [...entries.values()];
 }
 
+export function withParentMessages(items, messages) {
+  const result = [...items];
+  const matched = new Set();
+  for (const message of messages) {
+    const text = message.content
+      .map((part) => part.text || "")
+      .join("\n")
+      .trim();
+    if (result.some((item) => item.id === message.id)) continue;
+    const native = items.find(
+      (item) =>
+        !matched.has(item.id) &&
+        !item.authorLabel &&
+        item.type === "userMessage" &&
+        item.turnId === message.turnId &&
+        item.content
+          ?.map((part) => part.text || "")
+          .join("\n")
+          .trim() === text,
+    );
+    if (native) {
+      matched.add(native.id);
+      result[result.indexOf(native)] = {
+        ...native,
+        authorLabel: message.authorLabel,
+      };
+      continue;
+    }
+    let index = result.findIndex((item) => item.id === message.beforeItemId);
+    if (index < 0 && message.turnId) {
+      const first = items.find((item) => item.turnId === message.turnId);
+      index = result.findIndex((item) => item.id === first?.id);
+    }
+    result.splice(index < 0 ? result.length : index, 0, message);
+  }
+  return result;
+}
+
 // 分页快照可能已包含读取期间的部分流式文字，按最长前后缀重叠合并。
 function mergeStreamText(snapshot = "", delta = "") {
   for (

@@ -50,7 +50,19 @@ export async function testContextPanel(app, requests, setResponse, emit) {
   let hold = false;
   let release;
   let view;
+  let incoming = [
+    {
+      id: "parent-task",
+      type: "userMessage",
+      authorLabel: "主代理",
+      turnId: "child-turn",
+      beforeItemId: "task",
+      content: [{ type: "text", text: "主代理交付的检查要求" }],
+    },
+  ];
   setResponse(({ method, params }) => {
+    if (method === "lan/agents/messages")
+      return { messages: params.threadId === "agent-a" ? incoming : [] };
     if (method === "fs/readDirectory") return { entries: [] };
     if (method === "fs/readFile")
       return { dataBase64: Buffer.from("文件原始内容").toString("base64") };
@@ -264,6 +276,24 @@ export async function testContextPanel(app, requests, setResponse, emit) {
       text().includes("检查子代理分页任务") && text().includes("分页结果"),
     );
     assert(text().includes("child-model"));
+    assert(text().includes("主代理交付的检查要求"));
+    await act(async () => {
+      incoming = [
+        ...incoming,
+        {
+          id: "parent-followup",
+          type: "userMessage",
+          authorLabel: "主代理",
+          content: [{ type: "text", text: "主代理后续补充要求" }],
+        },
+      ];
+      emit("item/completed", {
+        threadId: parent.id,
+        turnId: "parent-turn",
+        item: activity("agent-a", "interacted"),
+      });
+    });
+    assert(text().includes("主代理后续补充要求"));
     assert.equal(app.get().current.id, parent.id);
     assert.equal(app.get().draft, "父对话草稿");
     assert.equal(app.get().attachments[0].id, "parent-attachment");
@@ -333,6 +363,7 @@ export async function testContextPanel(app, requests, setResponse, emit) {
       }),
     );
     assert(text().includes("第二个子代理任务"));
+    assert(!text().includes("主代理交付的检查要求"));
     await act(async () => release());
     assert(!text().includes("分页结果"));
     fail = true;
