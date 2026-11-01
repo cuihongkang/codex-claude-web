@@ -7,7 +7,7 @@
 预构建 npm 安装包通过 [GitHub Releases](https://github.com/hjd-hitsz/codex-web/releases) 分发。在已配置 Node.js 24+、npm、Codex CLI、`/usr/bin/zsh` 和 systemd 的 Linux 电脑上，以运行 Codex 的普通用户完成本机 Codex 登录，然后执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.2/codex-web-2.4.2.tgz
 codex-web service install
 loginctl enable-linger "$USER"
 codex-web service status
@@ -20,11 +20,11 @@ curl http://127.0.0.1:8766/healthz
 
 ### 下载后安装与校验
 
-也可以下载或复制 Release 中的 `codex-web-2.4.1.tgz` 和 `codex-web-2.4.1.tgz.sha256` 到同一目录，然后执行：
+也可以下载或复制 Release 中的 `codex-web-2.4.2.tgz` 和 `codex-web-2.4.2.tgz.sha256` 到同一目录，然后执行：
 
 ```bash
-sha256sum -c codex-web-2.4.1.tgz.sha256
-npm install -g ./codex-web-2.4.1.tgz
+sha256sum -c codex-web-2.4.2.tgz.sha256
+npm install -g ./codex-web-2.4.2.tgz
 codex-web service install
 ```
 
@@ -86,7 +86,7 @@ curl http://127.0.0.1:8766/healthz
 从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.2/codex-web-2.4.2.tgz
 codex-web service install
 codex-web service restart-when-idle
 ```
