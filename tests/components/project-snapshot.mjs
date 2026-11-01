@@ -112,14 +112,14 @@ export async function testProjectSnapshot(app, fixture) {
         completedAt: 5,
       });
       await app.loadThreads();
-      assert.deepEqual(paths(), ["/external-new", "/aaa-new", ...initial]);
+      assert.deepEqual(paths(), ["/aaa-new", "/external-new", ...initial]);
       app.set({ projectOrder: null });
       await app.loadThreads();
       assert.deepEqual(paths(), [
+        "/aaa-new",
         "/stable-b",
         "/stable-a",
         "/external-new",
-        "/aaa-new",
         "",
       ]);
       const beforeArchive = paths();

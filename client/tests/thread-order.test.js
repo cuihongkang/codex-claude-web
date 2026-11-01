@@ -9,7 +9,7 @@ import {
   PROJECTLESS_SOURCE,
 } from "../src/domain/thread-order.js";
 
-test("完成时间决定对话和项目初始顺序，打开时间、项目添加顺序与置顶不干扰初始排序", () => {
+test("完成时间决定对话顺序与同类项目初始顺序，固定项目优先显示", () => {
   const threads = [
     { id: "opened", cwd: "/a", createdAt: 1, updatedAt: 999, completedAt: 10 },
     { id: "done", cwd: "/b", createdAt: 2, updatedAt: 20, completedAt: 20 },
@@ -25,15 +25,57 @@ test("完成时间决定对话和项目初始顺序，打开时间、项目添�
       ([path, list]) => [path, list.map((t) => t.id)],
     ),
     [
-      ["/c", []],
       ["/b", ["done", "new"]],
       ["/a", ["opened"]],
       ["/empty", []],
+      ["/c", []],
       ["", []],
     ],
   );
   assert.equal(threadTime(threads[3]), 15);
   assert.equal(threads[0].id, "opened");
+});
+
+test("固定项目优先于活动与快照顺序，空项目和仅含置顶对话的项目继续置前", () => {
+  const threads = [
+    { id: "new", cwd: "/recent", createdAt: 300 },
+    { id: "old", cwd: "/pinned", createdAt: 10 },
+    { id: "top", cwd: "/top-only", createdAt: 5 },
+    { id: "none", createdAt: 999 },
+  ];
+  const projects = ["/empty", "/pinned", "/top-only"];
+  const paths = (order) =>
+    projectGroups(threads, projects, ["top"], {}, "", order).map(
+      ([path]) => path,
+    );
+  assert.deepEqual(paths([]), [
+    "/pinned",
+    "/top-only",
+    "/empty",
+    "/recent",
+    "",
+  ]);
+  assert.deepEqual(paths(["/recent", "/pinned", "/empty", "/top-only", ""]), [
+    "/pinned",
+    "/empty",
+    "/top-only",
+    "/recent",
+    "",
+  ]);
+});
+
+test("固定与取消固定立即重新分组，同类项目保留快照顺序", () => {
+  const threads = [
+    { id: "a", cwd: "/a", createdAt: 300 },
+    { id: "b", cwd: "/b", createdAt: 200 },
+  ];
+  const order = ["/a", "/b", "/empty", ""];
+  const paths = (projects) =>
+    projectGroups(threads, projects, [], {}, "", order).map(([path]) => path);
+  assert.deepEqual(paths(["/empty"]), ["/empty", "/a", "/b", ""]);
+  assert.deepEqual(paths(["/empty", "/b"]), ["/b", "/empty", "/a", ""]);
+  assert.deepEqual(paths(["/b"]), ["/b", "/a", "/empty", ""]);
+  assert.deepEqual(paths([]), order);
 });
 
 test("首次加载后沿用项目顺序，归档、恢复和完成时间变化仅更新组内对话", () => {
@@ -156,7 +198,7 @@ test("明确项目归属、改变后的目录和未被记录的相似目录保�
     projectGroups(threads, [scratch + "/b"], [], directories).map(
       ([path]) => path,
     ),
-    [...threads.map((t) => t.cwd), ""],
+    [threads[1].cwd, threads[0].cwd, ...threads.slice(2).map((t) => t.cwd), ""],
   );
   assert.deepEqual(projectGroups([], [], [], directories), [["", []]]);
 });
