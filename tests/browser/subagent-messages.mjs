@@ -1,3 +1,4 @@
+import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn } from "node:child_process";
@@ -248,6 +249,7 @@ if (encrypted) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (serveDemoSession(req, res)) return;
   try {
     const path = new URL(req.url, "http://fixture").pathname;
     let content = await readFile(
@@ -405,6 +407,16 @@ try {
       "document.querySelectorAll('.subagent-history .user-message').length",
     ),
     before ? 0 : 1,
+  );
+  assert(
+    !(
+      await evaluate("document.querySelector('.subagent-meta').textContent")
+    ).includes("只读"),
+  );
+  assert(
+    !(
+      await evaluate("document.querySelector('.subagent-meta').textContent")
+    ).includes("/root/"),
   );
   await screenshot("desktop-light");
   await screenshot("detail-light", ".context-workspace");

@@ -200,8 +200,7 @@ async function requestTranslations(texts) {
     body: JSON.stringify({ texts }),
     signal: AbortSignal.timeout(12000),
   });
-  if (response.status === 404)
-    throw new Error("网页服务尚未加载翻译接口，请等待服务更新后重试");
+  if (response.status === 404) throw new Error("翻译暂不可用，请稍后重试");
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "翻译服务请求失败，请重试");
   if (

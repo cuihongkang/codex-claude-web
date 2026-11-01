@@ -1,3 +1,7 @@
+import {
+  authenticationFixture,
+  httpsFetch,
+} from "../../tests/helpers/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -27,6 +31,8 @@ test(
   async (t) => {
     const files = await mkdtemp(join(tmpdir(), "codex-web-test-"));
     const version = readVersion();
+    const auth = await authenticationFixture(files);
+    const fetch = httpsFetch(auth.tls.cert, auth.cookie);
     await writeFile(join(files, "index.html"), "<h1>Codex Web test</h1>");
     await writeFile(
       join(files, "mermaid.core.js"),
@@ -233,12 +239,15 @@ test(
     const url = await new Promise((resolve, reject) => {
       child.once("error", reject);
       child.stdout.on("data", (bytes) => {
-        const match = bytes.toString().match(/http:\/\/127\.0\.0\.1:\d+/);
+        const match = bytes.toString().match(/https:\/\/127\.0\.0\.1:\d+/);
         if (match) resolve(match[0]);
       });
     });
     async function connect(onState = () => {}) {
-      const socket = new WebSocket(url.replace("http:", "ws:") + "/rpc");
+      const socket = new WebSocket(url.replace("https:", "wss:") + "/rpc", {
+        ca: auth.tls.cert,
+        headers: { Cookie: auth.cookie, Origin: url },
+      });
       sockets.push(socket);
       await new Promise((resolve) =>
         socket.on("message", (bytes) => {

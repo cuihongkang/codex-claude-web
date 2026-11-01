@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import http from "node:http";
+import https from "node:https";
+import { authenticationFixture } from "../../tests/helpers/auth.mjs";
 import { once } from "node:events";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
@@ -21,6 +22,7 @@ async function waitFor(read) {
 
 async function watcher(t, state, fail = false) {
   const directory = await mkdtemp(join(tmpdir(), "codex-web-idle-restart-"));
+  const auth = await authenticationFixture(directory);
   const record = join(directory, "restart.json");
   await writeFile(
     join(directory, "systemctl"),
@@ -28,7 +30,7 @@ async function watcher(t, state, fail = false) {
     { mode: 0o755 },
   );
   let healthChecks = 0;
-  const server = http.createServer((request, response) => {
+  const server = https.createServer(auth.tls, (request, response) => {
     assert.equal(request.url, "/healthz");
     healthChecks++;
     response.writeHead(200, { "Content-Type": "application/json" }).end(
@@ -40,7 +42,12 @@ async function watcher(t, state, fail = false) {
   });
   const sockets = new WebSocketServer({ server });
   const requests = [];
-  sockets.on("connection", (socket) => {
+  sockets.on("connection", (socket, request) => {
+    assert.equal(request.url, "/maintenance");
+    assert.equal(
+      request.headers.authorization,
+      "Bearer fixture-maintenance-token",
+    );
     socket.on("message", (bytes) => requests.push(JSON.parse(bytes)));
     socket.send(JSON.stringify({ method: "lan/state", params: state }));
   });
@@ -57,6 +64,7 @@ async function watcher(t, state, fail = false) {
       env: {
         ...process.env,
         PORT: String(server.address().port),
+        CODEX_HOME: directory,
         PATH: directory + ":" + process.env.PATH,
       },
       stdio: ["ignore", "pipe", "pipe"],

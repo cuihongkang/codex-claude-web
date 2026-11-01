@@ -1,3 +1,4 @@
+import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn } from "node:child_process";
@@ -190,6 +191,7 @@ const preferenceDirectory = await mkdtemp(
 );
 const projectModels = createProjectModels(preferenceDirectory);
 const server = http.createServer(async (req, res) => {
+  if (serveDemoSession(req, res)) return;
   try {
     const path = new URL(req.url, "http://fixture").pathname;
     if (path === "/fixture/project-models") {

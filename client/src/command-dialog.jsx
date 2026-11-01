@@ -125,7 +125,7 @@ function GoalDialog({ modal }) {
           </p>
           <p role="status">
             {goal
-              ? `${goalStates[goal.status] || goal.status} · 已用 ${goal.tokensUsed.toLocaleString()} tokens · ${Math.round(goal.timeUsedSeconds)} 秒`
+              ? `${goalStates[goal.status] || "状态待更新"} · 已用 ${goal.tokensUsed.toLocaleString()} tokens · ${Math.round(goal.timeUsedSeconds)} 秒`
               : "当前对话尚未设置目标"}
           </p>
           <form
@@ -225,7 +225,8 @@ function TerminalsDialog({ modal }) {
             <div className="command-record" key={terminal.processId}>
               <strong>{terminal.command}</strong>
               <small>
-                {terminal.cwd} · PID {terminal.osPid ?? terminal.processId}
+                {terminal.cwd}
+                {terminal.osPid != null && ` · PID ${terminal.osPid}`}
               </small>
             </div>
           ))}

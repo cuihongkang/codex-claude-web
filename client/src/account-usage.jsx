@@ -180,7 +180,7 @@ export function AccountFooter() {
             <b>{s.account?.email?.split("@")[0] || plan || "Codex"}</b>
             <small>
               <i className={s.connected ? "online" : ""} />
-              {s.connected ? "已连接本机" : "正在连接…"}
+              {s.connected ? "已连接" : "正在连接…"}
             </small>
           </span>
         </button>

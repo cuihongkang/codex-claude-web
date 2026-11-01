@@ -68,13 +68,13 @@ export function ReasoningEffortControl({ inline = false }) {
           </span>
         ))}
       </div>
-      <p className="reasoning-effort-hint">
-        {options.length > 1
-          ? "拖动滑块调整下一轮任务的思考强度。"
-          : options.length === 1
+      {options.length < 2 && (
+        <p className="reasoning-effort-hint">
+          {options.length === 1
             ? "当前模型仅提供这一档思考强度。"
             : "当前模型使用默认思考强度。"}
-      </p>
+        </p>
+      )}
     </div>
   );
   if (inline) return slider;

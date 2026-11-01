@@ -1,4 +1,7 @@
-import http from "node:http";
+import https from "node:https";
+import { X509Certificate } from "node:crypto";
+import { readTls } from "./tls.mjs";
+import { createAuthentication } from "./auth.mjs";
 import { createSummaryTranslationHandler } from "./summary-translation.mjs";
 import { serveFile } from "./file-content.mjs";
 import { readFile, stat } from "node:fs/promises";
@@ -20,6 +23,9 @@ import {
 } from "./thread-projects.mjs";
 
 const config = readConfig();
+const tls = await readTls(config);
+const publicCertificate = new X509Certificate(tls.cert);
+const authentication = await createAuthentication(config);
 const projectModels = createProjectModels(config.codexHome);
 const version = readVersion();
 const threadNaming = createThreadNaming({
@@ -33,6 +39,7 @@ const threadNaming = createThreadNaming({
   onError: (error) => console.error("Thread title:", error.message),
 });
 const clients = new WebSocketServer({ noServer: true });
+const monitors = new WebSocketServer({ noServer: true });
 const pending = new Map();
 const questions = new Map();
 const activeTurns = new Map();
@@ -61,10 +68,33 @@ let ready = false;
 let sequence = 1;
 
 function send(client, message) {
+  if (client.authSessionId && !authentication.valid(client.authSessionId))
+    return;
   sendRpcText(client, JSON.stringify(message));
 }
 function broadcast(message) {
   for (const client of clients.clients) send(client, message);
+  if (
+    ["lan/state", "lan/compaction", "turn/started", "turn/completed"].includes(
+      message.method,
+    )
+  )
+    for (const monitor of monitors.clients) send(monitor, maintenanceState());
+}
+function maintenanceState() {
+  return {
+    method: "lan/state",
+    params: {
+      ready,
+      activeTurns: Object.fromEntries(activeTurns),
+      compactions: Object.fromEntries(
+        [...compactions.entries].map(([id, entry]) => [
+          id,
+          { status: entry.status },
+        ]),
+      ),
+    },
+  };
 }
 function callUpstream(method, params) {
   return new Promise((resolve, reject) => {
@@ -427,8 +457,48 @@ const files = new Map([
 ]);
 const staticCache = new Map();
 const translateSummary = createSummaryTranslationHandler();
-const server = http.createServer(async (request, response) => {
+const server = https.createServer(tls, async (request, response) => {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("Referrer-Policy", "no-referrer");
+  response.setHeader(
+    "Content-Security-Policy",
+    "frame-ancestors 'self'; base-uri 'self'; object-src 'self'; upgrade-insecure-requests",
+  );
+  response.setHeader("Cache-Control", "no-store");
   const path = new URL(request.url, "http://localhost").pathname;
+  if (["/api/tls/info", "/api/tls/certificate"].includes(path)) {
+    if (!["GET", "HEAD"].includes(request.method)) {
+      response.writeHead(405, { Allow: "GET, HEAD" });
+      response.end();
+      return;
+    }
+    const download = path === "/api/tls/certificate";
+    const body = download
+      ? publicCertificate.raw
+      : Buffer.from(
+          JSON.stringify({
+            fingerprint: publicCertificate.fingerprint256,
+            validTo: publicCertificate.validTo,
+            selfSigned:
+              publicCertificate.subject === publicCertificate.issuer &&
+              publicCertificate.verify(publicCertificate.publicKey),
+          }),
+        );
+    response.writeHead(200, {
+      "Content-Type": download
+        ? "application/pkix-cert"
+        : "application/json; charset=utf-8",
+      "Content-Length": body.length,
+      ...(download
+        ? { "Content-Disposition": 'attachment; filename="codex-web.cer"' }
+        : {}),
+    });
+    response.end(request.method === "HEAD" ? undefined : body);
+    return;
+  }
+  if (await authentication.handle(request, response, path)) return;
+  if (path.startsWith("/api/") && !authentication.authorize(request, response))
+    return;
   if (["/api/files", "/api/media"].includes(path)) {
     await serveFile(request, response);
     return;
@@ -493,13 +563,28 @@ const server = http.createServer(async (request, response) => {
   }
 });
 server.on("upgrade", (request, socket, head) => {
-  if (new URL(request.url, "http://localhost").pathname !== "/rpc") {
+  const path = new URL(request.url, "https://localhost").pathname;
+  if (path === "/maintenance" && authentication.maintenance(request)) {
+    monitors.handleUpgrade(request, socket, head, (monitor) => {
+      monitor.on("error", () => {});
+      monitor.on("message", () => monitor.close(1008, "只读维护连接"));
+      send(monitor, maintenanceState());
+    });
+    return;
+  }
+  if (path !== "/rpc") {
     socket.destroy();
     return;
   }
-  clients.handleUpgrade(request, socket, head, (client) =>
-    clients.emit("connection", client),
-  );
+  const id = authentication.sessionId(request);
+  if (!authentication.sameOrigin(request) || !authentication.valid(id)) {
+    socket.end("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+    return;
+  }
+  clients.handleUpgrade(request, socket, head, (client) => {
+    authentication.attach(client, id);
+    clients.emit("connection", client);
+  });
 });
 clients.on("connection", (client) => {
   client.alive = true;
@@ -515,6 +600,7 @@ clients.on("connection", (client) => {
   });
   send(client, state());
   client.on("message", async (bytes) => {
+    if (!authentication.valid(client.authSessionId)) return;
     let message;
     try {
       message = JSON.parse(bytes.toString());
@@ -814,8 +900,10 @@ const heartbeat = setInterval(() => {
 }, 30000);
 heartbeat.unref();
 connect();
+server.requestTimeout = 20000;
+server.headersTimeout = 10000;
 server.listen(config.port, config.host, () =>
   console.log(
-    `Codex web listening on http://${config.host}:${server.address().port}`,
+    `Codex web listening on https://${config.host}:${server.address().port}`,
   ),
 );

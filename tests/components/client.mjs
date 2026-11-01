@@ -1,3 +1,4 @@
+import { testAuthentication } from "./auth.mjs";
 import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
 import React, { act } from "react";
@@ -82,6 +83,11 @@ localStorage.setItem(
 const app = await import(
   pathToFileURL(process.env.CODEX_COMPONENT_BUNDLE).href
 );
+app.applySession({
+  authenticated: true,
+  username: "fixture",
+  expiresAt: Date.now() + 86400000,
+});
 assert.equal(storage.has("cx-summary-zh-v1"), false);
 await testMermaid(app);
 {
@@ -189,6 +195,11 @@ await testMermaid(app);
       requests,
       (respond) => (responseFor = respond),
       (method, params) => socket.emit(method, params),
+      () => socket,
+    );
+    await testAuthentication(
+      app,
+      (respond) => (responseFor = respond),
       () => socket,
     );
     await testConnectionRecovery(
@@ -948,10 +959,8 @@ let versionView;
 await act(async () => {
   versionView = create(React.createElement(app.VersionDetails));
 });
-assert(
-  JSON.stringify(versionView.toJSON()).includes("1.2.3+dev.gabc1234.dirty"),
-);
-assert(JSON.stringify(versionView.toJSON()).includes("等待连接"));
+assert(JSON.stringify(versionView.toJSON()).includes("1.2.3"));
+assert(!JSON.stringify(versionView.toJSON()).includes("dev."));
 await act(async () => {
   app.set({
     serverVersion: {
@@ -965,12 +974,18 @@ await act(async () => {
   });
 });
 const versionText = JSON.stringify(versionView.toJSON());
-assert(versionText.includes("正式发布"));
-assert(versionText.includes("def123456789"));
-assert(versionText.includes("含未提交修改"));
-assert(versionText.includes("1.2.3+dev.gabc1234.dirty"));
+assert(versionText.includes("1.2.3"));
+for (const marker of [
+  "def123456789",
+  "未提交",
+  "dev.",
+  "构建",
+  "桥接",
+  "1.2.2",
+])
+  assert(!versionText.includes(marker));
 await act(async () => versionView.unmount());
-console.log("PASS 网页和桥接独立版本、构建来源与未连接状态");
+console.log("PASS 关于页只显示产品版本，连接变化保持版本展示且隐藏开发标记");
 app.set({
   connected: true,
   current: { id: "fixture" },
@@ -1576,7 +1591,7 @@ console.log(
   const retry = view.root
     .findAllByType("button")
     .find((button) => button.children.includes("标题翻译失败，点击重试"));
-  assert.match(retry.props.title, /网页服务尚未加载翻译接口/);
+  assert.match(retry.props.title, /翻译暂不可用/);
   const failedCount = batches.length;
   await act(async () => delay(150));
   assert.equal(batches.length, failedCount);

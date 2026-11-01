@@ -546,9 +546,9 @@ function Question({ request }) {
     <div className="request-card">
       <div className="request-title">
         <Shield size={18} />
-        {permission ? "权限请求" : standard ? "等待你的确认" : "客户端工具请求"}
+        {permission ? "权限请求" : standard ? "等待你的确认" : "工具请求"}
       </div>
-      <p>{p.reason || p.command || request.method}</p>
+      <p>{p.reason || p.command || "此操作需要你的确认。"}</p>
       {permission && <pre>{JSON.stringify(p.permissions, null, 2)}</pre>}
       {standard || permission ? (
         <div className="request-actions">
@@ -592,15 +592,13 @@ function Question({ request }) {
         </div>
       ) : (
         <>
-          <p className="muted">
-            此工具需要对应客户端提供执行能力。可以取消此请求后继续对话。
-          </p>
+          <p className="muted">此工具暂时无法使用，可以取消请求后继续对话。</p>
           <button
             className="secondary"
             onClick={() =>
               respond(request, null, {
                 code: -32601,
-                message: "当前网页客户端未提供此工具的执行器。",
+                message: "此工具暂时无法使用。",
               })
             }
           >
@@ -915,7 +913,6 @@ export function Conversation({ children }) {
               <div className="working-status">
                 <span className="pulse-dot" />
                 {compacting ? "正在整理上下文" : "Codex 正在工作"}
-                {!compacting && <small>你可以继续补充要求</small>}
               </div>
             )}
           </div>
@@ -1018,15 +1015,8 @@ export function Composer() {
                   ? "此对话由另一端使用"
                   : "暂时无法连接此对话"}
             </strong>
-            <p>
-              {checking
-                ? "正在确认是否可以继续发送，历史记录仍可查看。"
-                : access?.status === "blocked"
-                  ? "历史记录可正常查看。点击“重试”刷新状态，恢复后即可继续发送。"
-                  : access?.message}
-            </p>
-            {(draft || s.attachments.length > 0) && (
-              <small>草稿和附件已保留。</small>
+            {!checking && access?.status !== "blocked" && access?.message && (
+              <p>{access.message}</p>
             )}
           </div>
           <button
@@ -1221,9 +1211,7 @@ export function Composer() {
               {windowSize > 0 &&
                 `（${Math.round((usage / windowSize) * 100)}%）`}
             </>
-          ) : unavailable ? (
-            "历史记录可查看"
-          ) : (
+          ) : unavailable ? null : (
             "Ctrl + Enter 发送"
           )}
         </span>

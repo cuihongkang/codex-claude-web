@@ -34,7 +34,7 @@
 
 ## 快速开始
 
-准备一台 Linux 电脑，安装 Node.js 24+、npm、Git 和 `/usr/bin/zsh`，并完成 Codex CLI 登录。Codex CLI 需支持 `codex app-server`，后台运行使用 systemd 用户服务。
+准备一台 Linux 电脑，安装 Node.js 24+、npm、Git、OpenSSL、Linux PAM、`pamtester` 和 `/usr/bin/zsh`，并完成 Codex CLI 登录。Codex CLI 需支持 `codex app-server`，后台运行使用 systemd 用户服务。
 
 ### 1. 安装并启动
 
@@ -46,21 +46,23 @@ codex-web service install
 codex-web service status
 ```
 
-npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务会自动启动，已有 Codex 后端配置继续保留。
+npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务会自动启动，已有 Codex 配置继续保留。
 
 ### 2. 打开浏览器
 
-- 本机访问：`http://127.0.0.1:8766`。
-- 同一网络的电脑、手机或平板：`http://电脑IP:8766`，将“电脑IP”替换为服务所在电脑的实际 IP，并允许防火墙访问 `8766` 端口。
+- 本机访问：`https://127.0.0.1:8766`。
+- 同一网络的电脑、手机或平板：`https://电脑IP:8766`，将“电脑IP”替换为服务所在电脑的实际 IP，并允许防火墙访问 `8766` 端口。
 
-网页沿用该电脑的 Codex 登录，任务以服务用户的完全访问权限执行。默认使用 HTTP，适合在可信网络中访问。
+网页登录使用运行服务的系统用户名与密码，登录成功后沿用该电脑的 Codex 授权，任务以服务用户的完全访问权限执行。登录状态默认保留 30 天，刷新或重新打开浏览器会恢复有效登录。
+
+首次访问时，浏览器可能提示证书不受信任。请按[证书安装指引](docs/deployment.md#证书配置)完成配置；登录页的“浏览器证书安装”提供证书下载和各设备的安装步骤。
 
 输入消息后，按 **Ctrl+Enter** 发送，**Enter** 换行。
 
 <details>
-<summary>开机启动与退出登录后继续运行</summary>
+<summary>开机启动与退出系统登录后继续运行</summary>
 
-需要开机自动启动、退出登录后继续运行时，执行：
+需要开机自动启动、退出系统登录后继续运行时，执行：
 
 ```bash
 loginctl enable-linger "$USER"
@@ -88,7 +90,7 @@ codex-web config init
 - `PORT`：网页端口，初始为 `8766`。
 - `DEFAULT_CWD`：首次使用时的默认工作目录，未设置时使用当前用户的主目录。
 
-修改配置前先结束当前任务和网页终端，保存后执行 `codex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置和后端设置见[部署与维护](docs/deployment.md#配置)。
+修改配置前先结束当前任务和网页终端，保存后执行 `codex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置见[部署与维护](docs/deployment.md#配置)。
 
 ## 升级
 

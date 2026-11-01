@@ -9,6 +9,7 @@ import { annotationMessage } from "./annotations";
 import { fileReferenceInput, parseUserMessage } from "./user-message.js";
 import { mergeUsageUpdate } from "./account-usage.js";
 import { nextForkTitle } from "./fork-title.js";
+import { completePasswordLogin } from "./password-manager.js";
 import {
   readAnnotationDrafts,
   removeSentAnnotations,
@@ -54,6 +55,8 @@ export const b64encode = (text) => {
   return btoa(raw);
 };
 let state = {
+  auth: null,
+  authError: "",
   connected: false,
   booting: true,
   serverVersion: null,
@@ -418,12 +421,11 @@ export function respond(request, result, error) {
   }
 }
 function connect() {
-  const connection = new WebSocket(
-    `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/rpc`,
-  );
+  if (!state.auth?.authenticated) return;
+  const connection = new WebSocket(`wss://${location.host}/rpc`);
   socket = connection;
   connection.onmessage = async (e) => {
-    if (socket !== connection) return;
+    if (socket !== connection || !state.auth?.authenticated) return;
     const m = JSON.parse(e.data);
     if (m.method === "lan/projectModels/updated") {
       mergeProjectModels(m.params.projects);
@@ -514,7 +516,7 @@ function connect() {
     handle(m);
     for (const fn of eventListeners) fn(m);
   };
-  connection.onclose = () => {
+  connection.onclose = (event) => {
     if (socket !== connection) return;
     projectModelsRemote = false;
     bootRevision++;
@@ -541,9 +543,22 @@ function connect() {
       p.reject(new Error("连接中断，正在重连；已提交的任务会在电脑上继续。"));
     }
     pending.clear();
-    setTimeout(() => {
-      if (socket === connection && !state.connected) connect();
-    }, 1500);
+    if (event?.code === 4401) {
+      applySession({ authenticated: false });
+      return;
+    }
+    const reconnect = async () => {
+      if (
+        socket === connection &&
+        !state.connected &&
+        state.auth?.authenticated
+      ) {
+        await checkSession();
+        if (socket === connection && state.auth?.authenticated)
+          setTimeout(reconnect, 1500);
+      }
+    };
+    setTimeout(reconnect, 1500);
   };
   connection.onerror = () => {};
 }
@@ -1767,4 +1782,88 @@ export async function copy(text) {
     report(e);
   }
 }
-connect();
+let authRevision = 0;
+let authMutating = false;
+export function applySession(session) {
+  authRevision++;
+  if (session.authenticated && session.expiresAt <= Date.now())
+    session = { authenticated: false };
+  set({ auth: session, authError: "" });
+  if (session.authenticated) {
+    if (!socket || socket.readyState > 1) connect();
+  } else {
+    const connection = socket;
+    socket = null;
+    bootRevision++;
+    usageRevision++;
+    usageRequest = null;
+    projectModelsRemote = false;
+    set({
+      connected: false,
+      usageLoading: false,
+      modal: null,
+      terminalOpen: false,
+    });
+    for (const request of pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error("登录已结束；已提交的任务会在电脑上继续。"));
+    }
+    pending.clear();
+    connection?.close();
+  }
+}
+async function authRequest(path, input) {
+  const response = await fetch(`/api/auth/${path}`, {
+    method: input ? "POST" : "GET",
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: AbortSignal.timeout(20000),
+    ...(input
+      ? {
+          headers: {
+            "Content-Type": "application/json",
+            "X-Codex-Web-Request": "1",
+          },
+          body: JSON.stringify(input),
+        }
+      : {}),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "登录请求失败，请重试。");
+  return result;
+}
+export async function checkSession() {
+  if (authMutating) return;
+  const revision = ++authRevision;
+  try {
+    const session = await authRequest("session");
+    if (revision === authRevision) applySession(session);
+  } catch {
+    if (revision === authRevision)
+      set({ authError: "暂时无法检查登录状态，请检查连接后重试。" });
+  }
+}
+export async function login(username, password) {
+  const revision = ++authRevision;
+  authMutating = true;
+  try {
+    const session = await authRequest("login", { username, password });
+    if (revision === authRevision) {
+      if (session.authenticated && session.expiresAt > Date.now())
+        completePasswordLogin(username, password);
+      applySession(session);
+    }
+  } finally {
+    authMutating = false;
+  }
+}
+export async function logout() {
+  const revision = ++authRevision;
+  authMutating = true;
+  try {
+    const session = await authRequest("logout", {});
+    if (revision === authRevision) applySession(session);
+  } finally {
+    authMutating = false;
+  }
+}

@@ -17,7 +17,8 @@ export async function testCompactionReload({
     evaluate(`document.querySelector('.compaction-status')?.textContent || ''`);
   const start = async () => {
     await evaluate("commandFixture.holdCompact(true)");
-    await click('button[aria-label="管理对话 核对快捷命令"]');
+    await waitFor(`document.querySelector('button[title="对话操作"]')`);
+    await click('button[title="对话操作"]');
     await clickText("整理上下文");
     await waitFor(
       `document.querySelector('.compaction-status')?.textContent.includes('正在提交上下文整理')`,

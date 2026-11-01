@@ -294,7 +294,7 @@ export function ToolValue({ value, cwd, field }) {
   if (value.blob)
     return (
       <ResourceLink href={value.uri} cwd={cwd}>
-        {value.name || value.uri || "二进制附件"}
+        {value.name || value.uri || "附件"}
       </ResourceLink>
     );
   if (value.type === "encrypted_content") return <span>加密内容</span>;

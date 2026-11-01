@@ -136,7 +136,7 @@ function FileChange({ file, threadId, turnId }) {
                 ? "已撤销"
                 : file.changes.length
                   ? "撤销此文件在本轮中的修改"
-                  : "此差异缺少逐次修改记录"
+                  : "暂时无法撤销此修改"
             }
             disabled={
               !s.connected ||

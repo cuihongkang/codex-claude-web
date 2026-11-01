@@ -49,7 +49,7 @@ export function AnnotationReference({ index }) {
               )}
             </>
           ) : (
-            <span>加载包含此注释的用户消息后可查看原文与批注。</span>
+            <span>暂时无法显示这条批注。</span>
           )}
         </span>
       )}

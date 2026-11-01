@@ -1,3 +1,4 @@
+import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn, execFileSync } from "node:child_process";
@@ -235,6 +236,7 @@ function fixture(directory, files) {
 
 const mediaRequests = [];
 const server = http.createServer(async (req, res) => {
+  if (serveDemoSession(req, res)) return;
   const url = new URL(req.url, "http://fixture");
   if (["/api/files", "/api/media"].includes(url.pathname)) {
     mediaRequests.push({

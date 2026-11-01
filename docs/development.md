@@ -4,7 +4,7 @@
 
 ## 本地环境与源码启动
 
-开发环境需要 Linux、Node.js 24+、npm、已登录的 Codex CLI 和 `/usr/bin/zsh`。本项目使用根目录 npm workspaces 和单一 `package-lock.json` 管理前后端依赖。
+开发环境需要 Linux、Node.js 24+、npm、OpenSSL、Linux PAM、pamtester、已登录的 Codex CLI 和 `/usr/bin/zsh`。本项目使用根目录 npm workspaces 和单一 `package-lock.json` 管理前后端依赖。
 
 克隆仓库后，在项目根目录安装依赖并创建配置：
 
@@ -33,9 +33,9 @@ npm start
 npm run dev
 ```
 
-打开 Vite 输出的地址。开发服务器将 `/rpc`、`/healthz` 和 `/api/translate` 代理到网页桥接端口，模型调用和工具执行由 Codex 后端处理，摘要翻译由桥接直接调用远程翻译服务。
+打开 Vite 输出的 HTTPS 地址。Vite 与桥接复用证书，代理验证桥接证书；本地开发同样使用系统账户登录。开发服务器将 `/rpc`、`/healthz` 和 `/api` 代理到网页桥接端口，模型调用和工具执行由 Codex 后端处理，摘要翻译由桥接直接调用远程翻译服务。
 
-验证生产构建时，执行 `npm run build`，再通过网页桥接地址访问，默认 `http://127.0.0.1:8766`。生产服务直接读取 `client/dist`，前端更新后重新构建并刷新网页即可；桥接代码更新后需要重启网页服务。
+验证生产构建时，执行 `npm run build`，再通过网页桥接地址访问，默认 `https://127.0.0.1:8766`。生产服务直接读取 `client/dist`，前端更新后重新构建并刷新网页即可；桥接代码更新后需要重启网页服务。
 
 ## 项目结构
 
@@ -47,7 +47,7 @@ client/
   vite.config.js       构建与开发代理
 server/
   src/config.mjs       环境配置和默认目录
-  src/server.mjs       HTTP、WebSocket 转发与终端恢复
+  src/server.mjs       HTTPS、WSS 转发与终端恢复
   src/summary-translation.mjs  TranSmart 匿名 HTTP API 与本站翻译接口
   src/version.mjs      正式版本与 Git / 安装包构建来源
   tests/               配置和桥接集成测试
@@ -104,7 +104,7 @@ Markdown HTML 回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/
 
 工具记录浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/tool-activities.mjs`。脚本在独立浏览器配置中注入 `tests/fixtures/tool-activities.mjs` 的模拟历史，验证图片直接显示、点击放大与焦点恢复、搜索结果仅显示标题链接（缺少标题时显示网址）、搜索记录折叠与恢复、可读网页操作和工具结果，以及深浅主题、80% 至 200% 缩放与窄屏；截图和构建来源写入 `.cache/tool-activities-browser/after`。搜索结果精简的修改前对照先把 `client/dist` 与 `build-info.json` 分别复制到 `.cache/tool-activities-before/dist` 与 `.cache/tool-activities-before/build-info.json`，再用 `BROWSER_BEFORE=1` 运行同一脚本，确认搜索结果仍显示摘要及内部字段，结果写入 `before` 目录。
 
-文件打开回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/files.mjs`，本机需有支持 H.264 编码的 `ffmpeg`。脚本生成临时音视频、PDF、BMP 和二进制样本，注入隔离的模拟历史，实际点击并验证播放、进度跳转、媒体切换后的资源清理、图片与 PDF 预览、文件下载字节、文本编辑和失败重试，覆盖深浅主题与窄屏。截图、下载样本和构建来源保存在 `.cache/file-preview-browser/after`。修改前对照将旧构建及来源复制到 `.cache/file-preview-before/dist` 与 `.cache/file-preview-before/build-info.json`，以 `BROWSER_BEFORE=1` 分别记录音频的二进制提示与 PDF 被当作源码显示的结果。`server/tests/file-content.test.mjs` 覆盖 MIME、附件文件名、原始字节、Range、大文件及取消读取；桥接测试验证 HTTP 路由，文件面板组件测试覆盖类型切换、保存保护、草稿与迟到读取隔离。
+文件打开回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/files.mjs`，本机需有支持 H.264 编码的 `ffmpeg`。脚本生成临时音视频、PDF、BMP 和二进制样本，注入隔离的模拟历史，实际点击并验证播放、进度跳转、媒体切换后的资源清理、图片与 PDF 预览、文件下载字节、文本编辑和失败重试，覆盖深浅主题与窄屏。截图、下载样本和构建来源保存在 `.cache/file-preview-browser/after`。修改前对照将旧构建及来源复制到 `.cache/file-preview-before/dist` 与 `.cache/file-preview-before/build-info.json`，以 `BROWSER_BEFORE=1` 分别记录音频的二进制提示与 PDF 被当作源码显示的结果。`server/tests/file-content.test.mjs` 覆盖 MIME、附件文件名、原始字节、Range、大文件及取消读取；桥接测试验证 HTTPS 路由，文件面板组件测试覆盖类型切换、保存保护、草稿与迟到读取隔离。
 
 单独验证发行包时执行：
 
@@ -140,7 +140,7 @@ npm run service:restart-when-idle
 
 确认任务与终端均已结束时，也可使用 `npm run service:restart`。终端状态和输出保存在桥接进程中，重启前应保护运行中的工作。迁移源码目录后，先重新安装服务以更新路径，再重启。
 
-空闲判断只使用连接就绪状态、对话轮次与上下文整理占用。打开的网页终端与任务分别处理，等待程序只执行网页服务重启。日志在等待数量改变时更新，重启后检查 `/healthz` 并报告实际运行版本；自动化交付还需核对 `lan/state` 的所需接口。`server/tests/restart-when-idle.test.mjs` 在临时目录提供模拟 systemctl 与 HTTP/WebSocket 服务，验证终端保持打开、任务和整理占用、等待期间新轮次、健康检查重试及重启失败，不操作真实服务。
+空闲判断只使用连接就绪状态、对话轮次与上下文整理占用。打开的网页终端与任务分别处理，等待程序只执行网页服务重启。日志在等待数量改变时更新，重启后检查 `/healthz` 并报告实际运行版本；自动化交付还需核对 `lan/state` 的所需接口。`server/tests/restart-when-idle.test.mjs` 在临时目录提供模拟 systemctl 与 HTTPS/WSS 服务，验证终端保持打开、任务和整理占用、等待期间新轮次、健康检查重试及重启失败，不操作真实服务。
 
 源码部署与全局安装使用相同服务名，同一用户使用一套部署。从源码切换到全局包时，将项目 `.env` 中需要保留的配置迁移到用户配置目录，再按[发行包安装说明](deployment.md#安装发行包)更新服务。
 
@@ -179,8 +179,14 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 ## 构建来源
 
-版本来源的生成机制、开发构建标识和正式发布身份见[版本管理](versioning.md#正式版本与开发构建)。网页来源在构建时固定，源码桥接来源在进程启动时固定；排查更新时分别核对网页“设置 → 关于”和 `/healthz` 中的信息。
+版本来源的生成机制、开发构建标识和正式发布身份见[版本管理](versioning.md#正式版本与开发构建)。网页来源在构建时固定，源码桥接来源在进程启动时固定；排查更新时分别核对 `build-info.json` 和 `/healthz` 中的信息；网页“设置 → 关于”仅展示产品版本号。
 
 子代理主代理消息回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/subagent-messages.mjs`。脚本使用隔离模拟后端，实际打开子代理详情，验证初始任务的位置、发送者标注、后续消息自动补齐、刷新去重、只读行为及桌面深浅主题和手机布局。旧构建和构建信息分别保存在 `.cache/subagent-messages-before/dist` 与 `.cache/subagent-messages-before/build-info.json`，使用 `BROWSER_BEFORE=1` 复现只有子代理回复的状态；截图及来源保存在 `.cache/subagent-messages-browser/`。服务端测试使用临时 rollout，覆盖调用与接收者核对、轮次定位、其他代理隔离、未接收消息和写入中的尾行；组件测试覆盖实时补齐及切换隔离。README 与其他文档现有截图展示主对话、文件预览和账户状态，未包含子代理详情，现有图片保持适用。
 
 加密消息回归在上述浏览器命令前增加 `BROWSER_ENCRYPTED=1`，使用临时父子 rollout 和真实桥接读取函数生成消息，检查加密状态、消息顺序、刷新、后续明文与深浅主题及手机布局。截图和构建来源写入 `.cache/subagent-encryption-browser/after/`。修复前的读取模块可保存在 `.cache/subagent-encryption-before/agent-messages.mjs`，再增加 `BROWSER_CIPHERTEXT_BEFORE=1` 复现密文长气泡，截图写入同目录的 `before/`。测试数据均为人工构造的记录；加密状态的单元回归同时覆盖结构化标记、非固定前缀、重复发送和其他发送者隔离。
+
+## 系统登录回归
+
+`server/tests/auth.test.mjs` 通过临时 CODEX_HOME、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。
+
+浏览器回归使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/auth.mjs`，在生产构建和临时模拟后端上实际填写登录表单，检查刷新、跨标签页退出、草稿恢复、过期、证书下载、设备安装指引、关于页隐藏开发标记、深浅主题及手机布局。截图及构建信息保存在 `.cache/auth-browser`。

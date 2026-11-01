@@ -63,14 +63,14 @@ export function ContextCard() {
             {agents.map((agent) => (
               <button
                 key={agent.id}
-                title={agent.path || agent.id}
+                title={agent.name}
                 onClick={() => openSubAgent(agent)}
               >
                 <Users size={17} />
                 <span>
                   <b>{agent.name}</b>
                   <small data-status={agent.status}>
-                    {agentStatusLabels[agent.status] || agent.status}
+                    {agentStatusLabels[agent.status] || "状态待更新"}
                   </small>
                 </span>
                 <ChevronRight size={14} />
@@ -247,14 +247,12 @@ function SubAgentConversation({ agent }) {
       <div className="subagent-meta">
         <span data-status={status}>
           {status === "completed" ? <CheckCircle2 size={13} /> : null}
-          {agentStatusLabels[status] || status}
+          {agentStatusLabels[status] || "状态待更新"}
         </span>
-        <span>子代理对话 · 只读</span>
         {model && <span>{model}</span>}
         {effort && (
           <span>思考强度 {reasoningEffortLabels[effort] || effort}</span>
         )}
-        {agent.path && <code>{agent.path}</code>}
       </div>
       <div
         className="subagent-history"
@@ -266,11 +264,6 @@ function SubAgentConversation({ agent }) {
             100;
         }}
       >
-        {!connected && (
-          <p className="subagent-notice" role="status">
-            连接恢复后自动更新子代理对话。
-          </p>
-        )}
         {connected && history.loading && (
           <p className="subagent-notice" role="status">
             <LoaderCircle size={14} className="spin" />
@@ -300,7 +293,7 @@ function SubAgentConversation({ agent }) {
           </div>
         )}
         {!history.loading && !history.error && !items.length && (
-          <p className="subagent-notice">该子代理暂无可读取的对话记录。</p>
+          <p className="subagent-notice">暂无对话记录。</p>
         )}
         <ReadOnlyConversation
           items={items}

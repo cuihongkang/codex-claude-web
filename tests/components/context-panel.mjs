@@ -134,7 +134,7 @@ export async function testContextPanel(app, requests, setResponse, emit) {
       assert(button, label);
       button.props.onClick();
     });
-  const openAgent = (id) => click("/root/" + id);
+  const openAgent = (id) => click(id);
   const tools = () => view.root.findByProps({ className: "context-tools" });
   const toggle = () =>
     tools()
@@ -170,9 +170,10 @@ export async function testContextPanel(app, requests, setResponse, emit) {
     await click("展开对话详情", tools());
     assert.equal(
       view.root.findAllByProps({ title: "/root/agent-a" }).length,
-      1,
+      0,
     );
     assert(text().includes("工作区") && text().includes("子代理"));
+    assert.equal(view.root.findAllByProps({ title: "agent-a" }).length, 1);
     assert.deepEqual(
       tools()
         .findAllByType("button")
@@ -294,6 +295,8 @@ export async function testContextPanel(app, requests, setResponse, emit) {
       });
     });
     assert(text().includes("主代理后续补充要求"));
+    assert(!text().includes("子代理对话 · 只读"));
+    assert(!text().includes("/root/agent-a"));
     assert.equal(app.get().current.id, parent.id);
     assert.equal(app.get().draft, "父对话草稿");
     assert.equal(app.get().attachments[0].id, "parent-attachment");
@@ -373,7 +376,7 @@ export async function testContextPanel(app, requests, setResponse, emit) {
     await click("重试读取");
     assert(!text().includes("模拟子代理读取失败"));
     await act(async () => app.set({ connected: false }));
-    assert(text().includes("连接恢复后自动更新"));
+    assert(!text().includes("连接恢复后自动更新"));
     await act(async () => app.set({ connected: true }));
     assert(text().includes("第二个子代理任务"));
     legacy = true;

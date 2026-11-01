@@ -72,6 +72,7 @@ import { ContextWorkspace } from "./context-panel";
 import { CommandDialog, commandTitles } from "./command-dialog";
 import { isCompacting } from "./compaction";
 import codexWebIcon from "./assets/codex-web.svg";
+import { AuthenticationGate, LogoutButton } from "./auth";
 
 function ThreadMenu({ thread, onClose }) {
   const s = useStore();
@@ -574,12 +575,9 @@ function PluginsDialog() {
   return (
     <div className="catalog-list">
       {error && <div className="inline-error">{error}</div>}
-      {!data && !error && <div className="loading">读取本机插件…</div>}
+      {!data && !error && <div className="loading">正在读取插件…</div>}
       {data && (
         <>
-          <p className="section-description">
-            已安装插件及 MCP 工具连接，与本机 Codex 配置保持一致。
-          </p>
           {data.plugins.marketplaces
             ?.flatMap((m) => m.plugins || [])
             .map((p) => (
@@ -589,14 +587,16 @@ function PluginsDialog() {
                 </div>
                 <div>
                   <strong>{p.interface?.displayName || p.name}</strong>
-                  <p>{p.interface?.shortDescription || p.id}</p>
+                  {p.interface?.shortDescription && (
+                    <p>{p.interface.shortDescription}</p>
+                  )}
                 </div>
                 <span className="status-tag">
                   {p.enabled ? "已启用" : "已停用"}
                 </span>
               </div>
             ))}
-          <h3 className="section-label">MCP 服务器</h3>
+          <h3 className="section-label">工具连接</h3>
           {data.mcp.data?.map((server) => (
             <div className="catalog-card" key={server.name}>
               <div className="catalog-icon">
@@ -604,10 +604,7 @@ function PluginsDialog() {
               </div>
               <div>
                 <strong>{server.name}</strong>
-                <p>
-                  {Object.keys(server.tools || {}).length} 项工具 ·{" "}
-                  {server.authStatus || "已配置"}
-                </p>
+                <p>{Object.keys(server.tools || {}).length} 项工具</p>
               </div>
             </div>
           ))}
@@ -620,6 +617,8 @@ function SettingsDialog() {
   const s = useStore();
   return (
     <div className="settings-body">
+      <h3>网页登录</h3>
+      <LogoutButton />
       <h3>外观</h3>
       <div className="theme-options">
         {[
@@ -650,17 +649,11 @@ function SettingsDialog() {
           显示终端<kbd>Ctrl / ⌘ `</kbd>
         </span>
         <span>
-          消息换行<kbd>Shift Enter</kbd>
+          消息换行<kbd>Enter</kbd>
         </span>
       </div>
       <h3>关于</h3>
       <VersionDetails />
-      <p className="section-description">
-        Codex Web · 自建网页客户端
-        <br />
-        连接本机官方 codex
-        app-server，使用本机账户、项目文件和会话历史。桌面专属的自动化调度、内置浏览器与桌面控制目前由桌面客户端提供。
-      </p>
     </div>
   );
 }
@@ -687,9 +680,7 @@ function ModelDialog() {
       <ReasoningEffortControl inline />
       <h3>速度模式</h3>
       <ServiceTierToggle />
-      <p className="section-description">
-        速度设置应用于下一轮任务，Fast 模式会增加用量。
-      </p>
+      <p className="section-description">Fast 模式会增加用量。</p>
       <div className="dialog-done">
         <button className="primary" onClick={() => set({ modal: null })}>
           完成
@@ -880,7 +871,7 @@ function App() {
         {!s.connected && (
           <div className="connection-banner">
             <LoaderCircle size={14} className="spin" />
-            正在连接电脑，连接恢复后会自动载入对话。
+            正在连接…
           </div>
         )}
         <div className="workspace">
@@ -922,7 +913,6 @@ class ErrorBoundary extends React.Component {
     return this.state.error ? (
       <div className="fatal">
         <h2>页面遇到错误</h2>
-        <p>{this.state.error.message}</p>
         <button onClick={() => location.reload()}>重新载入</button>
       </div>
     ) : (
@@ -932,6 +922,8 @@ class ErrorBoundary extends React.Component {
 }
 createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
-    <App />
+    <AuthenticationGate>
+      <App />
+    </AuthenticationGate>
   </ErrorBoundary>,
 );

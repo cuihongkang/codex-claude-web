@@ -62,7 +62,7 @@ export function subAgents(items) {
         name:
           path?.split("/").filter(Boolean).at(-1) ||
           previous?.name ||
-          `子代理 ${id.slice(-6)}`,
+          `子代理 ${agents.size + 1}`,
         status: state?.status || eventStatus || previous?.status || "unknown",
         message: state?.message || previous?.message,
         prompt: item.prompt || previous?.prompt,

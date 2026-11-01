@@ -1,3 +1,10 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  authenticationFixture,
+  httpsFetch,
+} from "../../tests/helpers/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -52,6 +59,9 @@ async function bridge(t, handle = () => undefined) {
       );
     });
   });
+  const directory = await mkdtemp(join(tmpdir(), "codex-web-subscriptions-"));
+  const auth = await authenticationFixture(directory);
+  t.after(() => rm(directory, { recursive: true, force: true }));
   const child = spawn(
     process.execPath,
     [fileURLToPath(new URL("../src/server.mjs", import.meta.url))],
@@ -59,6 +69,7 @@ async function bridge(t, handle = () => undefined) {
       env: {
         ...process.env,
         HOST: "127.0.0.1",
+        CODEX_HOME: directory,
         PORT: "0",
         CODEX_APP_SERVER_URL: `ws://127.0.0.1:${backend.address().port}`,
       },
@@ -78,8 +89,8 @@ async function bridge(t, handle = () => undefined) {
   const url = await new Promise((resolve, reject) => {
     child.once("error", reject);
     child.stdout.on("data", (bytes) => {
-      const match = bytes.toString().match(/http:\/\/127\.0\.0\.1:\d+/);
-      if (match) resolve(match[0].replace("http:", "ws:") + "/rpc");
+      const match = bytes.toString().match(/https:\/\/127\.0\.0\.1:\d+/);
+      if (match) resolve(match[0].replace("https:", "wss:") + "/rpc");
     });
   });
   return {
@@ -93,7 +104,13 @@ async function bridge(t, handle = () => undefined) {
       upstream.send(JSON.stringify({ method, params }));
     },
     async connect() {
-      const socket = new WebSocket(url);
+      const socket = new WebSocket(url, {
+        ca: auth.tls.cert,
+        headers: {
+          Cookie: auth.cookie,
+          Origin: new URL(url).origin.replace("wss:", "https:"),
+        },
+      });
       sockets.push(socket);
       await new Promise((resolve) =>
         socket.on("message", (bytes) => {
