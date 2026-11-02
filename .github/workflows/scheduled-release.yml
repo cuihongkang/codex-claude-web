@@ -9,8 +9,6 @@ on:
       - "scripts/publish-release.mjs"
       - ".github/release-schedule.json"
       - ".github/workflows/scheduled-release.yml"
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:

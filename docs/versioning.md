@@ -78,7 +78,7 @@ git push origin main vX.Y.Z
 
 标签工作流执行完整检查、草稿创建、两个附件上传、下载校验和及临时全局安装验证，然后保持草稿。`Publish scheduled releases` 工作流被调用时读取计划，到期后重新验证草稿附件和安装来源，再公开已有草稿；提前调用返回 `pending` 并退出。检查失败时保留草稿，后续执行沿用原版本重试；正式发布后仅检查附件完整性，保持已交付附件固定。两个工作流共用 `release-publish` 并发组并启用多任务排队，避免草稿上传与公开同时执行，也防止后续检查替换排队中的发布。
 
-定时发布由独立的持久调度任务在目标时间主动调用上述工作流，GitHub cron 提供补偿检查。仓库的 cron 表达式请求每五分钟触发一次，[GitHub 实际调度可能延迟或缺失](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)；发布时间配置是公开前的时间检查条件。持久调度任务由维护者在已授权的常驻主机上建立，随具体发布任务登记和验证。Linux 主机优先使用用户级 [systemd timer](https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html)，配置明确时区的 `OnCalendar` 和 `Persistent=true`，核对触发精度、退出登录后的运行条件、失败重试及结果日志。任务使用已有授权主动触发工作流，并在触发后持续查询运行和 Release 状态；凭据及调用命令须在相同的非交互执行环境中验证，代码使用隔离检出或固定脚本。
+定时发布由独立的持久调度任务在目标时间主动调用上述工作流。当前发布计划为空，工作流仅保留手动调用和相关文件推送入口。新增定时发布时，随计划在 `scheduled-release.yml` 启用 GitHub cron 补偿检查，例如 `cron: "*/5 * * * *"`；[GitHub 实际调度可能延迟或缺失](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)，发布时间配置是公开前的时间检查条件。持久调度任务由维护者在已授权的常驻主机上建立，随具体发布任务登记和验证。Linux 主机优先使用用户级 [systemd timer](https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html)，配置明确时区的 `OnCalendar` 和 `Persistent=true`，核对触发精度、退出登录后的运行条件、失败重试及结果日志。任务使用已有授权主动触发工作流，并在触发后持续查询运行和 Release 状态；凭据及调用命令须在相同的非交互执行环境中验证，代码使用隔离检出或固定脚本。
 
 ```text
 持久定时任务到期 ─┐
@@ -92,6 +92,8 @@ GitHub cron 补偿 ─┘                                      ↓
 定时工作流需要位于默认分支。手动触发 `Publish scheduled releases` 可以重试到期发布，也会同步发布说明；手动触发继续遵守原发布时间。修改 `docs/releases` 中的说明或发布脚本后，默认分支推送触发正文同步：保留独立 Markdown 文件的标题，只将变更列表写入已有 Release 的正文，保持版本标题、标签和附件固定。
 
 排查漏发时先核对并保存计划、工作流状态、触发记录及日志，区分缺少触发与执行失败。恢复交付时重试已有定时发布任务，继续使用原版本、标签和附件，并分别记录故障原因与恢复后的实际发布时间。
+
+确认正式发布或取消该次发布后，移除对应版本的计划并停用其持久调度任务，保留执行日志。最后一个计划清理后，同时移除工作流的 `schedule` 触发器；手动调用和发布说明同步入口继续保留。清理历史 Release 前先检查其定时计划，避免定时工作流继续查询已移除的版本。清理后核对默认分支配置、活动或排队中的运行以及主机定时器状态。
 
 `v2.3.0` 的功能范围为 `v2.2.0..210a695` 的全部 14 个提交，其中 12 个涉及功能和修复，2 个修订已有发布说明；完整记录见[版本比较](https://github.com/hjd-hitsz/codex-web/compare/v2.2.0...210a69577bab649b35cc7d86ef0a8636ac0206fb)。发布准备另行记录版本同步、定时配置和正文排版修复。
 
