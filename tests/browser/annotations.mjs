@@ -339,7 +339,7 @@ async function runScenario() {
         key,
         code: key === "Enter" ? "Enter" : key,
         modifiers,
-        ...(key === "Enter" && !modifiers && type === "keyDown"
+        ...(key === "Enter" && !(modifiers & 7) && type === "keyDown"
           ? { text: "\r" }
           : {}),
       });
@@ -463,6 +463,48 @@ async function runScenario() {
     assert.equal(surface.doneWidth, surface.doneHeight);
     await screenshot("after-floating-editor");
     await key("Enter");
+    if (process.env.ANNOTATION_ENTER_BEFORE === "1") {
+      assert(
+        (
+          await evaluate(
+            `document.querySelector('.annotation-editor textarea').value`,
+          )
+        ).includes("\n"),
+      );
+      await screenshot("before-enter-newline");
+      await writeFile(
+        join(output, "results.json"),
+        JSON.stringify(
+          { passed: true, reproduced: "Enter 插入换行", build: buildInfo },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    assert.equal(
+      await evaluate(`!!document.querySelector('.annotation-editor')`),
+      false,
+    );
+    assert.equal(
+      await evaluate(`document.activeElement.getAttribute('aria-label')`),
+      "消息",
+    );
+    assert.equal(await sentCount(), 0, "Enter 完成批注仅保存草稿");
+    await screenshot("after-enter-completed");
+    await click('button[aria-label="打开批注 1"]');
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.annotation-editor textarea').value`,
+      ),
+      "请明确需要检查的配置文件。",
+    );
+    await key("Enter", 8);
+    assert.equal(
+      await evaluate(`!!document.querySelector('.annotation-editor')`),
+      true,
+      "Shift+Enter 保留批注编辑",
+    );
     assert(
       (
         await evaluate(
@@ -470,7 +512,7 @@ async function runScenario() {
         )
       ).includes("\n"),
     );
-    await screenshot("editor-multiline");
+    await screenshot("after-shift-enter");
     await fill(
       ".annotation-editor textarea",
       "需要保留的长批注内容。".repeat(45),
@@ -549,7 +591,14 @@ async function runScenario() {
     await pause(150);
     await checkFloating("窄屏深色");
     await screenshot("after-mobile-dark");
-    await click('.annotation-editor button[type="submit"]');
+    await click(".annotation-editor textarea");
+    await key("Enter");
+    assert.equal(
+      await evaluate(`!!document.querySelector('.annotation-editor')`),
+      false,
+    );
+    assert.equal(await sentCount(), 0);
+    await screenshot("after-mobile-enter-completed");
     await evaluate(`annotationFixture.setFail(true)`);
     await click(".send-button");
     await waitFor(`document.querySelector('.send-button:not(:disabled)')`);

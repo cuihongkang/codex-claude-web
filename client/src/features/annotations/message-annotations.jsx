@@ -449,12 +449,15 @@ function AnnotationEditor({ entry, editor, onRemove }) {
         }
         if (
           event.key === "Enter" &&
-          event.ctrlKey &&
+          !event.altKey &&
+          !event.metaKey &&
           !event.shiftKey &&
-          !event.nativeEvent.isComposing
+          !event.nativeEvent.isComposing &&
+          event.nativeEvent.keyCode !== 229
         ) {
           event.preventDefault();
-          submitComposer();
+          if (event.ctrlKey) submitComposer();
+          else close();
         }
       }}
     >

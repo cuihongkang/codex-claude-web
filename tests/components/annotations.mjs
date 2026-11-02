@@ -178,7 +178,35 @@ export async function testAnnotations(app, requests, setResponse) {
     const initial = count();
     await select();
     await change("第一条批注");
-    await save();
+    const pressEnter = async (extra = {}) => {
+      let prevented = false;
+      await act(async () =>
+        view.root
+          .findByProps({ className: "annotation-editor" })
+          .props.onKeyDown({
+            key: "Enter",
+            nativeEvent: {},
+            preventDefault() {
+              prevented = true;
+            },
+            ...extra,
+          }),
+      );
+      return prevented;
+    };
+    for (const extra of [
+      { nativeEvent: { isComposing: true } },
+      { nativeEvent: { keyCode: 229 } },
+      { shiftKey: true },
+    ]) {
+      assert.equal(await pressEnter(extra), false);
+      assert.equal(field().props.value, "第一条批注");
+      assert(app.get().annotationEditor);
+    }
+    assert.equal(await pressEnter(), true);
+    assert.equal(app.get().annotationEditor, null);
+    assert.equal(drafts()[0].annotation, "第一条批注");
+    assert.equal(count(), initial, "Enter 完成批注只保存草稿");
     await select("另一处原文");
     await change("第二条批注");
     await save();
