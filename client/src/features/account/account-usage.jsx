@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { Settings } from "lucide-react";
 import { useStore, set, refreshUsage } from "../../store.js";
 import {
+  quotaCreditsText,
   quotaLabel,
   quotaPlan,
   quotaRemaining,
@@ -109,9 +110,11 @@ export function AccountFooter() {
 
   const windows = quotaWindows(s.usage);
   const hasWindows = windows.length > 0;
+  const credits = quotaCreditsText(s.usage);
   const plan = quotaPlan(s.account, s.usage);
   const apiAccount = s.account && s.account.type !== "chatgpt";
-  const stale = (s.usageError || !s.connected) && hasWindows;
+  const stale =
+    (s.usageError || !s.connected) && (hasWindows || credits !== null);
   return (
     <div
       className="account-card"
@@ -145,7 +148,13 @@ export function AccountFooter() {
             {plan && <span className="account-plan">{plan}</span>}
           </div>
           <UsageMeters usage={s.usage} />
-          {!hasWindows && (
+          {credits !== null && (
+            <div className="quota-credits">
+              <span>剩余点数</span>
+              <b>{credits}</b>
+            </div>
+          )}
+          {!hasWindows && credits === null && (
             <p
               className="quota-empty"
               role="status"

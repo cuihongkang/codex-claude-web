@@ -108,6 +108,21 @@
 .quota-stale {
   font-size: 0.769231rem;
 }
+.quota-credits {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.153846rem 0.461538rem;
+  margin-top: 0.384615rem;
+  padding: 0.538462rem 0 0.230769rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.923077rem;
+}
+.quota-credits b {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
 .quota-empty {
   margin: 0.461538rem 0 0.153846rem;
   font-size: 0.846154rem;

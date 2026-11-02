@@ -2,6 +2,24 @@ export function quotaSnapshot(usage) {
   return usage?.rateLimitsByLimitId?.codex || usage?.rateLimits;
 }
 
+export function quotaCreditsText(usage) {
+  const credits = quotaSnapshot(usage)?.credits;
+  if (!credits) return null;
+  if (credits.unlimited) return "无限额";
+  if (credits.hasCredits === false) return "0";
+  const balance = credits.balance;
+  if (
+    typeof balance !== "string" ||
+    !balance.trim() ||
+    !Number.isFinite(Number(balance)) ||
+    Number(balance) < 0
+  )
+    return "余额暂不可用";
+  return Number(balance).toLocaleString("zh-CN", {
+    maximumFractionDigits: 2,
+  });
+}
+
 export function quotaWindows(usage) {
   const limits = quotaSnapshot(usage);
   return [limits?.primary, limits?.secondary].filter(

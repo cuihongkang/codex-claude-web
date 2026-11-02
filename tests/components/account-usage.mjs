@@ -46,6 +46,7 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
         resetsAt: Math.floor(Date.now() / 1000) + 3600,
       },
       secondary: null,
+      credits: { hasCredits: true, unlimited: false, balance: "1250.75" },
     };
     return { rateLimits: limits, rateLimitsByLimitId: { codex: limits } };
   };
@@ -84,11 +85,14 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
     assert.equal(toggle().props["aria-expanded"], false);
     assert.equal(view.root.findAllByType("progress").length, 0);
     assert.equal(view.root.findAllByType("time").length, 0);
+    assert.doesNotMatch(text(), /剩余点数/);
     assert.equal(intervals.size, 1);
     assert.equal(resets.size, 1);
 
     await act(async () => toggle().props.onClick());
     assert.equal(toggle().props["aria-expanded"], true);
+    assert.match(text(), /剩余点数/);
+    assert.match(text(), /1,250.75/);
     assert.match(text(), /Pro/);
     assert.match(text(), /后重置/);
     assert.match(text(), /月/);
@@ -155,6 +159,7 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
     result = { error: { message: "模拟额度接口暂不可用" } };
     await act(async () => poll());
     assert.deepEqual(remaining(), [80]);
+    assert.match(text(), /1,250.75/);
     assert.match(text(), /待更新/);
     assert.equal(app.get().error, original.error);
     result = snapshot(0);
@@ -226,6 +231,37 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
     await act(async () => app.set({ usage: snapshot(-5) }));
     assert.deepEqual(remaining(), [100]);
 
+    await act(async () => toggle().props.onClick());
+    for (const [credits, expected] of [
+      [{ hasCredits: true, balance: "0" }, "0"],
+      [{ hasCredits: false, balance: "200" }, "0"],
+      [{ unlimited: true }, "无限额"],
+      [{ hasCredits: true, balance: null }, "余额暂不可用"],
+    ]) {
+      await act(async () => app.set({ usage: { rateLimits: { credits } } }));
+      const row = view.root.findByProps({ className: "quota-credits" });
+      assert.equal(row.findByType("b").children.join(""), expected);
+      assert.doesNotMatch(text(), /暂无额度数据/);
+    }
+    await act(async () =>
+      emit("account/rateLimits/updated", {
+        rateLimits: { credits: { balance: "350.5" } },
+      }),
+    );
+    assert.match(text(), /350.5/);
+    await act(async () =>
+      emit("account/rateLimits/updated", { rateLimits: { credits: null } }),
+    );
+    assert.match(text(), /350.5/);
+    await act(async () => app.set({ connected: false }));
+    assert.match(text(), /待更新/);
+    assert.match(text(), /350.5/);
+    await act(async () => app.set({ connected: true }));
+    await act(async () =>
+      app.set({ usage: { rateLimits: { primary: null, credits: null } } }),
+    );
+    assert.doesNotMatch(text(), /剩余点数/);
+    assert.match(text(), /暂无额度数据/);
     await act(async () =>
       app.set({ account: { type: "apiKey" }, usage: null }),
     );

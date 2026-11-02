@@ -114,6 +114,8 @@ npm run check
 
 视觉调整的浏览器检查使用生产构建与隔离的模拟历史，覆盖正文、代码块、工作过程、输入框草稿、右侧详情、设置弹窗及欢迎页。浅色、深色、跟随系统深色和窄屏分别核对文字对比度、选中状态、换行、控件位置及全宽布局。80%、100%、125%、150% 和 200% 缩放按物理窗口尺寸除以缩放倍数设置 CSS 视口，并同步设置设备像素比，检查发送按钮和底栏的可见性。修改前后采用相同数据和视口截图，图片及构建信息保存在 `.cache` 中。
 
+账户点数展示对照本机 Codex VS Code 客户端 `26.1021.22027` 的 `webview/assets/rail-menu-cae2fdac3263.js`：`fe` 读取并校验 `credits.balance`，`It` 展示余额，`banner-suppression-f959351fdc5c.js` 的 `O` 将后端点数字段映射到 `hasCredits`、`unlimited` 和 `balance`。原生客户端界面控制连接未提供，以上打包实现及本机 app-server 的 `CreditsSnapshot` 协议定义作为数据依据。网页保留百分比圆环，在展开详情中单独显示点数；余额四舍五入至最多两位小数并省略末尾的零，另覆盖零余额、无限额、暂缺、仅点数、稀疏通知、失败保留、完整读取清除和账户切换隔离。README 当前截图展示折叠圆环，图示仍符合默认界面。
+
 账户额度浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/account-usage.mjs`。脚本注入隔离的 Pro 和 Plus 账户，核对默认圆环、账户行高度和单行重置信息，通过实际点击、Enter、空格、Esc 与外部点击验证详情收放；推进本地时钟并触发 30 秒倒计时回调，确认时间更新及后端请求数量。额度自动读取测试把 60 秒轮询缩短至 200 毫秒并按需启用，组件测试另行断言两个生产间隔。继续验证额度通知、接口失败、回到前台与设置页精简，覆盖浅色、深色、跟随系统深色、五档缩放、390px 窄屏和基础字号放大。截图及构建来源写入 `.cache/account-usage-compact-browser/after`。修改前先将旧 `client/dist` 与 `build-info.json` 复制到 `.cache/account-usage-compact-before/`，分别命名为 `dist` 与 `build-info.json`，再以 `BROWSER_BEFORE=1` 运行同一脚本，记录原有展开大卡片的对照结果。
 
 界面发生可见变化时，同步检查 README 和其他文档引用的仓库图片，在同一提交中更新受影响的截图。README 的界面截图维护在 `docs/images/`：`desktop-light.png` 与 `desktop-dark.png` 使用相同演示数据和 1440 × 900 的桌面视口，`mobile.png` 与 `mobile-sidebar.png` 使用 390 × 844 的手机视口及 2 倍设备像素比，分别展示对话与侧栏额度。执行 `npm run build` 后运行 `CHROME_PATH=/path/to/chromium node tests/browser/readme.mjs`，脚本在独立浏览器配置中使用隔离演示项目、Plus 双窗口额度和模拟消息，实际打开文件预览、切换主题与手机侧栏，并检查默认折叠圆环及展开后的单行重置信息。生成的截图默认写入 `docs/images/`，可通过 `BROWSER_OUTPUT_DIR` 指定其他目录；展开状态的检查截图、构建来源和检查记录写入 `.cache/readme-screenshots/after`。README 通过 `picture` 随阅读环境切换桌面截图，手机截图放在可展开区域；更新后运行 Markdown HTML 浏览器回归，检查实际渲染中的图片、相对链接、折叠区域及窄屏排版。

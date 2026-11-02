@@ -49,6 +49,7 @@ function fixture() {
           resetsAt: Math.floor(Date.now() / 1000) + 345600,
         },
         secondary: null,
+        credits: { hasCredits: true, unlimited: false, balance: "1250.756789" },
       },
     },
     emit(method, params) {
@@ -60,6 +61,11 @@ function fixture() {
         rateLimits: {
           limitId: "codex",
           planType: plan,
+          credits: {
+            hasCredits: true,
+            unlimited: false,
+            balance: "1250.756789",
+          },
           primary:
             plan === "plus"
               ? {
@@ -408,6 +414,10 @@ try {
         "/后重置/.test(document.querySelector('.quota-reset > span').textContent) && /月/.test(document.querySelector('.quota-reset time').textContent)",
       ),
     );
+    assert.equal(
+      await evaluate("document.querySelector('.quota-credits b')?.textContent"),
+      "1,250.76",
+    );
     await screenshot("account-pro-expanded", ".account-quota");
     await assertResetLine();
     await click(".quota-toggle");
@@ -537,6 +547,12 @@ try {
             "(()=>{const e=document.querySelector('.account-quota'),r=e.getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight && e.scrollWidth===e.clientWidth})()",
           ),
         );
+        assert.equal(
+          await evaluate(
+            "document.querySelector('.quota-credits b')?.textContent",
+          ),
+          "1,250.76",
+        );
         await screenshot(`${theme}-${zoom}-expanded`);
         await assertResetLine();
         await click(".quota-toggle");
@@ -577,6 +593,33 @@ try {
       ),
       2,
     );
+    for (const [credits, expected] of [
+      [{ hasCredits: true, balance: "0" }, "0"],
+      [{ hasCredits: false, balance: null }, "0"],
+      [{ unlimited: true }, "无限额"],
+      [{ hasCredits: true, balance: null }, "余额暂不可用"],
+    ]) {
+      await evaluate(
+        `quotaFixture.snapshot={rateLimits:{limitId:'codex',credits:${JSON.stringify(credits)}}};window.dispatchEvent(new Event('focus'))`,
+      );
+      await waitFor(
+        `document.querySelector('.quota-credits b')?.textContent===${JSON.stringify(expected)}`,
+      );
+      assert(await evaluate("!document.querySelector('.quota-empty')"));
+    }
+    await screenshot("mobile-credits-unavailable");
+    await evaluate(
+      "quotaFixture.fail=true;window.dispatchEvent(new Event('focus'))",
+    );
+    await waitFor("document.querySelector('.quota-stale')");
+    assert.equal(
+      await evaluate("document.querySelector('.quota-credits b').textContent"),
+      "余额暂不可用",
+    );
+    await evaluate(
+      "quotaFixture.fail=false;quotaFixture.snapshot={rateLimits:{limitId:'codex',credits:null}};window.dispatchEvent(new Event('focus'))",
+    );
+    await waitFor("!document.querySelector('.quota-credits')");
     await writeFile(
       join(output, "layouts.json"),
       JSON.stringify(layouts, null, 2),
