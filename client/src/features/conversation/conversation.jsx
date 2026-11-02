@@ -54,7 +54,7 @@ export function ReadOnlyConversation({ items, cwd, turns }) {
     ) : null,
   );
 }
-export function Conversation({ children }) {
+export function Conversation({ children, footer }) {
   const s = useStore(),
     scroll = useRef(),
     column = useRef(),
@@ -197,6 +197,7 @@ export function Conversation({ children }) {
           </div>
         </div>
         {children}
+        {footer}
       </div>
     );
   return (
@@ -328,6 +329,7 @@ export function Conversation({ children }) {
             }}
           />
         )}
+      {footer}
     </div>
   );
 }

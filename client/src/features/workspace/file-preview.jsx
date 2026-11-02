@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Download, File } from "lucide-react";
+import { File } from "lucide-react";
 
 export function FilePreview({ path, kind }) {
   const media = useRef();
@@ -77,10 +77,6 @@ export function FilePreview({ path, kind }) {
           </button>
         </div>
       )}
-      <a className="file-download" href={url + "&download=1"} download={name}>
-        <Download size={15} aria-hidden="true" />
-        下载文件
-      </a>
     </div>
   );
 }

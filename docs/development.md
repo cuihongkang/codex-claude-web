@@ -126,6 +126,8 @@ Markdown HTML 回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/
 
 文件打开回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/files.mjs`，本机需有支持 H.264 编码的 `ffmpeg`。脚本生成临时音视频、PDF、BMP 和二进制样本，注入隔离的模拟历史，实际点击并验证播放、进度跳转、媒体切换后的资源清理、图片与 PDF 预览、文件下载字节、文本编辑和失败重试，覆盖深浅主题与窄屏。截图、下载样本和构建来源保存在 `.cache/file-preview-browser/after`。修改前对照将旧构建及来源复制到 `.cache/file-preview-before/dist` 与 `.cache/file-preview-before/build-info.json`，以 `BROWSER_BEFORE=1` 分别记录音频的二进制提示与 PDF 被当作源码显示的结果。`server/tests/file-content.test.mjs` 覆盖 MIME、附件文件名、原始字节、Range、大文件及取消读取；桥接测试验证 HTTPS 路由，文件面板组件测试覆盖类型切换、保存保护、草稿与迟到读取隔离。
 
+文件详情布局回归同时检查面板延伸到工作区底部、桌面输入框避让、折叠后恢复全宽，以及下载图标的位置、可访问名称和实际下载。深浅主题与 80%、100%、125%、150%、200% 缩放检查记录在 `.cache/file-layout-verified/`，其中 `pdf-chrome.png` 使用完整 Chromium 验证内置 PDF 阅读器；README 桌面截图同步更新，手机截图中的折叠布局继续适用。本次客户端对照以使用者提供的桌面截图为视觉依据；界面工具未提供可操作的客户端窗口，本机可取得的 Codex VS Code 客户端版本为 `26.1021.22027`，其资源位于扩展的 `webview/assets/`，桌面客户端布局的源码核对仍需对应安装资源。
+
 单独验证发行包时执行：
 
 ```bash

@@ -47,6 +47,13 @@
   height: var(--context-tool-height);
 }
 @media (min-width: 1101px) {
+  .conversation-layout:has(.context-workspace.showing-panel[data-open="true"])
+    > .conversation-footer {
+    margin-right: calc(
+      var(--context-space) + var(--navigation-space, 0px) +
+        var(--navigation-inset, 0px)
+    );
+  }
   .conversation-layout:has(.context-workspace:not([data-open="false"])) {
     --context-space: 236px;
   }

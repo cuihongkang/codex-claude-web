@@ -14,6 +14,7 @@ import {
   Code,
   FileDiff,
   ArrowUpRight,
+  Download,
 } from "lucide-react";
 import { CodeEditor } from "./code-editor.jsx";
 import { isMarkdownFile } from "./editor-language.js";
@@ -292,6 +293,18 @@ export function FilePanel() {
               {basename(file)}
               {text !== original ? " •" : ""}
             </span>
+            <a
+              className="file-download"
+              href={
+                "/api/files?" +
+                new URLSearchParams({ path: file, download: "1" })
+              }
+              download={basename(file)}
+              title="下载文件"
+              aria-label="下载文件"
+            >
+              <Download size={17} aria-hidden="true" />
+            </a>
             {fileChange && (
               <>
                 <IconButton

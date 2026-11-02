@@ -178,6 +178,8 @@ sequenceDiagram
 
 `features/workspace` 把文件树、目录选择、文件编辑、差异、终端和对话详情拆成独立模块。编辑器与文件变更装饰分别封装；显示的删除装饰与实际保存正文分开处理。`context-panel.jsx` 组合概览和子代理详情，主对话切换统一清理选择，编辑缓冲区继续按原主对话保存。
 
+`app` 将输入框和错误提示作为底部插槽传入对话布局。对话布局统一提供消息、底部输入和右侧详情的几何边界；桌面展开详情时输入区域避让右侧面板，详情占满工作区高度。文件下载入口归文件面板工具栏，媒体预览组件负责内容展示及加载重试。
+
 `features/composer` 管理输入交互；`features/commands/composer-commands.js` 是快捷命令的独立注册表，菜单、按钮和键盘提交走同一解析和执行入口。`domain/commands` 只负责工具命令描述的分类与解析，命令支持范围见[命令覆盖记录](cli-command-coverage.md)。
 
 批注编辑在 `features/annotations`，协议解析在 `domain/annotations.js`，存储和订阅在 `infrastructure/annotation-drafts.js`。选区编辑只更新草稿，统一发送由消息控制器完成。账户详情、侧栏宽度和主题分别保留自己的控件生命周期。

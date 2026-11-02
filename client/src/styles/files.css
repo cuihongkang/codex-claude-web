@@ -202,14 +202,20 @@
   font-size: 0.923077rem;
   text-align: center;
 }
-.file-preview a {
-  color: var(--link);
-}
 .file-download {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 0.384615rem;
+  justify-content: center;
+  width: 2.461538rem;
+  height: 2.461538rem;
+  border-radius: 7px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.file-download:hover {
+  background: var(--hover);
+  color: var(--fg);
 }
 .panel-tabs {
   display: flex;

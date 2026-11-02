@@ -105,16 +105,19 @@ export async function testFilePanel(app, requests, setResponse) {
       ),
     );
     assert.equal(
-      view.root.findByType("a").props.href,
+      view.root.findByProps({ href: "/file-fixture/src/main.mjs:12:3" }).props
+        .href,
       "/file-fixture/src/main.mjs:12:3",
     );
     let prevented = false;
     await act(async () =>
-      view.root.findByType("a").props.onClick({
-        preventDefault() {
-          prevented = true;
-        },
-      }),
+      view.root
+        .findByProps({ href: "/file-fixture/src/main.mjs:12:3" })
+        .props.onClick({
+          preventDefault() {
+            prevented = true;
+          },
+        }),
     );
     assert(prevented);
     assert.equal(

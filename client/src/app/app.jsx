@@ -80,20 +80,25 @@ export function App() {
         )}
         <div className="workspace">
           <section className="chat-pane">
-            <Conversation>
+            <Conversation
+              footer={
+                <div className="conversation-footer" key="composer">
+                  {s.error && (
+                    <div className="error-banner">
+                      <span>{s.error}</span>
+                      <IconButton
+                        icon={X}
+                        title="关闭错误提示"
+                        onClick={() => set({ error: "" })}
+                      />
+                    </div>
+                  )}
+                  <Composer />
+                </div>
+              }
+            >
               <ContextWorkspace />
             </Conversation>
-            {s.error && (
-              <div className="error-banner">
-                <span>{s.error}</span>
-                <IconButton
-                  icon={X}
-                  title="关闭错误提示"
-                  onClick={() => set({ error: "" })}
-                />
-              </div>
-            )}
-            <Composer />
           </section>
         </div>
         {s.terminalOpen && (
