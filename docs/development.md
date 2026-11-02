@@ -203,6 +203,8 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 加密消息回归在上述浏览器命令前增加 `BROWSER_ENCRYPTED=1`，使用临时父子 rollout 和真实桥接读取函数生成消息，检查加密状态、消息顺序、刷新、后续明文与深浅主题及手机布局。截图和构建来源写入 `.cache/subagent-encryption-browser/after/`。修复前的读取模块可保存在 `.cache/subagent-encryption-before/agent-messages.mjs`，再增加 `BROWSER_CIPHERTEXT_BEFORE=1` 复现密文长气泡，截图写入同目录的 `before/`。测试数据均为人工构造的记录；加密状态的单元回归同时覆盖结构化标记、非固定前缀、重复发送和其他发送者隔离。
 
+等待接收的加密消息回归使用 `BROWSER_QUEUED_ENCRYPTED=1`，临时父记录包含已接收的初始任务和已发送的加密补充消息，子记录只包含初始任务，验证接收记录落盘前的状态及刷新后的持续隐藏。截图及构建来源保存在 `.cache/subagent-queued-browser/after/`。修改前将读取模块保存到 `.cache/subagent-queued-before/agent-messages.mjs`，增加 `BROWSER_CIPHERTEXT_BEFORE=1` 精准复现初始任务已隐藏、补充消息仍显示密文的状态，保存到 `before/`。`server/tests/agent-messages-queued.test.mjs` 覆盖接收前后、重复消息、带与不带填充的完整封包、普通前缀文字、引用封包的正文和无效封包；封包结构依据 [Fernet 规范](https://github.com/fernet/spec/blob/master/Spec.md)。
+
 ## 系统登录回归
 
 `server/tests/auth.test.mjs` 通过临时 CODEX_HOME、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。

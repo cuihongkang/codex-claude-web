@@ -10,16 +10,19 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const before = process.env.BROWSER_BEFORE === "1";
-const encrypted = process.env.BROWSER_ENCRYPTED === "1";
+const queued = process.env.BROWSER_QUEUED_ENCRYPTED === "1";
+const encrypted = queued || process.env.BROWSER_ENCRYPTED === "1";
 const ciphertextBefore = process.env.BROWSER_CIPHERTEXT_BEFORE === "1";
 const build = before
   ? join(root, ".cache/subagent-messages-before/dist")
   : join(root, "client/dist");
 const output = join(
   root,
-  encrypted
-    ? ".cache/subagent-encryption-browser"
-    : ".cache/subagent-messages-browser",
+  queued
+    ? ".cache/subagent-queued-browser"
+    : encrypted
+      ? ".cache/subagent-encryption-browser"
+      : ".cache/subagent-messages-browser",
   before || ciphertextBefore ? "before" : "after",
 );
 await mkdir(output, { recursive: true });
@@ -153,6 +156,11 @@ function fixture(initialMessages) {
 }
 
 const ciphertext = "gAAAAA" + "isolated-encrypted-message_".repeat(40);
+const packet = Buffer.alloc(57 + 16 * 64, 7);
+packet[0] = 0x80;
+packet.writeBigUInt64BE(1793544144n, 1);
+const queuedCiphertext = packet.toString("base64url");
+const messageCount = queued ? 2 : 1;
 let initialMessages;
 if (encrypted) {
   const directory = await mkdtemp(join(tmpdir(), "browser-agent-encryption-"));
@@ -190,6 +198,31 @@ if (encrypted) {
             },
           },
         },
+        ...(queued
+          ? [
+              {
+                type: "response_item",
+                payload: {
+                  type: "function_call",
+                  namespace: "collaboration",
+                  name: "send_message",
+                  call_id: "queued",
+                  arguments: JSON.stringify({ message: queuedCiphertext }),
+                },
+              },
+              {
+                type: "event_msg",
+                payload: {
+                  item: {
+                    type: "SubAgentActivity",
+                    id: "queued",
+                    kind: "interacted",
+                    agent_thread_id: child.id,
+                  },
+                },
+              },
+            ]
+          : []),
       ]
         .map(JSON.stringify)
         .join("\n"),
@@ -230,7 +263,9 @@ if (encrypted) {
     );
     const { readAgentMessages } = await import(
       ciphertextBefore
-        ? "../../.cache/subagent-encryption-before/agent-messages.mjs"
+        ? queued
+          ? "../../.cache/subagent-queued-before/agent-messages.mjs"
+          : "../../.cache/subagent-encryption-before/agent-messages.mjs"
         : "../../server/src/agent-messages.mjs"
     );
     ({ messages: initialMessages } = await readAgentMessages(
@@ -241,8 +276,15 @@ if (encrypted) {
     ));
     assert.equal(
       initialMessages[0].content[0].text,
-      ciphertextBefore ? ciphertext : "消息内容已加密",
+      ciphertextBefore && !queued ? ciphertext : "消息内容已加密",
     );
+    if (queued) {
+      assert.equal(
+        initialMessages[1].content[0].text,
+        ciphertextBefore ? queuedCiphertext : "消息内容已加密",
+      );
+      assert.equal(initialMessages[1].turnId, undefined);
+    }
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -406,7 +448,7 @@ try {
     await evaluate(
       "document.querySelectorAll('.subagent-history .user-message').length",
     ),
-    before ? 0 : 1,
+    before ? 0 : messageCount,
   );
   assert(
     !(
@@ -423,7 +465,7 @@ try {
   if (encrypted)
     assert.equal(
       await evaluate(
-        `document.querySelector('.subagent-history').textContent.includes(${JSON.stringify(ciphertext)})`,
+        `document.querySelector('.subagent-history').textContent.includes(${JSON.stringify(queued ? queuedCiphertext : ciphertext)})`,
       ),
       ciphertextBefore,
     );
@@ -437,12 +479,19 @@ try {
       `(()=>{const f=window.agentFixture;f.messages.push({id:'parent-input-followup',type:'userMessage',authorLabel:'主代理',content:[{type:'text',text:'请继续核对异常处理，并给出结论。'}]});f.socket.onmessage({data:JSON.stringify({method:'item/completed',params:{threadId:'agent-parent-fixture',turnId:'parent-turn',item:{id:'followup',type:'subAgentActivity',kind:'interacted',agentThreadId:'agent-child-fixture',agentPath:'/root/review_contract'}}})})})()`,
     );
     await waitFor(
-      "document.querySelectorAll('.subagent-history .user-message').length===2",
+      `document.querySelectorAll('.subagent-history .user-message').length===${messageCount + 1}`,
     );
     await click('button[aria-label="刷新子代理对话"]');
     await waitFor(
-      "document.querySelectorAll('.subagent-history .user-message').length===2",
+      `document.querySelectorAll('.subagent-history .user-message').length===${messageCount + 1}`,
     );
+    if (queued)
+      assert.deepEqual(
+        await evaluate(
+          "[...document.querySelectorAll('.subagent-history .user-message .user-text')].slice(0,2).map(e=>e.textContent.trim())",
+        ),
+        ["消息内容已加密", "消息内容已加密"],
+      );
     assert.equal(
       await evaluate(
         "document.querySelectorAll('.subagent-history button[title=\"编辑并重新发送\"]').length",
@@ -487,6 +536,7 @@ try {
         passed: true,
         before,
         encrypted,
+        queued,
         ciphertextBefore,
         buildInfo,
         fixture: "tests/browser/subagent-messages.mjs",

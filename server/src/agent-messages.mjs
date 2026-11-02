@@ -1,6 +1,21 @@
 import { createReadStream } from "node:fs";
 import { createInterface } from "node:readline";
 
+// 接收记录可能晚于发送调用落盘；完整 Fernet 封包按布局识别，避免暴露排队中的密文。
+function isEncryptedEnvelope(text) {
+  if (!/^[A-Za-z0-9_-]+={0,2}$/.test(text)) return false;
+  const packet = Buffer.from(text, "base64url");
+  const encoded = packet.toString("base64url");
+  // 版本 1 + 时间戳 8 + IV 16 + HMAC 32 字节；正文至少包含一个 16 字节块。
+  return (
+    packet[0] === 0x80 &&
+    packet.length >= 73 &&
+    (packet.length - 57) % 16 === 0 &&
+    (text === encoded ||
+      text === encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "="))
+  );
+}
+
 // Rollout 中的调用正文补齐 app-server 子代理活动记录省略的发送内容。
 async function scan(path, visit) {
   if (!path) throw new Error("对话记录路径暂不可用，请刷新重试。");
@@ -96,7 +111,10 @@ export async function readAgentMessages(call, threadId) {
         content: [
           {
             type: "text",
-            text: encrypted.has(text) ? "消息内容已加密" : text,
+            text:
+              encrypted.has(text) || isEncryptedEnvelope(text)
+                ? "消息内容已加密"
+                : text,
           },
         ],
         authorLabel: "主代理",
