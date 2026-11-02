@@ -64,4 +64,20 @@ test("状态入口统一清理详情选择、运行轮次未读标记并只保�
   assert.deepEqual(JSON.parse(storage.get("cx-compactions")), {
     a: { status: "running" },
   });
+  state.set({ current: { id: "a" } });
+  state.set({ current: { id: "b" } });
+  assert.equal(
+    state.get().compactions.a.status,
+    "running",
+    "切换保留进行中的整理",
+  );
+  state.set({ current: { id: "b", name: "重命名" } });
+  assert.equal(
+    state.get().compactions.b.status,
+    "completed",
+    "相同对话保留提示",
+  );
+  state.set({ current: null });
+  assert.equal(state.get().compactions.b, undefined, "离开对话收起完成提示");
+  assert.equal(state.get().compactions.a.status, "running");
 });

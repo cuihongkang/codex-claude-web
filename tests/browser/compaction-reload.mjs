@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-// 使用缺少整理快照与检查接口的桥接，验证完整页面刷新而非组件重挂载。
+// 分别使用旧桥接与带整理快照的桥接验证完整页面刷新。
 export async function testCompactionReload({
   page,
   evaluate,
@@ -119,7 +119,41 @@ export async function testCompactionReload({
   }
   await evaluate("commandFixture.useLegacy(false)");
   await reload();
-  if (await status()) await click('button[title="关闭整理状态"]');
+  assert.equal(await status(), "", "现代桥接的旧结果快照保持提示关闭");
+  await start();
+  await evaluate("commandFixture.startCompact()");
+  await evaluate("commandFixture.finishCompact()");
+  await waitFor(
+    `document.querySelector('.compaction-status')?.textContent.includes('上下文整理完成')`,
+  );
+  await reload();
+  assert.equal(await status(), "", "已显示完成结果在重新加载后保持收起");
+  await start();
+  await evaluate("commandFixture.startCompact()");
+  await evaluate("commandFixture.finishCompact()");
+  await waitFor(
+    `document.querySelector('.compaction-status')?.textContent.includes('上下文整理完成')`,
+  );
+  await click('button[title="在当前目录新建对话"]');
+  await click('.project-heading > button[title="/fixture/project"]');
+  await click(".thread-link");
+  await waitFor(
+    `document.querySelector('.breadcrumb > span')?.textContent === '核对快捷命令' && document.querySelector('textarea[aria-label="消息"]')`,
+  );
+  assert.equal(await status(), "", "切换对话再返回保持提示关闭");
+  await reload();
+  assert.equal(await status(), "", "完整刷新后旧结果快照保持提示关闭");
+  await screenshot("reload-modern-completed-hidden");
+  await start();
+  await evaluate("commandFixture.startCompact()");
+  await evaluate("commandFixture.finishOnReload('completed')");
+  await reload();
+  await waitFor(
+    `document.querySelector('.compaction-status')?.textContent.includes('上下文整理完成')`,
+  );
+  await click('button[title="关闭整理状态"]');
+  await reload();
+  assert.equal(await status(), "", "手动关闭后旧结果快照保持提示关闭");
   await type("");
   return { submitted: before.status, running: running.status, restored };
 }

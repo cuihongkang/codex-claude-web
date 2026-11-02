@@ -68,6 +68,16 @@ export function createAppState() {
     return () => listeners.delete(listener);
   };
   function set(patch) {
+    const previousThreadId = state.current?.id;
+    if (
+      Object.hasOwn(patch, "current") &&
+      patch.current?.id !== previousThreadId &&
+      state.compactions[previousThreadId]?.status === "completed"
+    ) {
+      const compactions = { ...(patch.compactions ?? state.compactions) };
+      delete compactions[previousThreadId];
+      patch = { ...patch, compactions };
+    }
     if (patch.active) {
       const unreadCompletions = {
         ...(patch.unreadCompletions ?? state.unreadCompletions),

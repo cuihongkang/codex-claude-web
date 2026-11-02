@@ -1,4 +1,4 @@
-import { isCompacting } from "../domain/compaction.js";
+import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
 import { b64decode } from "../domain/format.js";
 export function createEvents({
@@ -24,7 +24,9 @@ export function createEvents({
     if (method === "lan/compaction") {
       if (!records.deletedThreads.has(p.threadId))
         set({
-          compactions: { ...get().compactions, [p.threadId]: p.compaction },
+          compactions: mergeCompactions(get().compactions, {
+            [p.threadId]: p.compaction,
+          }),
         });
       return;
     }

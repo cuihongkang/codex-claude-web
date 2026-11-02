@@ -1,4 +1,4 @@
-import { isCompacting } from "../domain/compaction.js";
+import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
 export function createConnection({
   get,
@@ -57,7 +57,7 @@ export function createConnection({
         ...(!m.params.ready && { usageLoading: false }),
         serverVersion: m.params.version || null,
         active: m.params.activeTurns,
-        compactions: { ...get().compactions, ...m.params.compactions },
+        compactions: mergeCompactions(get().compactions, m.params.compactions),
         questions: m.params.questions,
         terminals: m.params.terminals || {},
       });

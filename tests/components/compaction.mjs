@@ -186,6 +186,15 @@ export async function testCompaction(app, requests, setResponse, emit) {
     assert(!text().includes("上下文整理完成"));
     assert.equal(send().props.disabled, false);
     await act(async () => app.set({ current: thread }));
+    assert(!text().includes("上下文整理完成"), "切换回来保持完成提示关闭");
+    await act(async () =>
+      snapshot({
+        id: "bridge-1",
+        status: "completed",
+        turnId: "compact-turn",
+      }),
+    );
+    assert(!text().includes("上下文整理完成"), "重复结果通知保持提示关闭");
 
     fail = true;
     await act(async () => app.setDraft("/compact"));
