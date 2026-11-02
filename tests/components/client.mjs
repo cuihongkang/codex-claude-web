@@ -45,6 +45,7 @@ import { testMessageNavigation } from "./message-navigation.mjs";
 import { testContextPanel } from "./context-panel.mjs";
 import { testCommands } from "./commands.mjs";
 import { testCompaction } from "./compaction.mjs";
+import { testCompactionDisplay } from "./compaction-display.mjs";
 import { testCompactionRecovery } from "./compaction-recovery.mjs";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -119,6 +120,7 @@ await testMermaid(app);
       (respond) => (fixture.responseFor = respond),
       (method, params) => fixture.socket.emit(method, params),
     );
+    await testCompactionDisplay(app);
     await testCompaction(
       app,
       requests,

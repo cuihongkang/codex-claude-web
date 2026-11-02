@@ -242,6 +242,53 @@ export async function runCommandScenarios({
   await waitFor(
     `document.querySelector('.compaction-status')?.textContent.includes('正在整理上下文')`,
   );
+  const checkSingleProgress = async () => {
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.compaction-status').length`),
+      1,
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelectorAll('.working-status,.process-preview').length`,
+      ),
+      0,
+    );
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.message-column').textContent.includes('正在整理上下文')`,
+      ),
+      false,
+    );
+  };
+  await checkSingleProgress();
+  for (const theme of ["light", "dark"]) {
+    for (const zoom of [0.8, 1, 1.25, 1.5, 2]) {
+      await page("Emulation.setDeviceMetricsOverride", {
+        width: Math.round(1440 / zoom),
+        height: Math.round(1000 / zoom),
+        deviceScaleFactor: zoom,
+        mobile: false,
+      });
+      await evaluate(
+        `document.documentElement.dataset.theme=${JSON.stringify(theme)}`,
+      );
+      await pause(350);
+      await checkSingleProgress();
+      assert(
+        await evaluate(
+          `(()=>{const r=document.querySelector('.compaction-status').getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=0&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1})()`,
+        ),
+      );
+      await screenshot(`compact-single-${theme}-${zoom}`);
+    }
+  }
+  await page("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await evaluate('document.documentElement.dataset.theme="light"');
   const elapsedBefore = await evaluate(
     `document.querySelector('.compaction-status time').textContent`,
   );
@@ -276,6 +323,7 @@ export async function runCommandScenarios({
     true,
   );
   await screenshot("compact-reloaded");
+  await checkSingleProgress();
   await page("Emulation.setDeviceMetricsOverride", {
     width: 390,
     height: 844,
@@ -284,6 +332,7 @@ export async function runCommandScenarios({
   });
   await evaluate('document.documentElement.dataset.theme="dark"');
   await pause(350);
+  await checkSingleProgress();
   await screenshot("compact-running-dark-390");
   await evaluate("commandFixture.finishCompact()");
   await waitFor(

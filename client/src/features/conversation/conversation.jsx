@@ -72,14 +72,22 @@ export function Conversation({ children }) {
   }, [s.items]);
   const active = s.active[s.current?.id],
     plan = s.plans[s.current?.id];
-  const compacting = isCompacting(s.compactions[s.current?.id]);
+  const compaction = s.compactions[s.current?.id];
+  const compacting = isCompacting(compaction);
   const actions = actionableMessages(
     s.items,
     s.turns[s.current?.id] || [],
     active,
   );
   const groups = conversationGroups(
-    s.items,
+    s.items.filter(
+      (item) =>
+        !(
+          compacting &&
+          compaction.turnId === item.turnId &&
+          item.type === "contextCompaction"
+        ),
+    ),
     s.questions.filter(
       (question) => question.params?.threadId === s.current?.id,
     ),
@@ -283,10 +291,10 @@ export function Conversation({ children }) {
                 ))}
               </details>
             )}
-            {active && (
+            {active && !compacting && (
               <div className="working-status">
                 <span className="pulse-dot" />
-                {compacting ? "正在整理上下文" : "Codex 正在工作"}
+                Codex 正在工作
               </div>
             )}
           </div>
