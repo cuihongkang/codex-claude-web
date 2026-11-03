@@ -1,3 +1,5 @@
+import { createNtfy } from "./ntfy.mjs";
+import { codexNotification } from "./notification-events.mjs";
 import http from "node:http";
 import { attachClaude } from "./claude-web.mjs";
 import { createSummaryTranslationHandler } from "./summary-translation.mjs";
@@ -20,6 +22,7 @@ import {
 
 const config = readConfig();
 const version = readVersion();
+const ntfy = createNtfy();
 const threadNaming = createThreadNaming({
   call: callUpstream,
   generate: (params) =>
@@ -256,6 +259,8 @@ function connect() {
       return;
     }
     if (message.method) {
+      const notification = codexNotification(message);
+      if (notification) void ntfy.publish(notification);
       if (message.id !== undefined) questions.set(String(message.id), message);
       const p = message.params || {};
       if (
@@ -499,7 +504,11 @@ const server = http.createServer(async (request, response) => {
     response.end("Unable to load page");
   }
 });
-const claude = attachClaude(server, config);
+const claude = attachClaude(server, config, {
+  onActivity: (event) => {
+    void ntfy.publish({ ...event, provider: "claude" });
+  },
+});
 server.on("upgrade", (request, socket, head) => {
   if (new URL(request.url, "http://localhost").pathname === "/claude/rpc")
     return;

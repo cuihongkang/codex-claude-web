@@ -13,6 +13,8 @@ export function attachClaude(server, config, options = {}) {
     defaultCwd: config.defaultCwd,
     ...options,
     emit: (message) => {
+      if (message.method === "claude/activity")
+        options.onActivity?.(message.params);
       for (const socket of clients.clients)
         if (
           !message.params?.session ||
