@@ -34,6 +34,7 @@ test(
       "client/dist/terminal-panel.js",
       "client/dist/mermaid.core.js",
       "client/dist/style.css",
+      "client/dist/document-editor.js",
       "client/dist/favicon.ico",
       "client/dist/favicon.png",
       "client/dist/apple-touch-icon.png",
@@ -193,6 +194,7 @@ test(
     for (const path of paths.filter(
       (path) =>
         path === "client/dist/mermaid.core.js" ||
+        path === "client/dist/document-editor.js" ||
         /^client\/dist\/(flowDiagram|sequenceDiagram)-.*\.js$/.test(path),
     )) {
       const resource = await fetch(url + path.slice("client/dist".length));

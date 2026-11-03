@@ -1,3 +1,9 @@
+@import "@milkdown/crepe/theme/common/prosemirror.css";
+@import "@milkdown/crepe/theme/common/code-mirror.css";
+@import "@milkdown/crepe/theme/common/cursor.css";
+@import "@milkdown/crepe/theme/common/link-tooltip.css";
+@import "@milkdown/crepe/theme/common/placeholder.css";
+@import "@milkdown/crepe/theme/common/toolbar.css";
 @import "./styles/theme.css";
 @import "./styles/base.css";
 @import "./styles/sidebar.css";
@@ -10,6 +16,7 @@
 @import "./styles/activity.css";
 @import "./styles/questions.css";
 @import "./styles/composer.css";
+@import "./styles/document-editor.css";
 @import "./styles/context.css";
 @import "./styles/files.css";
 @import "./styles/diffs.css";

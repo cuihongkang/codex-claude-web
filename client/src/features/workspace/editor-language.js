@@ -1,5 +1,4 @@
-import { HighlightStyle, StreamLanguage } from "@codemirror/language";
-import { tags } from "@lezer/highlight";
+import { StreamLanguage } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { cpp } from "@codemirror/lang-cpp";
@@ -19,28 +18,7 @@ import { dockerFile } from "@codemirror/legacy-modes/mode/dockerfile";
 import { lua } from "@codemirror/legacy-modes/mode/lua";
 import { properties } from "@codemirror/legacy-modes/mode/properties";
 
-export const codeHighlightStyle = HighlightStyle.define([
-  { tag: [tags.keyword, tags.modifier], class: "hljs-keyword" },
-  { tag: [tags.string, tags.regexp, tags.quote], class: "hljs-string" },
-  { tag: [tags.number, tags.bool, tags.null, tags.atom], class: "hljs-number" },
-  { tag: tags.comment, class: "hljs-comment" },
-  { tag: [tags.typeName, tags.className, tags.namespace], class: "hljs-type" },
-  {
-    tag: [
-      tags.function(tags.variableName),
-      tags.function(tags.propertyName),
-      tags.definition(tags.variableName),
-    ],
-    class: "hljs-title",
-  },
-  { tag: [tags.propertyName, tags.attributeName], class: "hljs-attr" },
-  { tag: [tags.meta, tags.processingInstruction], class: "hljs-meta" },
-  { tag: tags.tagName, class: "hljs-selector-tag" },
-  { tag: tags.heading, color: "var(--link)", fontWeight: "bold" },
-  { tag: tags.link, color: "var(--link)", textDecoration: "underline" },
-  { tag: tags.emphasis, fontStyle: "italic" },
-  { tag: tags.strong, fontWeight: "bold" },
-]);
+export { codeHighlightStyle } from "../markdown/code-highlight-style.js";
 
 export const isMarkdownFile = (path) =>
   /\.(md|markdown|mdown|mkd)$/i.test(path);

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 
 import {
   ArrowUp,
@@ -34,6 +34,7 @@ import { ComposerAnnotations } from "../annotations/message-annotations.jsx";
 import { useAnnotationDrafts } from "../annotations/annotation-drafts.js";
 import { isCompacting } from "../../domain/compaction.js";
 import { CompactionStatus } from "./compaction-status.jsx";
+import { MarkdownEditor } from "./markdown-editor.jsx";
 export function Composer() {
   const s = useStore(),
     draft = useDraft(),
@@ -48,13 +49,6 @@ export function Composer() {
     shortcuts.close();
     return submitComposer();
   }
-  useEffect(() => {
-    if (area.current) {
-      area.current.style.height = "auto";
-      area.current.style.height =
-        Math.min(area.current.scrollHeight, 180) + "px";
-    }
-  }, [draft, s.threadAccess?.status]);
   async function add(files) {
     for (const file of files)
       try {
@@ -147,15 +141,13 @@ export function Composer() {
               ))}
             </div>
           )}
-          <textarea
-            ref={area}
+          <MarkdownEditor
+            key={s.current?.id || "new"}
+            inputRef={area}
+            theme={s.theme}
             rows={2}
-            aria-label="消息"
-            aria-autocomplete="list"
-            aria-expanded={shortcuts.open}
-            aria-activedescendant={
-              shortcuts.open ? shortcuts.activeId : undefined
-            }
+            expanded={shortcuts.open}
+            activeId={shortcuts.open ? shortcuts.activeId : undefined}
             placeholder={
               compacting
                 ? "正在整理上下文…"

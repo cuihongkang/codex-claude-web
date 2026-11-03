@@ -33,15 +33,28 @@ try {
         name: "editor-fixture",
         setup(builder) {
           builder.onResolve(
+            { filter: /(?:^|\/)markdown-editor(?:\.jsx)?$/ },
+            () => ({ path: "markdown-editor", namespace: "editor-fixture" }),
+          );
+          builder.onLoad(
+            { filter: /^markdown-editor$/, namespace: "editor-fixture" },
+            () => ({
+              contents: `import React from 'react'; export function MarkdownEditor({inputRef,theme,expanded,activeId,...props}) {return React.createElement('textarea', {...props, 'aria-label': '消息', 'aria-expanded': expanded, 'aria-activedescendant': activeId, ref: inputRef})}`,
+            }),
+          );
+          builder.onResolve(
             { filter: /(?:^|\/)code-editor(?:\.jsx)?$/ },
             () => ({
               path: "code-editor",
               namespace: "editor-fixture",
             }),
           );
-          builder.onLoad({ filter: /.*/, namespace: "editor-fixture" }, () => ({
-            contents: `import React from 'react'; export function CodeEditor({path,text,onChange,diff,patches}) {return React.createElement('textarea', {'aria-label': '文件源码', 'data-change-diff': diff, 'data-change-patches': patches, value: text, onChange: e => onChange(e.target.value)})}`,
-          }));
+          builder.onLoad(
+            { filter: /^code-editor$/, namespace: "editor-fixture" },
+            () => ({
+              contents: `import React from 'react'; export function CodeEditor({path,text,onChange,diff,patches}) {return React.createElement('textarea', {'aria-label': '文件源码', 'data-change-diff': diff, 'data-change-patches': patches, value: text, onChange: e => onChange(e.target.value)})}`,
+            }),
+          );
         },
       },
       {

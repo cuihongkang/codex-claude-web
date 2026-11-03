@@ -182,6 +182,8 @@ sequenceDiagram
 
 `features/composer` 管理输入交互；`features/commands/composer-commands.js` 是快捷命令的独立注册表，菜单、按钮和键盘提交走同一解析和执行入口。`domain/commands` 只负责工具命令描述的分类与解析，命令支持范围见[命令覆盖记录](cli-command-coverage.md)。
 
+输入区的 `markdown-editor.jsx` 按当前对话异步挂载 Milkdown/ProseMirror 文档编辑器。`document-editor.js` 组装 CommonMark、GFM 和数学能力，逐事务将 Markdown 同步到既有草稿订阅；`document-input-rules.js` 处理整段输入与代码围栏的进入和退出，`document-table-input.js` 将表头及分隔行转换为可编辑表格，`document-list.js` 同步维护列表内容与任务复选框，保持连续键入的光标位置。`document-math-schema.js` 统一解析和序列化双美元符号公式，将同一行和换行写法都表示为行内数学节点；单美元符号保留普通文本。`document-math-input.js` 在编辑器输入入口保留未闭合源码，闭合后在当前段落生成公式并将光标留在公式后。`document-math-view.js` 提供行内公式展示与源码重入，草稿与提交统一保存 `$$公式$$`；Crepe 自带的单美元符号和数学块功能关闭。选中文字时展示格式工具，常规输入直接按 Markdown 语法排版。文档选区与 Markdown 源码位置的转换由 `editor-selection.js` 提供，快捷建议沿用输入适配接口。固定尺寸的 `.document-editor-viewport` 是正文唯一的纵向滚动容器，内部 ProseMirror 文档按内容自然排版；正文段落、列表及引用共用输入区字号与行高。仅导入已启用功能的组件样式，基础排版由项目样式定义。使用浏览器原生光标与选区，取消虚拟光标绘制。异步加载期间使用独立持有的文本框，初始化后接收最新草稿、焦点和完整选区；对外输入适配按实例发布与清理，卸载使异步回调失效。编辑器、语言支持、样式及公式字体由 Vite 生成本站分块或内联资源，随 `client/dist` 交付。
+
 批注编辑在 `features/annotations`，协议解析在 `domain/annotations.js`，存储和订阅在 `infrastructure/annotation-drafts.js`。选区编辑只更新草稿，统一发送由消息控制器完成。账户详情、侧栏宽度和主题分别保留自己的控件生命周期。
 
 ## 6. 样式、加载与分发

@@ -216,3 +216,11 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 浏览器回归使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/auth.mjs`，在生产构建和临时模拟后端上实际填写登录表单，检查刷新、跨标签页退出、草稿恢复、过期、证书下载、设备安装指引、关于页隐藏开发标记、深浅主题及手机布局。截图及构建信息保存在 `.cache/auth-browser`。
 
 固定项目排序回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/project-priority.mjs`。脚本使用独立浏览器配置和模拟 WebSocket，对照钉选空项目、较早对话与未钉选项目的最新对话，实际点击固定、取消固定、展开收起及新建入口，验证立即重排、草稿保留和刷新恢复，并保存桌面深浅主题与手机侧栏截图。修改前先将生产构建及 `build-info.json` 保存为 `.cache/project-priority-before/dist` 和 `.cache/project-priority-before/build-info.json`，使用 `BROWSER_BEFORE=1` 复现原顺序；结果和截图写入 `.cache/project-priority/before` 与 `after`。README 现有截图中的唯一钉选项目已位于未钉选项前方，现有图片与此排序规则一致。
+
+### Markdown 富文本输入回归
+
+输入框采用直接编辑排版正文的交互，持久化与提交使用 Markdown。执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/markdown-composer.mjs` 验证生产构建。脚本使用隔离模拟后端和独立浏览器上下文，检查双美元符号公式的同段渲染、单美元符号普通文本、闭合前源码、源码重入及撤销重做；同时检查延迟加载期间的文本及选区恢复、快速切换对话后的实例隔离、正文及列表两行的完整边界、点击与方向键定位、撤销重做、滚动后继续输入、原生光标、连续换行时的固定高度与位置、编辑区滚轮上下滚动、混合 Markdown 粘贴、表格直接编辑、任务复选框、公式、脚注、代码与 HTML 源码保留、草稿、发送及快捷建议，并覆盖深浅主题、80%～200% 缩放和窄屏。截图、结果和构建来源保存在 `.cache/markdown-composer`。组件回归使用文本输入适配，实际富文本行为由浏览器回归覆盖；发行包回归验证编辑器分块的安装与资源响应，浏览器回归拦截外站请求。
+
+使用相同环境变量运行 `tests/browser/markdown-typing.mjs`，验证逐字键入、整段插入、粘贴和中文组合输入自动排版。覆盖列表内公式 `- $$x_{t+1}=x_{t}+dx$$`、标题、强调、链接、任务列表、表格分隔行及代码围栏进出，同时核对实际可见排版、表格光标和 Markdown 草稿。证据保存在 `.cache/markdown-typing/after`。
+
+客户端交互的本机实现参考为 Codex 26.1007.21434，查验来源是 `/usr/lib/chatgpt/resources/app.asar` 的 `package.json`、`webview/assets/app-initial-ed5807835d97.js`、`app-primary-f49030709665.js` 和 `app-shared-2d77298f0100.js`。已核对 ProseMirror 编辑区、Markdown 解析与输入规则，以及 `getPersistedText`、`setPromptText` 的草稿读写流程。当前 UI 工具未提供原生客户端窗口，本次查验采用可取得的打包实现。网页按直接编辑排版正文的产品要求，使用 Milkdown/ProseMirror 提供文档编辑与 Markdown 输入规则，并将输入语法范围明确为 CommonMark、GFM 和公式，Mermaid 与 HTML 保留源码。

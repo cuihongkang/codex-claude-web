@@ -421,7 +421,11 @@ function AnnotationEditor({ entry, editor, onRemove }) {
   }, [entry.text, entry.source, editor.point]);
   const close = () => {
     set({ annotationEditor: null });
-    document.querySelector('textarea[aria-label="消息"]')?.focus();
+    document
+      .querySelector(
+        '[aria-label="消息"][role="textbox"], textarea[aria-label="消息"]',
+      )
+      ?.focus();
   };
   const update = (text) =>
     writeAnnotationDrafts(

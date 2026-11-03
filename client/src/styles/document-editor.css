@@ -1,0 +1,185 @@
+.markdown-composer {
+  min-width: 0;
+  width: 100%;
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+  --document-padding-y: 0.25em;
+  --document-padding-x: 0.307692rem;
+  --document-height: 2lh;
+  padding-block: var(--document-padding-y);
+}
+.markdown-composer .milkdown {
+  position: relative;
+  font: inherit;
+  background: transparent;
+  --crepe-color-background: var(--composer);
+  --crepe-color-on-background: var(--fg);
+  --crepe-color-surface: var(--composer);
+  --crepe-color-surface-low: var(--subtle);
+  --crepe-color-on-surface: var(--fg);
+  --crepe-color-on-surface-variant: var(--muted);
+  --crepe-color-outline: var(--border-strong);
+  --crepe-color-primary: var(--fg);
+  --crepe-color-secondary: var(--selected);
+  --crepe-color-on-secondary: var(--fg);
+  --crepe-color-inverse: var(--fg);
+  --crepe-color-on-inverse: var(--bg);
+  --crepe-color-inline-code: var(--fg);
+  --crepe-color-error: var(--red);
+  --crepe-color-hover: var(--hover);
+  --crepe-color-selected: var(--selected);
+  --crepe-color-inline-area: var(--subtle);
+  --crepe-base-font-size: var(--chat-font-size);
+  --crepe-font-default: inherit;
+  --crepe-font-title: inherit;
+  --crepe-font-code: var(--mono);
+  --crepe-shadow-1: var(--shadow);
+  --crepe-shadow-2: var(--shadow);
+}
+.markdown-composer > textarea,
+.document-editor-viewport {
+  box-sizing: border-box;
+  height: var(--document-height);
+  min-height: var(--document-height);
+  max-height: var(--document-height);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  font: inherit;
+  color: var(--fg);
+  caret-color: var(--fg);
+}
+.markdown-composer > textarea,
+.markdown-composer .milkdown .ProseMirror {
+  box-sizing: border-box;
+  padding: 0 var(--document-padding-x);
+  font: inherit;
+}
+.markdown-composer .milkdown .ProseMirror {
+  min-height: var(--document-height);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  color: var(--fg);
+  caret-color: var(--fg);
+  outline: none;
+}
+.markdown-composer .milkdown .ProseMirror p {
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+  min-height: 1lh;
+}
+.markdown-composer .milkdown .ProseMirror :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  line-height: 1.4;
+  font-family: inherit;
+}
+.markdown-composer .milkdown .ProseMirror h1 {
+  font-size: 1.5em;
+}
+.markdown-composer .milkdown .ProseMirror h2 {
+  font-size: 1.3em;
+}
+.markdown-composer .milkdown .ProseMirror :is(h3, h4, h5, h6) {
+  font-size: 1.1em;
+}
+.markdown-composer .milkdown .ProseMirror :is(ul, ol) {
+  margin: 0;
+  padding-block: 0;
+  padding-inline-start: 1.5em;
+}
+.markdown-composer .milkdown .ProseMirror li {
+  margin: 0;
+  padding: 0;
+  line-height: inherit;
+}
+.markdown-composer .milkdown li.document-task {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  list-style: none;
+}
+.markdown-composer .milkdown .document-task > input {
+  width: 1em;
+  height: 1em;
+  margin: 0;
+  accent-color: var(--fg);
+}
+.markdown-composer .milkdown li > div {
+  min-width: 0;
+}
+.markdown-composer .milkdown .ProseMirror blockquote {
+  color: var(--muted);
+  border-inline-start: 0.2em solid var(--border-strong);
+  margin: 0;
+  padding: 0 0.75em;
+}
+.markdown-composer .milkdown .ProseMirror a {
+  color: var(--link);
+}
+.markdown-composer .milkdown .ProseMirror code {
+  font-family: var(--mono);
+  background: var(--subtle);
+  border-radius: 0.2em;
+  padding-inline: 0.2em;
+}
+.markdown-composer .milkdown .milkdown-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.markdown-composer .milkdown :is(button, input) {
+  font: inherit;
+}
+.markdown-composer .milkdown .ProseMirror img {
+  max-width: 100%;
+}
+.document-math-inline {
+  display: inline-block;
+  vertical-align: baseline;
+  cursor: text;
+}
+.document-math-inline:focus-visible {
+  outline: 1px solid var(--muted);
+}
+.markdown-composer .milkdown .milkdown-code-block {
+  margin: 0.4em 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+.markdown-composer .milkdown .milkdown-code-block .tools {
+  padding: 0.3rem 0.5rem;
+}
+.markdown-composer .milkdown .milkdown-code-block :is(button, input) {
+  font-size: 0.923077rem;
+  line-height: var(--ui-line-height);
+}
+.markdown-composer .milkdown .cm-scroller {
+  font-family: var(--mono);
+  line-height: var(--code-line-height);
+}
+.markdown-composer .milkdown .milkdown-table-block {
+  margin: 0.4em 0;
+}
+.markdown-composer .milkdown .ProseMirror :is(td, th) {
+  padding: 0.25em 0.5em;
+  border: 1px solid var(--border-strong);
+  min-width: 3em;
+}
+.markdown-composer .milkdown .ProseMirror table {
+  border-collapse: collapse;
+  margin: 0.4em 0;
+}
+.markdown-composer .milkdown .milkdown-toolbar {
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.3rem;
+  max-width: calc(100vw - 2rem);
+  flex-wrap: wrap;
+  box-shadow: var(--shadow);
+}
+.markdown-composer .milkdown .milkdown-toolbar button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.3rem;
+}
