@@ -335,3 +335,37 @@ test("old shared snapshots recover context markers from disk without restarting 
     "context",
   );
 });
+
+test("permission modes default to auto, apply through Claude, persist and validate", async (t) => {
+  const { manager, children } = await fixture(t);
+  const { session } = await manager.create();
+  assert.equal(session.permissionMode, "auto");
+  await manager.start(manager.sessions.get(session.id));
+  const args = children[0].args;
+  assert.equal(args[args.indexOf("--permission-mode") + 1], "auto");
+  await manager.configure({ id: session.id, permissionMode: "default" });
+  assert.equal(
+    children[0].child.received.find(
+      (m) => m.request?.subtype === "set_permission_mode",
+    ).request.mode,
+    "default",
+  );
+  assert.equal(
+    (await manager.summary(manager.sessions.get(session.id))).permissionMode,
+    "default",
+  );
+  await manager.release(session.id);
+  await manager.start(manager.sessions.get(session.id));
+  assert.equal(
+    children[1].args[children[1].args.indexOf("--permission-mode") + 1],
+    "manual",
+  );
+  await assert.rejects(
+    manager.configure({ id: session.id, permissionMode: "invalid" }),
+    /权限模式/,
+  );
+  await assert.rejects(
+    manager.create({ permissionMode: "invalid" }),
+    /权限模式/,
+  );
+});

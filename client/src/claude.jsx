@@ -280,6 +280,7 @@ export function ClaudeWorkspace() {
     [model, setModel] = useState(""),
     [customModel, setCustomModel] = useState(false),
     [effort, setEffort] = useState(""),
+    [permissionMode, setPermissionMode] = useState("auto"),
     [configuring, setConfiguring] = useState(false),
     [awayFromBottom, setAwayFromBottom] = useState(false);
   useEffect(() => {
@@ -289,6 +290,9 @@ export function ClaudeWorkspace() {
     );
     setEffort(s.session?.effort || "");
   }, [s.selected, s.session?.model, s.session?.effort]);
+  useEffect(() => {
+    setPermissionMode(s.session?.permissionMode ?? "auto");
+  }, [s.selected, s.session?.permissionMode]);
   const content = useRef(null);
   const pane = useRef(null),
     follow = useRef(true),
@@ -491,6 +495,23 @@ export function ClaudeWorkspace() {
               <option value="xhigh">超高</option>
             </select>
           </label>
+          <label>
+            权限模式{" "}
+            <select
+              aria-label="Claude 权限模式"
+              value={permissionMode}
+              onChange={(e) => setPermissionMode(e.target.value)}
+              disabled={configuring || running || blocked}
+            >
+              {permissionMode === "" && <option value="">保持插件模式</option>}
+              <option value="auto">Auto · 自动审核</option>
+              <option value="default">Manual · 手动确认</option>
+              <option value="acceptEdits">自动编辑</option>
+              <option value="plan">Plan · 计划</option>
+              <option value="dontAsk">不询问（拒绝需授权操作）</option>
+              <option value="bypassPermissions">跳过权限确认</option>
+            </select>
+          </label>
           {s.selected && (
             <button
               disabled={configuring || running || blocked || !s.connected}
@@ -501,6 +522,7 @@ export function ClaudeWorkspace() {
                     id: s.selected,
                     model: model.trim(),
                     effort,
+                    permissionMode,
                   });
                   await retryClaude(s.selected);
                 } catch (e) {
@@ -550,7 +572,12 @@ export function ClaudeWorkspace() {
                 ) {
                   e.preventDefault();
                   if (s.connected && !s.loading)
-                    sendClaude({ cwd, model: model.trim(), effort });
+                    sendClaude({
+                      cwd,
+                      model: model.trim(),
+                      effort,
+                      permissionMode,
+                    });
                 }
               }}
             />
@@ -574,7 +601,14 @@ export function ClaudeWorkspace() {
                 disabled={
                   !s.connected || s.sending || s.loading || !draft.trim()
                 }
-                onClick={() => sendClaude({ cwd, model: model.trim(), effort })}
+                onClick={() =>
+                  sendClaude({
+                    cwd,
+                    model: model.trim(),
+                    effort,
+                    permissionMode,
+                  })
+                }
               >
                 <Send size={14} />
                 {s.sending ? "发送中…" : running ? "补充" : "发送"}

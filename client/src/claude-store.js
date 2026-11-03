@@ -190,7 +190,7 @@ export async function openClaude(id, refresh = false) {
     }
   }
 }
-export async function sendClaude({ cwd, model, effort } = {}) {
+export async function sendClaude({ cwd, model, effort, permissionMode } = {}) {
   if (state.sending) return;
   const originalId = state.selected,
     text = state.drafts[originalId || "new"] || "",
@@ -204,6 +204,7 @@ export async function sendClaude({ cwd, model, effort } = {}) {
         cwd: cwd || state.defaultCwd,
         model,
         effort,
+        permissionMode,
       });
       id = r.session.id;
       if (epoch === revision) {

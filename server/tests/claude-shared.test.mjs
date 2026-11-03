@@ -98,10 +98,26 @@ test("plugin host and web share one process, controls and approvals; disconnect 
     message: { role: "user", content: "plugin hello" },
   });
   await wait(() => manager.runtime.get(id).messages.has("reply-" + pluginId));
-  await manager.configure({ id, model: "sonnet", effort: "high" });
+  await manager.configure({
+    id,
+    model: "sonnet",
+    effort: "high",
+    permissionMode: "auto",
+  });
+  assert.equal((await manager.status(id)).session.permissionMode, "auto");
+  write({
+    type: "control_request",
+    request_id: "mode-manual",
+    request: { subtype: "set_permission_mode", mode: "default" },
+  });
+  await wait(() => manager.runtime.get(id).permissionMode === "default");
   assert.equal((await manager.status(id)).session.actualEffort, "high");
   assert.equal(
-    output.filter((m) => m.type === "control_response").length,
+    output.filter(
+      (m) =>
+        m.type === "control_response" &&
+        m.response?.request_id !== "mode-manual",
+    ).length,
     1,
     "web controls must not leak to host",
   );

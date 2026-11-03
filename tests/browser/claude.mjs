@@ -679,6 +679,7 @@ try {
     await page
       .getByRole("combobox", { name: "Claude 思考强度", exact: true })
       .selectOption("high");
+    assert.equal(await page.getByLabel("Claude 权限模式").inputValue(), "auto");
     await input.fill("hello from phone");
     await page
       .getByRole("button", { name: "发送给 Claude", exact: true })
@@ -699,6 +700,13 @@ try {
     );
     assert.equal(configured.model, "opus");
     assert.equal(configured.effort, "low");
+    assert.equal(configured.permissionMode, "auto");
+    await page.getByLabel("Claude 权限模式").selectOption("default");
+    await page.getByRole("button", { name: "应用", exact: true }).click();
+    await page.waitForFunction(
+      () => !document.querySelector('[aria-label="Claude 权限模式"]').disabled,
+    );
+    assert.equal(configured.permissionMode, "default");
     await input.fill("approval");
     await page
       .getByRole("button", { name: "发送给 Claude", exact: true })
@@ -795,6 +803,12 @@ try {
       () => !document.querySelector('[aria-label="Claude 模型"]').disabled,
     );
     assert.equal(configured.model, "haiku");
+    await page.getByLabel("Claude 权限模式").selectOption("auto");
+    await page.getByRole("button", { name: "应用", exact: true }).click();
+    await page.waitForFunction(
+      () => !document.querySelector('[aria-label="Claude 权限模式"]').disabled,
+    );
+    assert.equal(configured.permissionMode, "auto");
     await page
       .getByLabel("Claude 模型", { exact: true })
       .selectOption("custom");

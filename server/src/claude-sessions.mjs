@@ -26,6 +26,18 @@ import {
 
 import { mergeClaudeMessages } from "./claude-timeline.mjs";
 
+const permissionModes = [
+  "auto",
+  "default",
+  "acceptEdits",
+  "plan",
+  "dontAsk",
+  "bypassPermissions",
+];
+function validatePermissionMode(mode) {
+  if (!permissionModes.includes(mode)) throw Error("无效的 Claude 权限模式");
+}
+
 export class ClaudeSessions {
   constructor({
     home = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"),
@@ -144,6 +156,9 @@ export class ClaudeSessions {
       updatedAt: s.updatedAt,
       model: s.model || "",
       effort: s.effort || "",
+      permissionMode: r?.shared
+        ? r.permissionMode || ""
+        : s.permissionMode || "auto",
       actualModel: s.actualModel || "",
       actualEffort: s.actualEffort || "",
       shared: !!r?.shared,
@@ -181,6 +196,7 @@ export class ClaudeSessions {
     const r = {
       child,
       shared: true,
+      permissionMode: snapshot.permissionMode || "",
       status: snapshot.status,
       messages: new Map(snapshot.messages.map((m) => [m.id, m])),
       permissions: new Map(snapshot.permissions.map((p) => [p.id, p])),
@@ -262,7 +278,7 @@ export class ClaudeSessions {
       permissions: [...(r?.permissions.values() || [])],
     };
   }
-  async create({ cwd, model = "", effort = "" } = {}) {
+  async create({ cwd, model = "", effort = "", permissionMode = "auto" } = {}) {
     await this.initialized;
     if (this.loadError)
       throw Error("无法读取 Claude 网页会话索引：" + this.loadError.message);
@@ -272,11 +288,13 @@ export class ClaudeSessions {
     if (typeof model !== "string" || model.length > 200)
       throw Error("无效的模型名称");
     this.validateSettings(model, effort);
+    validatePermissionMode(permissionMode);
     const s = {
       id: randomUUID(),
       cwd,
       model,
       effort,
+      permissionMode,
       title: "新 Claude 对话",
       updatedAt: Date.now(),
       managed: true,
@@ -335,6 +353,10 @@ export class ClaudeSessions {
       "--include-partial-messages",
       "--replay-user-messages",
       "--permission-prompt-tool=stdio",
+      "--permission-mode",
+      (s.permissionMode || "auto") === "default"
+        ? "manual"
+        : s.permissionMode || "auto",
     ];
     args.push(s.path ? "--resume" : "--session-id", s.id);
     if (s.model) args.push("--model", s.model);
@@ -434,6 +456,11 @@ export class ClaudeSessions {
   event(id, m) {
     const r = this.runtime.get(id);
     if (!r) return;
+    if (m.type === "web_permission_mode") {
+      r.permissionMode = m.mode;
+      this.notify(id, true);
+      return;
+    }
     if (m.type === "control_response") {
       const c = r.controls.get(m.response?.request_id);
       if (c) {
@@ -573,7 +600,8 @@ export class ClaudeSessions {
     if (!["", "low", "medium", "high", "xhigh"].includes(effort))
       throw Error("无效的思考强度");
   }
-  async configure({ id, model = "", effort = "" }) {
+  async configure({ id, model = "", effort = "", permissionMode }) {
+    if (permissionMode) validatePermissionMode(permissionMode);
     this.validateSettings(model, effort);
     return this.exclusive(id, async () => {
       const s = await this.require(id);
@@ -585,6 +613,16 @@ export class ClaudeSessions {
         s.model = model;
       }
       try {
+        if (permissionMode) {
+          const applied = await this.control(id, {
+            subtype: "set_permission_mode",
+            mode: permissionMode,
+          });
+          const mode = applied?.mode || permissionMode;
+          validatePermissionMode(mode);
+          s.permissionMode = mode;
+          r.permissionMode = mode;
+        }
         {
           await this.control(id, {
             subtype: "apply_flag_settings",

@@ -43,6 +43,7 @@ if (!streaming) {
     messages = new Map(),
     permissions = new Map(),
     controls = new Map(),
+    modeRequests = new Map(),
     answered = new Set();
   let sessionId = args[args.indexOf("--resume") + 1] || "",
     status = "starting",
@@ -52,6 +53,10 @@ if (!streaming) {
     ended = false,
     initializeId = null,
     lastRegistry = "";
+  let permissionMode = args.includes("--permission-mode")
+    ? args[args.indexOf("--permission-mode") + 1]
+    : "";
+  if (permissionMode === "manual") permissionMode = "default";
   if (!args.includes("--resume"))
     sessionId = args.includes("--session-id")
       ? args[args.indexOf("--session-id") + 1]
@@ -151,7 +156,9 @@ if (!streaming) {
     if (origin) {
       if (
         m.type === "control_request" &&
-        ["set_model", "apply_flag_settings"].includes(m.request?.subtype) &&
+        ["set_model", "apply_flag_settings", "set_permission_mode"].includes(
+          m.request?.subtype,
+        ) &&
         status !== "idle"
       ) {
         send(origin, {
@@ -173,6 +180,7 @@ if (!streaming) {
           [
             "interrupt",
             "set_model",
+            "set_permission_mode",
             "apply_flag_settings",
             "get_settings",
           ].includes(m.request?.subtype)) ||
@@ -198,6 +206,11 @@ if (!streaming) {
       observe(m);
       publish(m); // The CLI replay also delivers browser input to the VS Code host.
     }
+    if (
+      m.type === "control_request" &&
+      m.request?.subtype === "set_permission_mode"
+    )
+      modeRequests.set(m.request_id, m.request.mode);
     child.stdin.write(JSON.stringify(m) + "\n");
   }
   createInterface({ input: process.stdin, crlfDelay: Infinity })
@@ -220,6 +233,18 @@ if (!streaming) {
       } catch {
         process.stdout.write(line + "\n");
         return;
+      }
+      if (
+        m.type === "control_response" &&
+        modeRequests.has(m.response?.request_id)
+      ) {
+        if (m.response.subtype === "success") {
+          permissionMode =
+            m.response.response?.mode ||
+            modeRequests.get(m.response.request_id);
+          publish({ type: "web_permission_mode", mode: permissionMode });
+        }
+        modeRequests.delete(m.response.request_id);
       }
       if (
         m.type === "control_response" &&
@@ -277,6 +302,7 @@ if (!streaming) {
               type: "snapshot",
               sessionId,
               status,
+              permissionMode,
               messages: [...messages.values(), ...(partial ? [partial] : [])],
               permissions: [...permissions.values()],
             });
