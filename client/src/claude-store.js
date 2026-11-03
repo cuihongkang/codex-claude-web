@@ -1,3 +1,4 @@
+import { receiveNotification } from "./notifications.js";
 import { mergeClaudeMessages as mergeMessages } from "../../server/src/claude-timeline.mjs";
 import { useSyncExternalStore } from "react";
 import { readClaudeCache, writeClaudeCache } from "./claude-cache.js";
@@ -248,6 +249,10 @@ function connect() {
       clearTimeout(p.timer);
       pending.delete(m.id);
       m.error ? p.reject(Error(m.error.message)) : p.resolve(m.result);
+      return;
+    }
+    if (m.method === "claude/activity") {
+      receiveNotification({ ...m.params, provider: "claude" });
       return;
     }
     if (m.method === "claude/ready") {

@@ -4632,3 +4632,39 @@ select option {
   color: var(--fg);
   box-shadow: var(--shadow);
 }
+
+.notification-settings label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.notification-inbox {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  max-height: 30vh;
+  overflow: auto;
+}
+.notification-inbox summary {
+  cursor: pointer;
+}
+.notification-inbox button {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  width: 100%;
+  text-align: left;
+}
+.notification-inbox span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-inbox strong {
+  flex-shrink: 0;
+}
+.notification-settings h3 {
+  margin-top: 1rem;
+}

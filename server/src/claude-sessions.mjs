@@ -402,6 +402,7 @@ export class ClaudeSessions {
       }
       r.controls.clear();
       if (r.status !== "idle" && r.status !== "released") {
+        if (r.status !== "error") this.activity(s.id, "failed");
         r.status = "error";
         r.error =
           r.error ||
@@ -446,9 +447,21 @@ export class ClaudeSessions {
       }
     });
   }
+  activity(id, kind, eventId = randomUUID()) {
+    this.emit({
+      method: "claude/activity",
+      params: {
+        threadId: id,
+        kind,
+        id: eventId,
+        title: this.sessions.get(id)?.title || "Claude 对话",
+      },
+    });
+  }
   fail(id, message) {
     const r = this.runtime.get(id);
     if (!r) return;
+    if (r.status !== "error") this.activity(id, "failed");
     r.status = "error";
     r.error = message;
     this.notify(id, true);
@@ -473,13 +486,14 @@ export class ClaudeSessions {
       return;
     }
     if (m.type === "control_request") {
-      if (m.request?.subtype === "can_use_tool")
+      if (m.request?.subtype === "can_use_tool") {
+        this.activity(id, "attention", m.request_id);
         r.permissions.set(m.request_id, {
           id: m.request_id,
           tool: m.request.tool_name,
           input: m.request.input,
         });
-      else
+      } else
         this.write(r, {
           type: "control_response",
           response: {
@@ -528,6 +542,7 @@ export class ClaudeSessions {
         r.removed.add(r.partial.id);
         r.partial = null;
       }
+      if (m.type === "user") r.interrupted = false;
       r.messages.set(
         message.id,
         mergeClaudeMessages(
@@ -539,6 +554,13 @@ export class ClaudeSessions {
       this.notify(id);
     }
     if (m.type === "result") {
+      if (!r.interrupted)
+        this.activity(
+          id,
+          m.is_error ? "failed" : "completed",
+          m.uuid || m.request_id || randomUUID(),
+        );
+      r.interrupted = false;
       r.status = m.is_error ? "error" : "idle";
       r.error = m.is_error
         ? m.result || m.errors?.join("\n") || "Claude 请求失败"
@@ -643,7 +665,13 @@ export class ClaudeSessions {
     await this.require(id);
     const r = this.runtime.get(id);
     if (!r?.child) throw Error("此会话不由网页运行，不能停止其他客户端的任务");
-    await this.control(id, { subtype: "interrupt" });
+    r.interrupted = true;
+    try {
+      await this.control(id, { subtype: "interrupt" });
+    } catch (error) {
+      r.interrupted = false;
+      throw error;
+    }
     return { accepted: true };
   }
   async answer({ id, requestId, allow, answers }) {

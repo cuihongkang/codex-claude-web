@@ -320,6 +320,31 @@ try {
   const page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
   });
+  if (process.env.NOTIFICATIONS_ONLY)
+    await page.addInitScript(() => {
+      window.notificationLog = [];
+      window.notificationHidden = false;
+      Object.defineProperty(document, "visibilityState", {
+        get: () => (window.notificationHidden ? "hidden" : "visible"),
+      });
+      Object.defineProperty(navigator, "serviceWorker", {
+        value: undefined,
+        configurable: true,
+      });
+      window.Notification = class {
+        static permission = "default";
+        static async requestPermission() {
+          this.permission = "granted";
+          return "granted";
+        }
+        constructor(title, options) {
+          this.title = title;
+          this.options = options;
+          window.notificationLog.push(this);
+        }
+        close() {}
+      };
+    });
   let blockClaude = false;
   await page.routeWebSocket("**/claude/rpc", (ws) => {
     if (!blockClaude) ws.connectToServer();
@@ -335,7 +360,18 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`, {
     waitUntil: "domcontentloaded",
   });
-  if (process.env.BASELINE_ONLY) {
+  if (process.env.NOTIFICATIONS_ONLY) {
+    const { testNotifications } = await import("./notifications.mjs");
+    await testNotifications({
+      page,
+      manager,
+      codex,
+      thread,
+      output,
+      baseline: !!process.env.BASELINE_ONLY,
+    });
+    assert.deepEqual(errors, []);
+  } else if (process.env.BASELINE_ONLY) {
     await page.waitForTimeout(1000);
     await page.screenshot({
       path: join(output, "before-desktop.png"),

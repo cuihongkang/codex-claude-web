@@ -369,3 +369,27 @@ test("permission modes default to auto, apply through Claude, persist and valida
     /权限模式/,
   );
 });
+
+test("Claude emits live completion, failure and attention, never historical activity", async (t) => {
+  const { manager, events, root } = await fixture(t);
+  const id = await savedSession(root);
+  await manager.open(id);
+  assert.equal(events.filter((e) => e.method === "claude/activity").length, 0);
+  await manager.start(manager.sessions.get(id));
+  manager.event(id, {
+    type: "control_request",
+    request_id: "permission-1",
+    request: { subtype: "can_use_tool", tool_name: "Bash", input: {} },
+  });
+  manager.event(id, { type: "result", uuid: "result-1", is_error: false });
+  manager.event(id, { type: "result", uuid: "result-2", is_error: true });
+  assert.deepEqual(
+    events
+      .filter((e) => e.method === "claude/activity")
+      .map((e) => e.params.kind),
+    ["attention", "completed", "failed"],
+  );
+  await manager.interrupt(id);
+  manager.event(id, { type: "result", uuid: "interrupted", is_error: false });
+  assert.equal(events.filter((e) => e.method === "claude/activity").length, 3);
+});

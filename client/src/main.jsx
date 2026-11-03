@@ -1,3 +1,5 @@
+import { NotificationSettings, NotificationInbox } from "./notifications.jsx";
+import { openClaude } from "./claude-store.js";
 import React, { useState, useEffect, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -659,6 +661,7 @@ function SettingsDialog() {
           </button>
         ))}
       </div>
+      <NotificationSettings />
       <h3>快捷键</h3>
       <div className="shortcut-list">
         <span>
@@ -842,6 +845,38 @@ function Modal() {
 }
 function App() {
   const s = useStore();
+  useEffect(() => {
+    const navigate = ({ detail }) => {
+      if (!detail?.threadId || !["codex", "claude"].includes(detail.provider))
+        return;
+      set({ provider: detail.provider, modal: null, sidebar: false });
+      (detail.provider === "claude"
+        ? openClaude(detail.threadId)
+        : openThread(detail.threadId)
+      ).catch(report);
+    };
+    window.addEventListener("codex-web:notification", navigate);
+    return () => window.removeEventListener("codex-web:notification", navigate);
+  }, []);
+  useEffect(() => {
+    if (!s.connected) return;
+    const params = new URLSearchParams(location.search);
+    const threadId = params.get("notifyThread"),
+      provider = params.get("notifyProvider");
+    if (!threadId || !["codex", "claude"].includes(provider)) return;
+    params.delete("notifyThread");
+    params.delete("notifyProvider");
+    history.replaceState(
+      null,
+      "",
+      location.pathname + (params.size ? "?" + params : ""),
+    );
+    window.dispatchEvent(
+      new CustomEvent("codex-web:notification", {
+        detail: { threadId, provider },
+      }),
+    );
+  }, [s.connected]);
   const readingId =
     s.provider === "codex" &&
     !s.loading &&
@@ -902,6 +937,7 @@ function App() {
     <div className="app-shell">
       <Sidebar />
       <main className="main-shell">
+        <NotificationInbox />
         {s.provider === "claude" ? (
           <ClaudeWorkspace />
         ) : (

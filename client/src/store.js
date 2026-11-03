@@ -1,3 +1,5 @@
+import { receiveNotification } from "./notifications.js";
+import { codexNotification } from "./notification-events.js";
 import { useSyncExternalStore } from "react";
 import { fullAccessParams } from "./execution-policy";
 import { modelServiceTiers, resolveServiceTier } from "./service-tier";
@@ -324,6 +326,17 @@ function connect() {
   connection.onmessage = async (e) => {
     if (socket !== connection) return;
     const m = JSON.parse(e.data);
+    const notification = codexNotification(m);
+    if (notification)
+      receiveNotification({
+        ...notification,
+        title: titleOf(
+          state.threads.find((t) => t.id === notification.threadId) ||
+            (state.current?.id === notification.threadId
+              ? state.current
+              : null),
+        ),
+      });
     if (m.method === "lan/state") {
       const was = state.connected;
       if (!m.params.ready || !was) {
