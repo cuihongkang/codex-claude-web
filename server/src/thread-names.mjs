@@ -11,6 +11,7 @@ export async function generateThreadName({
   text,
   model,
   modelProvider,
+  providerConfig = {},
   signal,
   timeout = 120000,
 }) {
@@ -138,6 +139,7 @@ export async function generateThreadName({
       developerInstructions: instructions,
       environments: [],
       config: {
+        ...providerConfig,
         project_doc_max_bytes: 0,
         web_search: "disabled",
         mcp_servers: Object.fromEntries(
@@ -212,6 +214,7 @@ export function createThreadNaming({ call, generate, onError }) {
         const text = thread?.preview?.trim() || job.text;
         if (!eligible(thread) || !text || controller.signal.aborted) continue;
         const name = await generate({
+          threadId,
           text,
           model: job.model || thread.model,
           modelProvider: thread.modelProvider,

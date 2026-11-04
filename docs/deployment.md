@@ -141,6 +141,14 @@ codex-web service restart-when-idle
 
 服务安装会备份被覆盖的网页服务文件，默认位置为 `~/.local/state/codex-web/service-backups/时间戳/`；设置 `XDG_STATE_HOME` 时采用其下的对应目录。回退服务路径时，将备份的 `codex-lan-web.service` 恢复到用户服务目录，默认 `~/.config/systemd/user/`；设置 `XDG_CONFIG_HOME` 时使用其下的 `systemd/user/`。执行 `systemctl --user daemon-reload`，确认原安装路径仍可用，再等待空闲后重启网页服务。
 
+## 多供应商
+
+默认供应商使用当前 Codex 配置和登录。其他供应商需要提供 API 地址、接口类型、模型标识、上下文窗口与最大输出长度；具体数值以供应商实际支持范围为准。支持 Responses 和 Chat Completions 接口。API 地址填写接口根路径，例如 `https://api.example.com/v1`。
+
+任务结束后可切换供应商，下一条消息继续使用原对话。历史消息会发送给所选供应商，模型调用、工具执行及上下文整理按该供应商的能力和费用计算。供应商提供的模型需支持工具调用，文件、终端等任务继续在运行 Codex 的电脑上执行。
+
+供应商配置与 API Key 保存在服务所在电脑的 `CODEX_HOME/codex-web/providers.json`，文件仅对该系统账户开放。浏览器读取配置时只获得是否已保存 Key 的状态；迁移服务时将此文件作为凭据保护并一并迁移。
+
 ## 数据保存与迁移
 
 - 聊天记录和 Codex 登录凭据由 Codex 自身管理。网页登录与 Codex 账户登录分别管理，系统密码仅用于登录验证，不会保存。

@@ -2,6 +2,7 @@ import { MAX_RPC_MESSAGE_BYTES } from "../rpc-transport.mjs";
 import { threadMethods, loadedThreadMethods } from "./methods.mjs";
 export function createRequestHandler({
   transport,
+  routing,
   compactions,
   threadNaming,
   activeTurns,
@@ -46,6 +47,11 @@ export function createRequestHandler({
       return;
     }
     if (await dispatchLocal(online, client, message)) return;
+    if (
+      message.method === "thread/list" &&
+      message.params?.modelProviders === undefined
+    )
+      message.params = { ...message.params, modelProviders: [] };
     if (message.method) {
       if (
         [
@@ -108,6 +114,8 @@ export function createRequestHandler({
         });
         return;
       }
+      const prepared = await routing.prepare(message);
+      message = prepared.message;
       if (threadMethods.has(message.method))
         message.params = {
           ...message.params,
@@ -116,6 +124,7 @@ export function createRequestHandler({
       const id = transport.nextId();
       const forwarded = JSON.stringify({ ...message, id });
       if (Buffer.byteLength(forwarded) > MAX_RPC_MESSAGE_BYTES) {
+        prepared.release?.();
         send(client, {
           id: message.id,
           error: {
@@ -137,6 +146,7 @@ export function createRequestHandler({
             if (threadMethods.has(message.method))
               transport.pending.get(id).timedOut = true;
             else {
+              transport.pending.get(id)?.releaseProvider?.();
               transport.pending.delete(id);
               releaseUnusedThreads();
             }
@@ -150,6 +160,8 @@ export function createRequestHandler({
           }, 120000);
       transport.pending.set(id, {
         client,
+        providerSelection: prepared.selection,
+        releaseProvider: prepared.release,
         id: message.id,
         timer,
         processId,
@@ -172,6 +184,7 @@ export function createRequestHandler({
           if (message.method === "thread/compact/start")
             compactions.reject(threadId, id, error.message);
           clearTimeout(timer);
+          prepared.release?.();
           if (transport.pending.delete(id))
             send(client, {
               id: message.id,

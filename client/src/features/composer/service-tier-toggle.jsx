@@ -1,3 +1,4 @@
+import { selectedModel } from "../../domain/providers.js";
 import React from "react";
 import { Zap } from "lucide-react";
 import { set, useStore } from "../../store.js";
@@ -8,7 +9,7 @@ import {
 
 export function ServiceTierToggle() {
   const s = useStore();
-  const model = s.models.find((m) => m.model === s.model);
+  const model = selectedModel(s);
   const tier = resolveServiceTier(s.serviceTier, model);
   const tiers = modelServiceTiers(model);
   const fast = tiers.find((option) => ["fast", "priority"].includes(option.id));

@@ -224,3 +224,24 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 使用相同环境变量运行 `tests/browser/markdown-typing.mjs`，验证逐字键入、整段插入、粘贴和中文组合输入自动排版。覆盖列表内公式 `- $$x_{t+1}=x_{t}+dx$$`、标题、强调、链接、任务列表、表格分隔行及代码围栏进出，同时核对实际可见排版、表格光标和 Markdown 草稿。证据保存在 `.cache/markdown-typing/after`。
 
 客户端交互的本机实现参考为 Codex 26.1007.21434，查验来源是 `/usr/lib/chatgpt/resources/app.asar` 的 `package.json`、`webview/assets/app-initial-ed5807835d97.js`、`app-primary-f49030709665.js` 和 `app-shared-2d77298f0100.js`。已核对 ProseMirror 编辑区、Markdown 解析与输入规则，以及 `getPersistedText`、`setPromptText` 的草稿读写流程。当前 UI 工具未提供原生客户端窗口，本次查验采用可取得的打包实现。网页按直接编辑排版正文的产品要求，使用 Milkdown/ProseMirror 提供文档编辑与 Markdown 输入规则，并将输入语法范围明确为 CommonMark、GFM 和公式，Mermaid 与 HTML 保留源码。
+
+## 多供应商验证
+
+`server/tests/providers.test.mjs` 使用隔离目录和模拟 HTTP/后端，验证配置权限、凭据保护、转换事件、工具历史和供应商切换门控。`node tests/integration/adapter-regression.mjs` 检查复用转换器的原生历史、并行工具与 SSE 编码。
+
+`server/tests/provider-reasoning.test.mjs` 验证 Chat 推理字段的流式与非流式转换、条目标识、工具顺序和输出截断。`node tests/integration/provider-reasoning.mjs` 使用真实隔离 Codex 后端及模拟模型，核对原生推理正文事件和历史恢复；提供 `MODEL_BASE_URL`、`MODEL_ID` 和可选 `MODEL_API_KEY` 时改为真实模型调用。`PROVIDER_EVENTS` 和 `PROVIDER_RESULT` 分别指定本地事件与结果文件。组件回归覆盖推理正文翻译、增量合并、完成及重开恢复，子代理回归同时核对分页与增量的重叠合并。
+
+工作过程收纳回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/process-folding.mjs`。脚本使用生产构建与隔离的多轮历史，验证无阶段中途回复、推理与工具的连续替换、迟到翻译、手动收起后的译文更新、轮次完成、刷新恢复及下一轮隔离，覆盖深浅主题、80% 至 200% 缩放和手机布局；截图、构建来源与结果写入 `.cache/process-folding-browser/after/`。修改前将旧 `client/dist` 和 `build-info.json` 分别保存到 `.cache/process-folding-before/dist` 与 `.cache/process-folding-before/build-info.json`，以 `BROWSER_BEFORE=1` 运行同一脚本，复现较早思考译文和脱离过程的中途回复同时展开，结果写入 `before/`。领域和组件回归同时覆盖主对话活动状态、子代理轮次状态、明确的最终回答标记及旧版历史。README 和其他文档的现有图片展示已完成的任务与折叠过程，未展示本回归中的运行状态，图片内容保持适用。
+
+真实集成测试通过网页桥接调用指定 Codex 后端，使用独立的临时工作目录及明确命名的测试对话，结束后归档测试对话并删除临时文件：
+
+```bash
+MODEL_BASE_URL=https://api.example.com/v1 \
+MODEL_ID=example-model \
+CODEX_APP_SERVER_URL=ws://127.0.0.1:8765 \
+node tests/integration/providers.mjs
+```
+
+设置 `PROVIDER_ISOLATED=1` 时建立独立 Codex 后端，使用临时认证副本并隔离应用、插件及测试历史；正常结束后删除副本。`MODEL_API_KEY` 可选；GPT 模型默认使用 `gpt-6-luna`，可通过 `GPT_MODEL` 指定。结果路径由 `PROVIDER_RESULT` 指定。测试经过实际 Codex 的 GPT → Chat Completions 模型 → 原生整理 → GPT → Chat Completions 模型，核对连续终端操作及文件结果。`tests/integration/providers-automatic.mjs` 使用独立后端、32K 模型窗口和产品默认整理策略，验证真实自动整理和后续依赖工具链；运行时提供同样的模型地址、标识及可选 Key。GPU 回归前分别核对模型训练窗口、模型服务实际分配的上下文缓存、桥接预算及运行显存余量，确保模型服务能容纳测试预算。
+
+测试结果保存在开发环境，公开功能说明只保留使用者所需的能力与操作。

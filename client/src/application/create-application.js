@@ -1,3 +1,4 @@
+import { createProviders } from "./providers.js";
 import { createAppState } from "./state.js";
 import { createRpcClient } from "../infrastructure/rpc-client.js";
 import { createModelPreferences } from "./models.js";
@@ -80,6 +81,7 @@ export function createApplication() {
     onClose: (event, socket) => connection.onClose(event, socket),
   });
   const { rpc } = transport;
+  const providers = createProviders({ get, set, rpc, transport });
   const models = createModelPreferences({ get, set, rpc, transport, report });
   const records = createThreadRecords({ get, set, rpc });
   const navigation = createThreadNavigation({
@@ -132,6 +134,7 @@ export function createApplication() {
     notice,
   });
   const connection = createConnection({
+    providers,
     get,
     set,
     rpc,
@@ -161,6 +164,8 @@ export function createApplication() {
     setTheme,
     loadSkills,
     setReadingThread: records.setReadingThread,
+    saveProvider: providers.save,
+    removeProvider: providers.remove,
     selectModel: models.selectModel,
     selectEffort: models.selectEffort,
     syncProjectModels: models.syncProjectModels,

@@ -12,6 +12,8 @@ const application = createApplication();
 export const {
   setReadingThread,
   openSubAgent,
+  saveProvider,
+  removeProvider,
   selectModel,
   selectEffort,
   syncProjectModels,

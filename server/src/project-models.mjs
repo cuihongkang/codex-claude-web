@@ -13,7 +13,7 @@ export function createProjectModels(codexHome) {
       throw error;
     }
   }
-  function set({ cwd, model, effort, ifAbsent = false }) {
+  function set({ cwd, model, effort, providerId, ifAbsent = false }) {
     if (
       typeof cwd !== "string" ||
       (cwd !== "" && !isAbsolute(cwd)) ||
@@ -25,7 +25,10 @@ export function createProjectModels(codexHome) {
     const operation = writing.then(async () => {
       const projects = await read();
       if (ifAbsent && Object.hasOwn(projects, cwd)) return projects;
-      const next = { ...projects, [cwd]: { model, effort } };
+      const next = {
+        ...projects,
+        [cwd]: { model, effort, ...(providerId && { providerId }) },
+      };
       await mkdir(directory, { recursive: true, mode: 0o700 });
       const temporary = path + ".tmp";
       await writeFile(temporary, JSON.stringify(next, null, 2) + "\n", {

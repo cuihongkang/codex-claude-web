@@ -1,8 +1,13 @@
-import { reasoningSummaries } from "./reasoning-summary.js";
+import { reasoningContent, reasoningSummaries } from "./reasoning-summary.js";
 import { asyncQuestionState } from "./question-state.js";
 
 // 每轮活动合并为一个过程区域，运行中的待答卡片独立显示，结束提问收入过程。
-export function conversationGroups(items, requests = [], turns = []) {
+export function conversationGroups(
+  items,
+  requests = [],
+  turns = [],
+  activeTurnId,
+) {
   const { answered, responses } = asyncQuestionState(items);
   const closedTurns = new Set(
     turns
@@ -21,6 +26,14 @@ export function conversationGroups(items, requests = [], turns = []) {
       !item.questions?.length
     )
       closedTurns.add(item.turnId);
+  const runningTurns = new Set(
+    turns
+      .filter(
+        (turn) => turn.status === "inProgress" && !closedTurns.has(turn.id),
+      )
+      .map((turn) => turn.id),
+  );
+  if (activeTurnId) runningTurns.add(activeTurnId);
   const requestIds = new Set(requests.map((request) => String(request.id)));
   const lastInTurn = new Map();
   for (const item of items)
@@ -68,7 +81,11 @@ export function conversationGroups(items, requests = [], turns = []) {
       requestIds.has(String(item.request.id))
     )
       continue;
-    if (item.type === "reasoning" && !reasoningSummaries(item.summary).length)
+    if (
+      item.type === "reasoning" &&
+      !reasoningSummaries(item.summary).length &&
+      !reasoningContent(item.content)
+    )
       continue;
     const question = item.type === "agentMessage" && !!item.questions?.length;
     if (item.type === "agentMessage" && !item.text?.trim() && !question)
@@ -78,6 +95,7 @@ export function conversationGroups(items, requests = [], turns = []) {
       item.type === "agentMessage" &&
       (item.phase === "final_answer" ||
         (item.phase !== "commentary" &&
+          !runningTurns.has(item.turnId) &&
           lastInTurn.get(item.turnId) === item.id));
     if (question && !answered.has(item.id) && !closedTurns.has(item.turnId)) {
       processFor(item).questions.push({ type: "message", id: item.id, item });

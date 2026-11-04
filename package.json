@@ -22,7 +22,8 @@
     "scripts/start-backend.mjs",
     "scripts/restart-when-idle.mjs",
     ".env.example",
-    "docs/"
+    "docs/",
+    "vendor/"
   ],
   "workspaces": [
     "client",

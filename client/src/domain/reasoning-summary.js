@@ -12,3 +12,10 @@ export function reasoningSummaries(summary = []) {
     return [{ title, body: rest.join("\n").trim() }];
   });
 }
+
+export function reasoningContent(content = []) {
+  return content
+    .map((part) => (typeof part === "string" ? part : part?.text || ""))
+    .filter((text) => text.trim())
+    .join("\n\n");
+}

@@ -183,3 +183,30 @@ test("分页快照与读取期间的流式更新合并，省略已包含的文�
     "最终正文",
   );
 });
+test("子代理推理正文实时追加，分页与增量的重叠内容保持一份", () => {
+  const original = [
+    {
+      id: "thought",
+      turnId: "turn",
+      type: "reasoning",
+      summary: [],
+      content: ["First prefix"],
+    },
+  ];
+  const event = {
+    method: "item/reasoning/textDelta",
+    params: {
+      itemId: "thought",
+      turnId: "turn",
+      contentIndex: 0,
+      delta: "prefix and suffix",
+    },
+  };
+  const updated = applyAgentEvent([], event.method, event.params);
+  assert.equal(updated[0].content[0], "prefix and suffix");
+  assert.equal(
+    mergeAgentHistory(original, [event])[0].content[0],
+    "First prefix and suffix",
+  );
+  assert.equal(original[0].content[0], "First prefix");
+});

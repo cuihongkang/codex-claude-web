@@ -1,6 +1,7 @@
 import WebSocket from "ws";
 import { threadMethods } from "./methods.mjs";
 export function createBridgeEvents({
+  routing,
   questions,
   activeTurns,
   activeThreads,
@@ -15,8 +16,10 @@ export function createBridgeEvents({
   releaseUnusedThreads,
 }) {
   function onEvent(message) {
+    routing.event(message);
     if (message.id !== undefined) questions.set(String(message.id), message);
     const p = message.params || {};
+    if (message.method === "thread/closed") routing.closed(p.threadId);
     if (
       ["thread/name/updated", "thread/deleted", "thread/archived"].includes(
         message.method,
@@ -72,7 +75,7 @@ export function createBridgeEvents({
       threadNaming.schedule({ id: p.threadId });
     return;
   }
-  function onResponse(request, message) {
+  async function onResponse(request, message) {
     if (message.error && request.method === "thread/compact/start")
       compactions.reject(request.threadId, message.id, message.error.message);
     if (
@@ -108,6 +111,14 @@ export function createBridgeEvents({
           exitCode: message.result?.exitCode,
         },
       });
+    }
+    try {
+      await routing.response(request, message);
+    } catch (error) {
+      message = {
+        id: message.id,
+        error: { code: -32000, message: error.message },
+      };
     }
     if (!request.timedOut) send(request.client, { ...message, id: request.id });
     releaseUnusedThreads();

@@ -1,29 +1,36 @@
+import { resumeAfterClose } from "../providers/resume.mjs";
+
 export function createSubscriptions({
   transport,
   compactions,
   activeTurns,
   activeThreads,
+  resumeParameters = async () => ({}),
+  onReleasing = () => {},
+  isReserved = () => false,
 }) {
   const subscriptions = new Map(),
     releasing = new Map(),
     resuming = new Map();
   const unwrittenThreads = new Set();
-  async function resumeForWrite(threadId) {
+  async function resumeForWrite(threadId, settings) {
     if (subscriptions.has(threadId)) return;
     if (!resuming.has(threadId)) {
-      const resume = transport
-        .call("thread/resume", {
-          threadId,
-          excludeTurns: true,
-          approvalPolicy: "never",
-          sandbox: "danger-full-access",
-          config: { thread_unload_delay_secs: 0 },
-        })
-        .then(({ thread }) => {
-          if (!subscriptions.has(thread.id))
-            subscriptions.set(thread.id, new Set());
-          if (thread.status?.type === "active") activeThreads.add(thread.id);
-        })
+      const resume = Promise.resolve(settings || resumeParameters(threadId))
+        .then((provider) =>
+          resumeAfterClose(transport.call, {
+            threadId,
+            excludeTurns: true,
+            approvalPolicy: "never",
+            sandbox: "danger-full-access",
+            ...provider,
+            config: { ...provider.config, thread_unload_delay_secs: 0 },
+          }).then(({ thread }) => {
+            if (!subscriptions.has(thread.id))
+              subscriptions.set(thread.id, new Set());
+            if (thread.status?.type === "active") activeThreads.add(thread.id);
+          }),
+        )
         .finally(() => resuming.delete(threadId));
       resuming.set(threadId, resume);
     }
@@ -33,6 +40,7 @@ export function createSubscriptions({
     for (const [threadId, owners] of subscriptions) {
       if (
         !transport.ready ||
+        isReserved(threadId) ||
         compactions.busy(threadId) ||
         (unwrittenThreads.has(threadId) && owners.size) ||
         activeTurns.has(threadId) ||
@@ -44,6 +52,7 @@ export function createSubscriptions({
         )
       )
         continue;
+      onReleasing(threadId);
       const release = transport
         .call(
           "thread/unsubscribe",

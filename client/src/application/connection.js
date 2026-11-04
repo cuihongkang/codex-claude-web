@@ -1,3 +1,4 @@
+import { providerModels } from "../domain/providers.js";
 import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
 export function createConnection({
@@ -6,6 +7,7 @@ export function createConnection({
   rpc,
   transport,
   models,
+  providers,
   records,
   navigation,
   catalog,
@@ -23,6 +25,23 @@ export function createConnection({
     projectModelsSupported = false,
     compactionTracking = false;
   function onNotification(m) {
+    if (m.method === "lan/providers/thread") {
+      if (get().current?.id === m.params.threadId)
+        set({
+          current: {
+            ...get().current,
+            providerId: m.params.providerId,
+            model: m.params.model,
+          },
+          providerId: m.params.providerId,
+          model: m.params.model,
+        });
+      return;
+    }
+    if (m.method === "lan/providers/updated") {
+      providers.apply(m.params.providers);
+      return;
+    }
     if (m.method === "lan/projectModels/updated") {
       models.mergeProjectModels(m.params.projects);
       return;
@@ -48,6 +67,11 @@ export function createConnection({
           messages.recordInputRequest(request);
       set({
         undoneFiles,
+        providersSupported: m.params.providers === true,
+        ...(m.params.providers !== true && {
+          providerId: "codex",
+          providers: [],
+        }),
         ...(!get().cwd && m.params.defaultCwd
           ? { cwd: m.params.defaultCwd }
           : {}),
@@ -145,23 +169,31 @@ export function createConnection({
     const id = get().current?.id || localStorage.getItem("cx-current");
     const current = () => revision === bootRevision && get().connected;
     try {
-      const [modelList, accountResult, config] = await Promise.all([
-        rpc("model/list"),
-        rpc("account/read", { refreshToken: false }),
-        rpc("config/read", { includeLayers: false }),
-        projectModelsSupported
-          ? models.syncProjectModels().catch(report)
-          : Promise.resolve(),
-      ]);
+      const [modelList, accountResult, config, providerList] =
+        await Promise.all([
+          rpc("model/list"),
+          rpc("account/read", { refreshToken: false }),
+          rpc("config/read", { includeLayers: false }),
+          get().providersSupported
+            ? rpc("lan/providers/read")
+            : Promise.resolve(null),
+          projectModelsSupported
+            ? models.syncProjectModels().catch(report)
+            : Promise.resolve(),
+        ]);
       if (!current()) return;
       const cfg = config.config || {};
+      const available = providerList
+        ? providerModels(providerList.providers, modelList.data)
+        : modelList.data;
       models.configure({
         model:
           cfg.model || modelList.data.find((m) => m.isDefault)?.model || "",
         effort: cfg.model_reasoning_effort || "",
       });
       set({
-        models: modelList.data,
+        models: available,
+        ...(providerList && { providers: providerList.providers }),
         ...(accountEpoch === account.revision && {
           account: accountResult.account,
         }),
@@ -170,9 +202,10 @@ export function createConnection({
           get().projectless,
           {
             model: get().model || models.defaults.model,
+            providerId: get().providerId,
             effort: get().effort || models.defaults.effort,
           },
-          modelList.data,
+          available,
         ),
         serviceTier:
           get().serviceTier === undefined

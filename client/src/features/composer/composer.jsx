@@ -1,3 +1,5 @@
+import { selectedModel } from "../../domain/providers.js";
+import { ProviderSelect } from "./provider-select.jsx";
 import React, { useRef } from "react";
 
 import {
@@ -61,6 +63,7 @@ export function Composer() {
   const usage = token?.last?.totalTokens;
   const windowSize = token?.modelContextWindow;
   const access = s.threadAccess;
+  const missingModel = s.providersSupported && !selectedModel(s);
   const checking = s.loading || access?.status === "checking";
   const unavailable =
     s.loading ||
@@ -86,6 +89,7 @@ export function Composer() {
           ) : (
             <AlertCircle size={20} />
           )}
+          {!checking && <ProviderSelect />}
           <div className="composer-access-content">
             <strong>
               {checking
@@ -206,20 +210,37 @@ export function Composer() {
                 title="添加图片或文本附件"
                 onClick={() => files.current.click()}
               />
+              <ProviderSelect />
               <label className="select-control model-select">
                 <select
                   aria-label="模型"
                   value={s.model}
+                  disabled={
+                    s.busy ||
+                    Boolean(s.active[s.current?.id]) ||
+                    isCompacting(s.compactions[s.current?.id])
+                  }
                   onChange={(e) => {
-                    const m = s.models.find((m) => m.model === e.target.value);
+                    const m = s.models.find(
+                      (m) =>
+                        m.model === e.target.value &&
+                        (m.providerId || "codex") === s.providerId,
+                    );
                     selectModel(m);
                   }}
                 >
-                  {s.models.map((m) => (
-                    <option key={m.id} value={m.model}>
-                      {m.displayName || m.model}
+                  {missingModel && (
+                    <option value={s.model} disabled>
+                      请选择可用模型
                     </option>
-                  ))}
+                  )}
+                  {s.models
+                    .filter((m) => (m.providerId || "codex") === s.providerId)
+                    .map((m) => (
+                      <option key={m.id} value={m.model}>
+                        {m.displayName || m.model}
+                      </option>
+                    ))}
                 </select>
                 <ChevronDown size={12} />
               </label>
@@ -251,6 +272,7 @@ export function Composer() {
                 aria-label="发送消息"
                 title="发送消息"
                 disabled={
+                  missingModel ||
                   !s.connected ||
                   checking ||
                   compacting ||

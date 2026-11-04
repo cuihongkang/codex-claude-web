@@ -92,11 +92,23 @@ export function applyAgentEvent(items, method, params) {
       ...item,
       aggregatedOutput: (item.aggregatedOutput || "") + params.delta,
     };
-  else if (method === "item/reasoning/summaryTextDelta") {
-    const summary = [...(item?.summary || [])];
-    summary[params.summaryIndex] =
-      (summary[params.summaryIndex] || "") + params.delta;
-    item = { ...item, id, turnId: params.turnId, type: "reasoning", summary };
+  else if (
+    ["item/reasoning/summaryTextDelta", "item/reasoning/textDelta"].includes(
+      method,
+    )
+  ) {
+    const field = method === "item/reasoning/textDelta" ? "content" : "summary";
+    const index =
+      field === "content" ? params.contentIndex : params.summaryIndex;
+    const parts = [...(item?.[field] || [])];
+    parts[index] = (parts[index] || "") + params.delta;
+    item = {
+      ...item,
+      id,
+      turnId: params.turnId,
+      type: "reasoning",
+      [field]: parts,
+    };
   }
   if (item) entries.set(id, item);
   return [...entries.values()];
@@ -177,12 +189,13 @@ export function mergeAgentHistory(items, events) {
           snapshot.aggregatedOutput,
           update.aggregatedOutput,
         );
-      if (update.summary) {
-        item.summary = [...(snapshot.summary || [])];
-        update.summary.forEach((delta, index) => {
-          item.summary[index] = mergeStreamText(item.summary[index], delta);
-        });
-      }
+      for (const field of ["summary", "content"])
+        if (update.type === "reasoning" && update[field]) {
+          item[field] = [...(snapshot[field] || [])];
+          update[field].forEach((delta, index) => {
+            item[field][index] = mergeStreamText(item[field][index], delta);
+          });
+        }
     }
     history.set(item.id, item);
   }

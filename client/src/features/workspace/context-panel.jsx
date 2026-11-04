@@ -151,6 +151,7 @@ function SubAgentConversation({ agent }) {
           "item/agentMessage/delta",
           "item/commandExecution/outputDelta",
           "item/reasoning/summaryTextDelta",
+          "item/reasoning/textDelta",
         ].includes(method)
       ) {
         if (!hydrated) events.push({ method, params: p });

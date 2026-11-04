@@ -1,3 +1,4 @@
+import { selectedModel } from "../../domain/providers.js";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { selectEffort, useStore } from "../../store.js";
@@ -18,7 +19,7 @@ export function ReasoningEffortControl({ inline = false }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef();
   const id = useId();
-  const model = s.models.find((m) => m.model === s.model);
+  const model = selectedModel(s);
   const options = model?.supportedReasoningEfforts || [];
   const effort = s.effort || model?.defaultReasoningEffort || "";
   const index = Math.max(

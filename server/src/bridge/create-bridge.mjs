@@ -9,7 +9,16 @@ import { createRequestHandler } from "./requests.mjs";
 import { createFileOperations } from "./file-operations.mjs";
 import { createLocalMethods } from "./local-methods.mjs";
 
-export function createBridge({ config, version, send, broadcast }) {
+import { createProviderRouting } from "../providers/routing.mjs";
+
+export function createBridge({
+  config,
+  version,
+  send,
+  broadcast,
+  providers,
+  gateway,
+}) {
   const questions = new Map();
   const activeTurns = new Map();
   const activeThreads = new Set();
@@ -34,6 +43,7 @@ export function createBridge({ config, version, send, broadcast }) {
       questions.clear();
       activeTurns.clear();
       activeThreads.clear();
+      routing.reset();
       subscriptions.reset();
       for (const terminal of terminals.values()) terminal.running = false;
       broadcast(state());
@@ -41,12 +51,16 @@ export function createBridge({ config, version, send, broadcast }) {
   });
   const threadNaming = createThreadNaming({
     call: transport.call,
-    generate: (params) =>
-      generateThreadName({
+    generate: async (params) => {
+      const settings = await routing.resumeParameters(params.threadId);
+      return generateThreadName({
         ...params,
+        ...settings,
+        providerConfig: settings.config,
         url: config.upstreamUrl,
         version: version.displayVersion,
-      }),
+      });
+    },
     onError: (error) => console.error("Thread title:", error.message),
   });
   const subscriptions = createSubscriptions({
@@ -54,6 +68,20 @@ export function createBridge({ config, version, send, broadcast }) {
     compactions,
     activeTurns,
     activeThreads,
+    resumeParameters: (id) => routing.resumeParameters(id),
+    onReleasing: (id) => routing.trackClosing(id),
+    isReserved: (id) => routing.isReserved(id),
+  });
+  const routing = createProviderRouting({
+    onSelection: (params) =>
+      broadcast({ method: "lan/providers/thread", params }),
+    registry: providers,
+    gateway,
+    transport,
+    subscriptions,
+    activeTurns,
+    activeThreads,
+    compactions,
   });
   const checkCompaction = createCompactionRecovery({
     transport,
@@ -74,7 +102,31 @@ export function createBridge({ config, version, send, broadcast }) {
     files,
     broadcast,
   });
+  for (const [method, action] of [
+    ["lan/providers/read", async () => ({ providers: await providers.list() })],
+    [
+      "lan/providers/set",
+      async (params) => ({ providers: await providers.set(params) }),
+    ],
+    [
+      "lan/providers/remove",
+      async ({ id }) => ({ providers: await providers.remove(id) }),
+    ],
+    ["lan/providers/models", ({ id }) => providers.discover(id)],
+  ])
+    methods.offline.set(method, async (params) => {
+      if (
+        method === "lan/providers/remove" &&
+        (await routing.providerBusy(params.id))
+      )
+        throw new Error("请等待此供应商的任务结束后删除。");
+      const result = await action(params);
+      if (method === "lan/providers/set" || method === "lan/providers/remove")
+        broadcast({ method: "lan/providers/updated", params: result });
+      return result;
+    });
   const events = createBridgeEvents({
+    routing,
     questions,
     activeTurns,
     activeThreads,
@@ -87,6 +139,7 @@ export function createBridge({ config, version, send, broadcast }) {
     state,
   });
   const receive = createRequestHandler({
+    routing,
     transport,
     compactions,
     threadNaming,
@@ -110,6 +163,7 @@ export function createBridge({ config, version, send, broadcast }) {
         defaultCwd: config.defaultCwd,
         projectlessRoot: config.projectlessRoot,
         projectModels: true,
+        providers: true,
         questions: [...questions.values()],
         activeTurns: Object.fromEntries(activeTurns),
         compactions: Object.fromEntries(compactions.entries),
@@ -142,6 +196,7 @@ export function createBridge({ config, version, send, broadcast }) {
     subscriptions: subscriptions.subscriptions,
     close() {
       threadNaming.clear();
+      routing.reset();
       transport.close();
       subscriptions.reset();
     },

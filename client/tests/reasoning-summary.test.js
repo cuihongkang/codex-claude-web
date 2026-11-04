@@ -1,10 +1,34 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { reasoningSummaries } from "../src/domain/reasoning-summary.js";
+import {
+  reasoningContent,
+  reasoningSummaries,
+} from "../src/domain/reasoning-summary.js";
+import { conversationGroups } from "../src/domain/conversation-groups.js";
 
 test("空摘要和空标题不生成思考行", () => {
   assert.deepEqual(reasoningSummaries(), []);
   assert.deepEqual(reasoningSummaries(["", " \n ", { text: "" }, "** **"]), []);
+});
+
+test("流式推理正文保持完整段落，进入工作过程并保留摘要展示规则", () => {
+  const content = [
+    "First paragraph.",
+    "",
+    { text: "Second paragraph.\nContinuation." },
+  ];
+  assert.equal(
+    reasoningContent(content),
+    "First paragraph.\n\nSecond paragraph.\nContinuation.",
+  );
+  const groups = conversationGroups([
+    { id: "raw", turnId: "turn", type: "reasoning", summary: [], content },
+  ]);
+  assert.equal(groups[0].items[0].id, "raw");
+  assert.deepEqual(
+    conversationGroups([{ id: "empty", type: "reasoning", content: [" "] }]),
+    [],
+  );
 });
 test("加粗标题直接作为标签，正文独立折叠", () => {
   assert.deepEqual(

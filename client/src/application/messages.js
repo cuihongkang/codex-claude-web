@@ -1,3 +1,4 @@
+import { selectedModel } from "../domain/providers.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import { inputRequestItem } from "../domain/question-state.js";
 import { annotationMessage } from "../domain/annotations.js";
@@ -88,6 +89,7 @@ export function createMessages({
   ) {
     if (
       (!text.trim() && !attachments.length && !annotations.length) ||
+      (get().providersSupported && !selectedModel(get())) ||
       get().busy ||
       get().loading ||
       isCompacting(get().compactions[get().current?.id]) ||
@@ -126,12 +128,13 @@ export function createMessages({
       });
       const params = {
         threadId: thread.id,
+        ...(get().providersSupported && { providerId: get().providerId }),
         input,
         model: get().model || undefined,
         effort: get().effort || undefined,
         serviceTier: resolveServiceTier(
           get().serviceTier,
-          get().models.find((m) => m.model === get().model),
+          selectedModel(get()),
         ),
         collaborationMode: {
           mode: get().mode,

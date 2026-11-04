@@ -137,6 +137,76 @@ test("旧消息缺少阶段字段时，末尾回复保留为正文", () => {
     ["message", "process", "message"],
   );
 });
+test("运行中的无阶段回复收入过程，明确的最终回答独立显示", () => {
+  for (const phase of [undefined, null]) {
+    const messages = [user, thought, { ...progress, phase }];
+    for (const [turns, active] of [
+      [[], "turn-1"],
+      [[{ id: "turn-1", status: "inProgress" }], undefined],
+    ]) {
+      const groups = conversationGroups(messages, [], turns, active);
+      assert.deepEqual(
+        groups.map((group) => group.id),
+        ["user", "process-turn-1"],
+      );
+      assert.deepEqual(
+        groups[1].items.map((entry) => entry.id),
+        ["thought", "progress"],
+      );
+      assert.equal(
+        conversationGroups([...messages, answer], [], turns, active).at(-1).id,
+        "answer",
+      );
+    }
+  }
+});
+test("无阶段的回复随轮次完成转为最终回答，先前进度继续留在过程内", () => {
+  const messages = [
+    user,
+    { ...progress, phase: null },
+    tool,
+    { ...answer, phase: null },
+  ];
+  const groups = conversationGroups(
+    messages,
+    [],
+    [
+      { id: "turn-1", status: "inProgress" },
+      { id: "turn-1", status: "completed", completedAt: 10 },
+    ],
+  );
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    ["user", "process-turn-1", "answer"],
+  );
+  assert.deepEqual(
+    groups[1].items.map((entry) => entry.id),
+    ["progress", "tool"],
+  );
+});
+test("新轮次运行时保留历史最终回答，两个轮次的进度分别收入过程", () => {
+  const groups = conversationGroups(
+    [
+      user,
+      { ...progress, phase: null },
+      { ...answer, phase: null },
+      item("next-user", "userMessage", { turnId: "turn-2" }),
+      { ...thought, id: "next-thought", turnId: "turn-2" },
+      { ...progress, id: "next-progress", turnId: "turn-2", phase: null },
+    ],
+    [],
+    [{ id: "turn-1", status: "completed" }],
+    "turn-2",
+  );
+  assert.deepEqual(
+    groups.map((group) => group.id),
+    ["user", "process-turn-1", "answer", "next-user", "process-turn-2"],
+  );
+  assert.deepEqual(
+    groups.at(-1).items.map((entry) => entry.id),
+    ["next-thought", "next-progress"],
+  );
+});
 test("生成中的进度和工具依然位于一个折叠区域", () => {
   assert.equal(conversationGroups([progress, tool, thought]).length, 1);
 });

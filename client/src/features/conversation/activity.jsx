@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import { get, set, openSubAgent } from "../../store.js";
 import { DiffBlock } from "../../ui/diff-block.jsx";
-import { reasoningSummaries } from "../../domain/reasoning-summary.js";
+import {
+  reasoningContent,
+  reasoningSummaries,
+} from "../../domain/reasoning-summary.js";
 import { useSummaryTranslation } from "./use-summary-translation.js";
 import { ActivityContent } from "./activity-content.jsx";
 import { activityLabel, activityHasImage } from "../../domain/activity.js";
@@ -140,9 +143,52 @@ export function Activity({ item, cwd }) {
   );
 }
 export function Reasoning({ item, cwd }) {
-  return reasoningSummaries(item.summary).map((summary, index) => (
-    <ReasoningPart key={index} {...summary} cwd={cwd} />
-  ));
+  const text = reasoningContent(item.content);
+  return (
+    <>
+      {reasoningSummaries(item.summary).map((summary, index) => (
+        <ReasoningPart key={index} {...summary} cwd={cwd} />
+      ))}
+      {text && <ReasoningText text={text} cwd={cwd} />}
+    </>
+  );
+}
+
+export function ReasoningText({ text, cwd }) {
+  const translation = useSummaryTranslation(text);
+  const [open, setOpen] = useState(true);
+  return (
+    <details
+      className="activity reasoning-text"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="activity-summary">
+        <Brain size={15} />
+        <span>思考过程</span>
+        {translation.pending && (
+          <LoaderCircle
+            size={12}
+            className="spin"
+            aria-label="正在翻译思考过程"
+          />
+        )}
+        <ChevronRight className="summary-chevron" size={13} />
+      </summary>
+      <div className="activity-body">
+        <RichText text={translation.text} cwd={cwd} />
+        {translation.error && (
+          <button
+            className="translation-retry"
+            title={translation.error}
+            onClick={translation.retry}
+          >
+            翻译失败，点击重试
+          </button>
+        )}
+      </div>
+    </details>
+  );
 }
 export function ReasoningPart({ title, body, cwd }) {
   const heading = useSummaryTranslation(title, "title");

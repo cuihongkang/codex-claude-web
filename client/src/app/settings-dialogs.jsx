@@ -1,3 +1,6 @@
+import { ProviderSettings } from "./provider-settings.jsx";
+import { ProviderSelect } from "../features/composer/provider-select.jsx";
+import { isCompacting } from "../domain/compaction.js";
 import React from "react";
 import { Check, Sun, Moon, Monitor } from "lucide-react";
 import { useStore, set, selectModel, setTheme } from "../store.js";
@@ -11,6 +14,7 @@ export function SettingsDialog() {
     <div className="settings-body">
       <h3>网页登录</h3>
       <LogoutButton />
+      <ProviderSettings />
       <h3>外观</h3>
       <div className="theme-options">
         {[
@@ -54,20 +58,28 @@ export function ModelDialog() {
   return (
     <div className="settings-body">
       <p className="section-description">设置应用于下一条消息。</p>
+      <ProviderSelect />
       <div className="model-options">
-        {s.models.map((m) => (
-          <button
-            key={m.id}
-            className={m.model === s.model ? "selected" : ""}
-            onClick={() => selectModel(m)}
-          >
-            <span>
-              <b>{m.displayName || m.model}</b>
-              <small>{m.description}</small>
-            </span>
-            {m.model === s.model && <Check size={17} />}
-          </button>
-        ))}
+        {s.models
+          .filter((m) => (m.providerId || "codex") === s.providerId)
+          .map((m) => (
+            <button
+              key={m.id}
+              className={m.model === s.model ? "selected" : ""}
+              disabled={
+                s.busy ||
+                Boolean(s.active[s.current?.id]) ||
+                isCompacting(s.compactions[s.current?.id])
+              }
+              onClick={() => selectModel(m)}
+            >
+              <span>
+                <b>{m.displayName || m.model}</b>
+                <small>{m.description}</small>
+              </span>
+              {m.model === s.model && <Check size={17} />}
+            </button>
+          ))}
       </div>
       <ReasoningEffortControl inline />
       <h3>速度模式</h3>

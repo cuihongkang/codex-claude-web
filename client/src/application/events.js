@@ -248,15 +248,24 @@ export function createEvents({
           aggregatedOutput: (i.aggregatedOutput || "") + p.delta,
         });
     }
-    if (method === "item/reasoning/summaryTextDelta") {
+    if (
+      ["item/reasoning/summaryTextDelta", "item/reasoning/textDelta"].includes(
+        method,
+      )
+    ) {
       const i = get().items.find((i) => i.id === p.itemId) || {
         id: p.itemId,
         type: "reasoning",
         summary: [],
+        content: [],
+        turnId: p.turnId,
       };
-      const summary = [...(i.summary || [])];
-      summary[p.summaryIndex] = (summary[p.summaryIndex] || "") + p.delta;
-      messages.put({ ...i, summary });
+      const field =
+        method === "item/reasoning/textDelta" ? "content" : "summary";
+      const index = field === "content" ? p.contentIndex : p.summaryIndex;
+      const parts = [...(i[field] || [])];
+      parts[index] = (parts[index] || "") + p.delta;
+      messages.put({ ...i, [field]: parts });
     }
   }
   return { handle, closeTerminal };

@@ -1,3 +1,5 @@
+import { selectedModel } from "../domain/providers.js";
+import { isCompacting } from "../domain/compaction.js";
 import {
   modelServiceTiers,
   resolveServiceTier,
@@ -11,14 +13,24 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
   let projectModelsRemote = false;
   let projectModelsWriting = null;
   function selectModel(model) {
+    if (
+      get().busy ||
+      get().active[get().current?.id] ||
+      isCompacting(get().compactions[get().current?.id])
+    )
+      return;
     const tier = resolveServiceTier(get().serviceTier, model);
-    const previous = get().models.find((entry) => entry.model === get().model);
+    const previous = selectedModel(get());
     set({
       model: model.model,
-      effort: compatibleEffort(
-        get().effort || previous?.defaultReasoningEffort,
-        model,
-      ),
+      providerId: model.providerId || "codex",
+      effort:
+        model.providerId && model.providerId !== "codex"
+          ? ""
+          : compatibleEffort(
+              get().effort || previous?.defaultReasoningEffort,
+              model,
+            ),
       serviceTier: modelServiceTiers(model).some((option) => option.id === tier)
         ? tier
         : null,
@@ -33,9 +45,10 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
     if (!get().model) return;
     modelSelectionRevision++;
     const key = get().projectless ? "" : get().cwd;
-    const model = get().models.find((entry) => entry.model === get().model);
+    const model = selectedModel(get());
     const selection = {
       model: get().model,
+      ...(get().providersSupported && { providerId: get().providerId }),
       effort: get().effort || model?.defaultReasoningEffort || "",
     };
     persist("cx-project-models", {
@@ -115,9 +128,15 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
     const selection = Object.hasOwn(preferences, key)
       ? preferences[key]
       : fallback;
-    const model = models.find((entry) => entry.model === selection.model);
+    const providerId = selection.providerId || "codex";
+    const model = models.find(
+      (entry) =>
+        entry.model === selection.model &&
+        (entry.providerId || "codex") === providerId,
+    );
     return {
       model: selection.model,
+      ...(get().providersSupported && { providerId }),
       effort: compatibleEffort(selection.effort, model),
     };
   }

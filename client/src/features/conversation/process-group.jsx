@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 
 import { ChevronRight, LoaderCircle, ListChecks } from "lucide-react";
 
-import { reasoningSummaries } from "../../domain/reasoning-summary.js";
+import {
+  reasoningContent,
+  reasoningSummaries,
+} from "../../domain/reasoning-summary.js";
 import { turnElapsedMs, formatElapsed } from "../../domain/turn-timing.js";
 import { ReasoningPart } from "./activity.jsx";
 import { Message } from "./message.jsx";
@@ -44,7 +47,7 @@ export function ProcessGroup({
     (item) => item.type !== "userInputRequest" && !item.questions?.length,
   );
   const summary =
-    latest?.type === "reasoning"
+    latest?.type === "reasoning" && !reasoningContent(latest.content)
       ? reasoningSummaries(latest.summary).at(-1)
       : null;
   return (

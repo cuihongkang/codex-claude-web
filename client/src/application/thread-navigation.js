@@ -1,3 +1,4 @@
+import { selectedModel, threadModelSelection } from "../domain/providers.js";
 import { compatibleEffort } from "../domain/model-preferences.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import {
@@ -34,10 +35,8 @@ export function createThreadNavigation({
       get().model && !get().loading
         ? {
             model: get().model,
-            effort: compatibleEffort(
-              get().effort,
-              get().models.find((model) => model.model === get().model),
-            ),
+            ...(get().providersSupported && { providerId: get().providerId }),
+            effort: compatibleEffort(get().effort, selectedModel(get())),
           }
         : null;
     if (!get().loading) models.rememberModelSelection();
@@ -116,10 +115,11 @@ export function createThreadNavigation({
         cwd: r.cwd || r.thread.cwd,
         projectless,
         projectlessCwd: null,
-        ...models.projectModelSelection(r.cwd || thread.cwd, projectless, {
-          model: thread.model || models.defaults.model,
-          effort: thread.reasoningEffort || "",
-        }),
+        ...(threadModelSelection(thread, models.defaults) ||
+          models.projectModelSelection(r.cwd || thread.cwd, projectless, {
+            model: thread.model || models.defaults.model,
+            effort: thread.reasoningEffort || "",
+          })),
         items: [],
         draft: localStorage.getItem("cx-draft-" + id) || "",
       });
@@ -207,18 +207,27 @@ export function createThreadNavigation({
     try {
       const settings = await rpc("thread/resume", {
         threadId: id,
+        ...(get().providersSupported && {
+          providerId: get().providerId,
+          model: get().model,
+        }),
         excludeTurns: true,
       });
       if (!current()) return false;
       resumed = true;
-      const modelSelection = models.projectModelSelection(
-        get().cwd,
-        get().projectless,
-        {
+      const modelSelection =
+        threadModelSelection(
+          {
+            ...settings.thread,
+            model: settings.model,
+            reasoningEffort: settings.reasoningEffort,
+          },
+          models.defaults,
+        ) ||
+        models.projectModelSelection(get().cwd, get().projectless, {
           model: settings.model || get().model,
           effort: settings.reasoningEffort || "",
-        },
-      );
+        });
       set({
         threadAccess: { threadId: id, status: "ready" },
         ...(selectionRevision === models.revision &&
@@ -306,7 +315,7 @@ export function createThreadNavigation({
   async function ensureThread() {
     if (get().current) return get().current;
     const epoch = opening;
-    const { projectless, model, serviceTier } = get();
+    const { projectless, model, serviceTier, providerId } = get();
     let cwd = get().cwd;
     if (projectless) {
       if (!get().projectlessCwd) {
@@ -323,11 +332,9 @@ export function createThreadNavigation({
     }
     const r = await rpc("thread/start", {
       cwd,
+      ...(get().providersSupported && { providerId }),
       model: model || undefined,
-      serviceTier: resolveServiceTier(
-        serviceTier,
-        get().models.find((m) => m.model === model),
-      ),
+      serviceTier: resolveServiceTier(serviceTier, selectedModel(get())),
       ...(projectless ? { threadSource: PROJECTLESS_SOURCE } : {}),
     });
     if (epoch !== opening)

@@ -97,6 +97,7 @@ export function Conversation({ children, footer }) {
         ([id, timing]) => ({ id, ...timing }),
       ),
     ],
+    active,
   );
   const replies = new Map(
     s.items
