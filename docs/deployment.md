@@ -52,7 +52,17 @@ sudo apt-get install pamtester openssl
 openssl x509 -in "${CODEX_HOME:-$HOME/.codex}/codex-web/tls/certificate.pem" -noout -fingerprint -sha256
 ```
 
-登录页和“设置 → 网页登录”中的“浏览器证书安装”提供证书下载与 Windows、macOS、iPhone/iPad、Android 安装步骤。先向管理员核对证书，再下载并安装到用于访问的设备上。安装后重新打开浏览器，确认地址栏的证书警告消失，再输入登录密码。
+登录页和“设置 → 网页登录”中的“浏览器证书安装”提供证书下载与 Ubuntu、Windows、macOS、iPhone/iPad、Android 安装步骤。先向管理员核对证书，再下载并安装到用于访问的设备上。安装后重新打开浏览器，确认地址栏的证书警告消失，再输入登录密码。
+
+Ubuntu 上，在文件管理器中打开证书下载目录，右键选择“在终端打开”。将下载的 DER 格式证书转换为 PEM 格式并安装到系统信任库，按提示输入本机管理员密码：
+
+```bash
+openssl x509 -inform DER -in codex-web.cer -out codex-web.crt
+sudo install -m 644 codex-web.crt /usr/local/share/ca-certificates/codex-web.crt
+sudo update-ca-certificates
+```
+
+重复下载时请核对实际文件名。完全退出浏览器后重新访问；Chrome / Chromium 仍有警告时，在“设置 → 隐私和安全 → 安全 → 管理证书”的自定义或受信任证书中导入 `codex-web.crt`。Firefox 可在“设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构”中导入，并信任此证书以标识网站。浏览器版本不同，入口名称可能略有差异；完成后重启浏览器并检查证书警告。
 
 首次证书警告发生在网页打开之前。核对证书后，可通过浏览器的“高级 → 继续访问”进入下载页面；浏览器没有继续入口时，请管理员直接提供证书。证书更新后，各设备需要重新核对并安装。使用证书机构签发的证书仍有警告时，请管理员检查证书配置或提供所需的信任证书。
 

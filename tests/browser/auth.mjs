@@ -296,6 +296,35 @@ try {
       ),
     );
     await screenshot("certificate-windows");
+    await page.getByLabel("选择你的设备").selectOption("Ubuntu");
+    const ubuntuSteps = await page
+      .locator(".certificate-content ol")
+      .innerText();
+    for (const text of [
+      "openssl x509 -inform DER",
+      "sudo install -m 644",
+      "sudo update-ca-certificates",
+      "Chrome / Chromium",
+      "Firefox",
+    ])
+      assert(ubuntuSteps.includes(text), text);
+    await screenshot("certificate-ubuntu-light");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await screenshot("certificate-ubuntu-dark");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await screenshot("certificate-ubuntu-mobile-dark");
+    await page.emulateMedia({ colorScheme: "light" });
+    await screenshot("certificate-ubuntu-mobile-light");
+    await page.setViewportSize({ width: 1280, height: 800 });
+    for (const zoom of [0.8, 1, 1.25, 1.5, 2]) {
+      await page.evaluate((value) => {
+        document.body.style.zoom = value;
+      }, zoom);
+      await screenshot(`certificate-ubuntu-zoom-${zoom}`);
+    }
+    await page.evaluate(() => {
+      document.body.style.zoom = "";
+    });
     await page.getByLabel("选择你的设备").selectOption("macOS");
     assert(
       (await page.locator(".certificate-content ol").innerText()).includes(
@@ -472,8 +501,7 @@ try {
     await page.waitForFunction(
       () =>
         document.querySelector(".breadcrumb > span")?.textContent ===
-          "登录保护与草稿恢复" &&
-        document.querySelector('textarea[aria-label="消息"]'),
+          "登录保护与草稿恢复" && document.querySelector('[aria-label="消息"]'),
     );
     assert.equal(await page.locator(".login-card").count(), 0);
     await page
@@ -502,11 +530,12 @@ try {
     await page.getByLabel("用户名", { exact: true }).fill("");
     await screenshot("logged-out");
     await signIn();
-    await page.waitForFunction(
-      () =>
-        document.querySelector('textarea[aria-label="消息"]')?.value ===
-        "登录退出后继续保留的草稿",
-    );
+    await page.waitForFunction(() => {
+      const input = document.querySelector('[aria-label="消息"]');
+      return (
+        (input?.value ?? input?.textContent) === "登录退出后继续保留的草稿"
+      );
+    });
     await screenshot("draft-restored");
     const saved = await context.storageState();
     await context.close();
@@ -522,8 +551,7 @@ try {
     await restored.waitForFunction(
       () =>
         document.querySelector(".breadcrumb > span")?.textContent ===
-          "登录保护与草稿恢复" &&
-        document.querySelector('textarea[aria-label="消息"]'),
+          "登录保护与草稿恢复" && document.querySelector('[aria-label="消息"]'),
     );
     await restored.getByLabel("消息", { exact: true }).fill("过期后保留的草稿");
     await restored.route("**/api/auth/session", async (route) => {
@@ -542,11 +570,10 @@ try {
     await restored.screenshot({ path: join(output, "expired.png") });
     await restored.unroute("**/api/auth/session");
     await signIn(restored);
-    await restored.waitForFunction(
-      () =>
-        document.querySelector('textarea[aria-label="消息"]')?.value ===
-        "过期后保留的草稿",
-    );
+    await restored.waitForFunction(() => {
+      const input = document.querySelector('[aria-label="消息"]');
+      return (input?.value ?? input?.textContent) === "过期后保留的草稿";
+    });
     assert(
       !requests.some((request) =>
         ["turn/interrupt", "command/exec/terminate"].includes(request.method),

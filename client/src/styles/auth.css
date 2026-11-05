@@ -82,6 +82,10 @@
 .certificate-content li + li {
   margin-top: 0.5rem;
 }
+.certificate-content pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .certificate-details code {
   display: block;
   overflow-wrap: anywhere;

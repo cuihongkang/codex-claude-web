@@ -229,6 +229,8 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 浏览器回归使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/auth.mjs`，在生产构建和临时模拟后端上实际填写登录表单，检查刷新、跨标签页退出、草稿恢复、过期、证书下载、设备安装指引、关于页隐藏开发标记、深浅主题及手机布局。截图及构建信息保存在 `.cache/auth-browser`。
 
+Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER 到 PEM 转换、系统安装命令及 Chrome / Chromium 和 Firefox 导入说明，保存桌面深浅主题、手机与 80% 至 200% 缩放截图。README 和其他文档引用的截图展示对话与文件预览，未包含证书安装区域，现有图片保持适用。
+
 固定项目排序回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/project-priority.mjs`。脚本使用独立浏览器配置和模拟 WebSocket，对照钉选空项目、较早对话与未钉选项目的最新对话，实际点击固定、取消固定、展开收起及新建入口，验证立即重排、草稿保留和刷新恢复，并保存桌面深浅主题与手机侧栏截图。修改前先将生产构建及 `build-info.json` 保存为 `.cache/project-priority-before/dist` 和 `.cache/project-priority-before/build-info.json`，使用 `BROWSER_BEFORE=1` 复现原顺序；结果和截图写入 `.cache/project-priority/before` 与 `after`。README 现有截图中的唯一钉选项目已位于未钉选项前方，现有图片与此排序规则一致。
 
 ### Markdown 富文本输入回归
