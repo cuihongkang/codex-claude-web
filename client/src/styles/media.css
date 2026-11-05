@@ -149,3 +149,48 @@
   flex: none;
   margin: 0 0 0.692308rem;
 }
+.user-message-editor {
+  width: min(90%, 42rem);
+  min-width: 0;
+  padding: 0.6154rem;
+  border-radius: 1rem;
+}
+.user-message-editor .markdown-composer > textarea {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  resize: none;
+}
+.inline-edit-actions,
+.inline-edit-attachments {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.461538rem;
+  margin-top: 0.461538rem;
+}
+.inline-edit-actions button,
+.inline-edit-attachments button {
+  padding: 0.307692rem 0.769231rem;
+  border: 1px solid var(--border);
+  border-radius: 0.615385rem;
+}
+.inline-edit-actions button[type="submit"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.inline-edit-actions button[type="submit"]:not(:disabled):hover {
+  opacity: 0.8;
+}
+.inline-edit-annotation {
+  display: grid;
+  gap: 0.307692rem;
+  margin-top: 0.461538rem;
+}
+.inline-edit-annotation textarea {
+  width: 100%;
+  font: inherit;
+  resize: vertical;
+}

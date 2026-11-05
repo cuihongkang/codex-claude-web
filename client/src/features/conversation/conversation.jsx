@@ -62,6 +62,16 @@ export function Conversation({ children, footer }) {
   const [below, setBelow] = useState(false);
   const viewport = useRef();
   const annotations = useMemo(() => annotationContexts(s.items), [s.items]);
+  const editableId = useMemo(() => {
+    const last = s.items.findLast((item) => item.type === "userMessage");
+    return last?.turnId &&
+      !last.optimistic &&
+      s.items.find(
+        (item) => item.type === "userMessage" && item.turnId === last.turnId,
+      ) === last
+      ? last.id
+      : null;
+  }, [s.items]);
   const turnItems = useMemo(() => {
     const turns = new Map();
     for (const item of s.items) {
@@ -250,6 +260,7 @@ export function Conversation({ children, footer }) {
                       <Message
                         key={`${s.current?.id}:${group.id}`}
                         item={group.item}
+                        editable={group.item.id === editableId}
                         annotations={annotations.get(group.item.id)}
                       />
                     )}

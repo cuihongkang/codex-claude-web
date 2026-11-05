@@ -130,7 +130,9 @@ function fixture(contextItems) {
         };
       if (m.method === "thread/items/list")
         result = {
-          data: [...items].reverse().map((item) => ({ turnId: "turn", item })),
+          data: [...items]
+            .reverse()
+            .map((item) => ({ turnId: item.turnId || "turn", item })),
           nextCursor: null,
         };
       if (m.method === "skills/list") result = { data: [] };

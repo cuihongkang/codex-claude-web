@@ -39,7 +39,7 @@ try {
           builder.onLoad(
             { filter: /^markdown-editor$/, namespace: "editor-fixture" },
             () => ({
-              contents: `import React from 'react'; export function MarkdownEditor({inputRef,theme,expanded,activeId,...props}) {return React.createElement('textarea', {...props, 'aria-label': '消息', 'aria-expanded': expanded, 'aria-activedescendant': activeId, ref: inputRef})}`,
+              contents: `import React from 'react'; export function MarkdownEditor({inputRef,theme,expanded,activeId,...props}) {return React.createElement('textarea', {...props, 'aria-label': props['aria-label'] || '消息', 'aria-expanded': expanded, 'aria-activedescendant': activeId, ref: inputRef})}`,
             }),
           );
           builder.onResolve(

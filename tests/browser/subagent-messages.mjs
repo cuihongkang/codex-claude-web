@@ -494,7 +494,7 @@ try {
       );
     assert.equal(
       await evaluate(
-        "document.querySelectorAll('.subagent-history button[title=\"编辑并重新发送\"]').length",
+        "document.querySelectorAll('.subagent-history button[title=\"编辑上一条消息\"]').length",
       ),
       0,
     );

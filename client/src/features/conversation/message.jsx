@@ -1,16 +1,21 @@
 import React from "react";
-import { Copy, GitBranch, RotateCcw } from "lucide-react";
-import { get, report, copy, fork, editUserMessage } from "../../store.js";
+import { Copy, GitBranch } from "lucide-react";
+import { get, report, copy, fork } from "../../store.js";
 import { IconButton } from "../../ui/primitives.jsx";
 import { QuestionRecord } from "./user-input.jsx";
 import { RichText } from "../markdown/rich-text.jsx";
 import { MessageAnnotations } from "../annotations/message-annotations.jsx";
-import { userMessageText } from "../../domain/user-message.js";
-import { Content } from "./user-content.jsx";
+import { UserMessage } from "./user-message.jsx";
 import { Activity, Reasoning } from "./activity.jsx";
 
 import { AsyncQuestion } from "./questions.jsx";
-export function Message({ item, annotations, readOnly = false, cwd }) {
+export function Message({
+  item,
+  annotations,
+  readOnly = false,
+  editable = false,
+  cwd,
+}) {
   if (item.type === "reasoning") return <Reasoning item={item} cwd={cwd} />;
   if (item.type === "userInputRequest")
     return (
@@ -81,35 +86,13 @@ export function Message({ item, annotations, readOnly = false, cwd }) {
     ) : null;
   if (item.type === "userMessage")
     return (
-      <article
-        className="message user-message"
-        data-message-id={item.id}
-        tabIndex={-1}
-      >
-        <div className="user-bubble">
-          {item.authorLabel && (
-            <small className="message-author">{item.authorLabel}</small>
-          )}
-          <Content content={item.content} cwd={cwd} />
-        </div>
-        {!readOnly && (
-          <div className="message-actions">
-            <IconButton
-              icon={Copy}
-              title="复制消息"
-              onClick={() => copy(userMessageText(item.content))}
-            />
-            <IconButton
-              icon={RotateCcw}
-              title="编辑并重新发送"
-              onClick={() => {
-                editUserMessage(item);
-                document.querySelector('[aria-label="消息"]')?.focus();
-              }}
-            />
-          </div>
-        )}
-      </article>
+      <UserMessage
+        key={item.id}
+        item={item}
+        readOnly={readOnly}
+        editable={editable}
+        cwd={cwd}
+      />
     );
   if (item.type === "agentMessage")
     return (

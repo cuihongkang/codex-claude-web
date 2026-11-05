@@ -49,6 +49,8 @@ export function createRequestHandler({
     if (message.method) {
       if (
         [
+          "thread/revert",
+          "thread/rollback",
           "turn/start",
           "turn/steer",
           "thread/compact/start",

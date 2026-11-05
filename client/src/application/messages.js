@@ -1,18 +1,14 @@
+import { createMessageEditing } from "./message-editing.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import { inputRequestItem } from "../domain/question-state.js";
 import { annotationMessage } from "../domain/annotations.js";
-import {
-  fileReferenceInput,
-  parseUserMessage,
-} from "../domain/user-message.js";
 import { isCompacting } from "../domain/compaction.js";
 import {
   readAnnotationDrafts,
   removeSentAnnotations,
-  writeAnnotationDrafts,
 } from "../infrastructure/annotation-drafts.js";
 
-import { uid, basename } from "../domain/format.js";
+import { uid } from "../domain/format.js";
 export function createMessages({
   get,
   set,
@@ -24,6 +20,7 @@ export function createMessages({
   models,
   report,
 }) {
+  const editing = createMessageEditing({ get, set, rpc, navigation });
   function put(item) {
     const index = get().items.findIndex((i) => i.id === item.id);
     const items = get().items.slice();
@@ -84,7 +81,13 @@ export function createMessages({
   async function sendMessage(
     text = get().draft,
     attachments = get().attachments,
-    { clearDraft = true, questionId, questionAnswers, annotations = [] } = {},
+    {
+      clearDraft = true,
+      questionId,
+      questionAnswers,
+      annotations = [],
+      replace,
+    } = {},
   ) {
     if (
       (!text.trim() && !attachments.length && !annotations.length) ||
@@ -100,7 +103,9 @@ export function createMessages({
     set({ busy: true, error: "" });
     let thread;
     try {
+      if (replace && get().current?.id !== replace.threadId) return false;
       thread = await navigation.ensureThread();
+      if (replace) await editing.prepare(replace);
       const input = [
         ...(text.trim() || annotations.length
           ? [
@@ -177,7 +182,7 @@ export function createMessages({
             ),
           });
       }
-      if (annotations.length) {
+      if (annotations.length && !replace) {
         removeSentAnnotations(thread.id, annotations);
         if (
           get().annotationEditor?.threadId === thread.id &&
@@ -195,6 +200,7 @@ export function createMessages({
         set({ active: { ...get().active, [thread.id]: r.turn.id } });
       if (get().current?.id === thread.id)
         set({ threadAccess: { threadId: thread.id, status: "ready" } });
+      if (replace) editing.finish(replace);
       catalog.loadThreads().catch(() => {});
       return true;
     } catch (e) {
@@ -209,6 +215,7 @@ export function createMessages({
       } else if (epoch === navigation.opening) report(e);
       return false;
     } finally {
+      if (replace) editing.release(replace);
       set({ busy: false });
     }
   }
@@ -228,43 +235,6 @@ export function createMessages({
   }
   function addAttachment(a) {
     set({ attachments: [...get().attachments, a] });
-  }
-  function editUserMessage(item) {
-    const parsed = parseUserMessage(item.content);
-    const threadId = get().current?.id;
-    const annotations = readAnnotationDrafts(threadId);
-    for (const [index, entry] of parsed.annotations.entries()) {
-      const id = `message-${item.id}-${index}`;
-      if (!annotations.some((draft) => draft.id === id))
-        annotations.push({ ...entry, id });
-    }
-    writeAnnotationDrafts(threadId, annotations);
-    const attachments = [
-      ...parsed.references.map((file) => ({
-        name: file.name,
-        input: fileReferenceInput(file),
-      })),
-      ...parsed.attachments.map((input) => ({
-        name: input.name || basename(input.path || "") || "图片附件",
-        ...(input.type === "image" && { preview: input.url }),
-        input,
-      })),
-    ];
-    setDraft(parsed.text);
-    set({
-      attachments: [
-        ...get().attachments,
-        ...attachments
-          .filter(
-            (entry) =>
-              !get().attachments.some(
-                (current) =>
-                  JSON.stringify(current.input) === JSON.stringify(entry.input),
-              ),
-          )
-          .map((entry) => ({ ...entry, id: uid() })),
-      ],
-    });
   }
   async function attachFile(file) {
     if (file.type.startsWith("image/")) {
@@ -302,7 +272,14 @@ export function createMessages({
     stop,
     review,
     addAttachment,
-    editUserMessage,
     attachFile,
+    handleReverted: editing.handleReverted,
+    cancelMessageEdit(edit) {
+      if (edit.retainedIds != null) {
+        editing.finish(edit);
+        if (get().current?.id === edit.threadId)
+          navigation.loadHistory().catch(report);
+      }
+    },
   };
 }

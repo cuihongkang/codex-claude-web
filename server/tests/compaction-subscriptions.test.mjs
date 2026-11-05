@@ -16,6 +16,8 @@ test(
     const second = await app.connect();
     assert.equal(second.initialState.compactions[threadId].status, "starting");
     for (const method of [
+      "thread/revert",
+      "thread/rollback",
       "thread/compact/start",
       "turn/start",
       "turn/steer",

@@ -302,7 +302,7 @@ export async function testContextPanel(app, requests, setResponse, emit) {
     assert.equal(app.get().attachments[0].id, "parent-attachment");
     assert.deepEqual(app.get().items, parentItems);
     assert.equal(
-      view.root.findAllByProps({ title: "编辑并重新发送" }).length,
+      view.root.findAllByProps({ title: "编辑上一条消息" }).length,
       0,
     );
     assert.equal(view.root.findAllByProps({ title: "添加批注" }).length, 0);

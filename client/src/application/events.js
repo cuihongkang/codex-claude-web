@@ -36,6 +36,10 @@ export function createEvents({
         p.threadId,
         (records.turnRevisions.get(p.threadId) || 0) + 1,
       );
+    if (method === "thread/reverted") {
+      messages.handleReverted(p.threadId);
+      return;
+    }
     if (method === "thread/deleted") {
       catalog.forgetThread(p.threadId);
       return;

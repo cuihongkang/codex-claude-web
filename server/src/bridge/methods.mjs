@@ -4,6 +4,8 @@ export const threadMethods = new Set([
   "thread/fork",
 ]);
 export const loadedThreadMethods = new Set([
+  "thread/revert",
+  "thread/rollback",
   "turn/start",
   "thread/compact/start",
   "review/start",

@@ -6,6 +6,7 @@ import { annotationMessage } from "../../client/src/domain/annotations.js";
 export const contextItems = [
   {
     id: "reference-user",
+    turnId: "reference-turn",
     type: "userMessage",
     content: [
       {
@@ -174,52 +175,55 @@ export async function verifyUserContext({
     await screenshot("after-file-open");
     await click('button[title="折叠对话详情"]');
     await click(
-      '[data-message-id="annotation-user"] button[title="编辑并重新发送"]',
+      '[data-message-id="annotation-user"] button[title="编辑上一条消息"]',
+    );
+    await waitFor(
+      `document.querySelector('.user-message-editor [aria-label="编辑消息"]')`,
     );
     assert.equal(
       await evaluate(
-        `document.querySelector('textarea[aria-label="消息"]').value`,
+        `document.querySelector('.user-message-editor [aria-label="编辑消息"]').value || document.querySelector('.user-message-editor [aria-label="编辑消息"]').innerText.trim()`,
       ),
       "也请检查 @planner.js。",
     );
     assert.equal(
       await evaluate(
-        `document.querySelectorAll('.annotation-attachment').length`,
+        `document.querySelector('textarea[aria-label="编辑批注 1"]').value`,
       ),
-      1,
+      "请补充无人车停留时的轨迹约束。",
     );
     assert.equal(
-      await evaluate(`document.querySelectorAll('.attachment').length`),
-      1,
+      await evaluate(
+        `document.querySelector('.composer textarea[aria-label="消息"]')?.value || ''`,
+      ),
+      "",
     );
-    await screenshot("after-edit-restored");
+    await screenshot("after-edit-inline");
     await click('button[title="移除 planner.js"]');
     assert.equal(
-      await evaluate(`document.querySelectorAll('.attachment').length`),
+      await evaluate(
+        `document.querySelectorAll('.inline-edit-attachments button').length`,
+      ),
       0,
     );
-    await click('button[aria-label="打开批注 1"]');
-    await fill(".annotation-editor textarea", "核对停留和悬停约束。");
-    await click('.annotation-editor button[type="submit"]');
-    await key("Enter", 2);
-    await waitFor(`!document.querySelector('.annotation-attachment')`);
-    const sent = await evaluate(
-      `annotationFixture.requests.filter(r=>r.method==='turn/start').at(-1).params.input`,
+    await fill('textarea[aria-label="编辑批注 1"]', "核对停留和悬停约束。");
+    await click('.inline-edit-actions button[type="button"]');
+    assert.equal(
+      await evaluate(
+        `document.querySelectorAll('.user-message-editor').length`,
+      ),
+      0,
     );
-    assert.equal(sent.length, 1);
-    assert(sent[0].text.includes("核对停留和悬停约束。"));
-    assert(!(await evaluate(bubble)).includes("# Response annotations:"));
-    await screenshot("after-submit");
     await page("Page.reload");
     await waitFor(
       `document.querySelectorAll('.user-file-reference').length===2`,
     );
     assert(!(await evaluate(bubble)).includes("按需读取"));
-    await fill('textarea[aria-label="消息"]', "@global");
+    await fill('.composer [aria-label="消息"]', "@global");
     await waitFor(`document.querySelector('[role="option"]')`);
     await click('[role="option"]');
     await fill(
-      'textarea[aria-label="消息"]',
+      '.composer [aria-label="消息"]',
       "检查 @global_planner 的悬停约束。",
     );
     await click(".send-button");

@@ -16,6 +16,7 @@ export function createThreadNavigation({
   getConnectionRevision,
 }) {
   let opening = 0;
+  let historyRevision = 0;
   function setProjectDirectory(cwd) {
     if (!get().loading) models.rememberModelSelection();
     set({
@@ -272,8 +273,10 @@ export function createThreadNavigation({
     const id = get().current.id;
     const connection = transport.connection;
     const revision = getConnectionRevision();
+    const history = historyRevision;
     const previous = new Map(get().items.map((item) => [item.id, item]));
     const current = () =>
+      history === historyRevision &&
       epoch === opening &&
       get().current?.id === id &&
       connection === transport.connection &&
@@ -291,7 +294,7 @@ export function createThreadNavigation({
       for (const item of history)
         if (map.get(item.id) === item) previous.set(item.id, item);
     }
-    const history = await readThreadHistory(rpc, id, {
+    const loaded = await readThreadHistory(rpc, id, {
       current,
       ...(onFirstPage && {
         onFirstPage: (items) => {
@@ -301,7 +304,7 @@ export function createThreadNavigation({
         },
       }),
     });
-    apply(history);
+    apply(loaded);
   }
   async function ensureThread() {
     if (get().current) return get().current;
@@ -339,6 +342,7 @@ export function createThreadNavigation({
     return r.thread;
   }
   return {
+    invalidateHistory: () => historyRevision++,
     setProjectDirectory,
     newChat,
     openThread,

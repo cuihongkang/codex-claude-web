@@ -175,15 +175,19 @@
   padding: 0.307692rem 1.846154rem 0.615385rem;
   margin: 0 auto;
 }
-.composer {
+.composer,
+.user-message-editor {
   border: 1px solid var(--border-strong);
-  border-radius: 24px;
   background: var(--composer);
   box-shadow: var(--composer-shadow);
-  padding: 0.7692rem 1.0769rem 0.4615rem;
   transition: border-color 0.15s ease;
 }
-.composer:focus-within {
+.composer {
+  border-radius: 24px;
+  padding: 0.7692rem 1.0769rem 0.4615rem;
+}
+.composer:focus-within,
+.user-message-editor:focus-within {
   border-color: color-mix(in srgb, var(--muted) 55%, var(--border-strong));
 }
 .composer-access {

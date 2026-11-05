@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { bridge, waitFor } from "../../tests/helpers/bridge.mjs";
 
 for (const method of [
+  "thread/revert",
+  "thread/rollback",
   "turn/start",
   "review/start",
   "thread/goal/get",

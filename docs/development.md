@@ -142,7 +142,7 @@ npm run test:package
 
 该测试在临时 npm prefix 中全局安装打包产物，检查命令入口、静态资源、构建来源、用户配置和服务生成。后端与服务管理命令使用模拟实现。安装优先复用 npm 缓存，缺少包元数据或依赖时访问配置的 registry，因此执行环境需要相应缓存或网络连接。
 
-文件引用与批注展示回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium USER_CONTEXT=1 BROWSER_OUTPUT_DIR=.cache/user-message-context/after node tests/browser/annotations.mjs`。脚本使用隔离模拟历史，验证目录与文件引用、目录定位及子文件打开、批注原文收放、文件打开、编辑恢复、移除引用、批注修改与统一提交、刷新，以及深浅主题、80% 至 200% 缩放和窄屏。旧构建通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定，以 `BROWSER_BEFORE=1` 复现引用说明外露和编辑时批注协议进入输入框；截图与构建记录写入指定目录。目录跳转的修改前对照使用 `REFERENCE_NAVIGATION_BEFORE=1` 及旧构建，实际点击目录引用后确认面板保持折叠。单元与组件检查覆盖完整封装解析、普通文本保留、批注来源、编辑去重及失败重试，以及目录切换的未保存编辑确认、读取失败、目录与文件的迟到响应隔离。README 现有图片展示普通任务消息，未包含文件引用或批注，图片内容保持适用。
+文件引用与批注展示回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium USER_CONTEXT=1 BROWSER_OUTPUT_DIR=.cache/user-message-context/after node tests/browser/annotations.mjs`。脚本使用隔离模拟历史，验证目录与文件引用、目录定位及子文件打开、批注原文收放、文件打开、原位编辑与取消、移除引用、批注修改及正文引用提交、刷新，以及深浅主题、80% 至 200% 缩放和窄屏。旧构建通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定，以 `BROWSER_BEFORE=1` 复现引用说明外露和编辑时批注协议进入输入框；截图与构建记录写入指定目录。目录跳转的修改前对照使用 `REFERENCE_NAVIGATION_BEFORE=1` 及旧构建，实际点击目录引用后确认面板保持折叠。单元与组件检查覆盖完整封装解析、普通文本保留、批注来源、编辑去重及失败重试，以及目录切换的未保存编辑确认、读取失败、目录与文件的迟到响应隔离。README 现有图片展示普通任务消息，未包含文件引用或批注，图片内容保持适用。
 
 此次交互对照使用本机 Codex VS Code 客户端 `26.1021.22027` 的打包资源：`app-initial` 中的 `Ht`、`Ut` 与 `Sn` 分离上下文和用户请求；`src` 中的 `Su`、`Cu` 恢复文件引用，提交时生成文件上下文并保留正文；`comment-editor` 保留引用标签和路径，并在编辑模式转换时恢复。实际客户端界面控制连接不可用时，以这些实现作为行为证据，客户端运行界面的视觉对照另行记录。提取资源与查验记录仅保存在 `.cache/client-inspection/`。
 
@@ -240,3 +240,13 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 使用相同环境变量运行 `tests/browser/markdown-typing.mjs`，验证逐字键入、整段插入、粘贴和中文组合输入自动排版。覆盖列表内公式 `- $$x_{t+1}=x_{t}+dx$$`、标题、强调、链接、任务列表、表格分隔行及代码围栏进出，同时核对实际可见排版、表格光标和 Markdown 草稿。证据保存在 `.cache/markdown-typing/after`。
 
 客户端交互的本机实现参考为 Codex 26.1007.21434，查验来源是 `/usr/lib/chatgpt/resources/app.asar` 的 `package.json`、`webview/assets/app-initial-ed5807835d97.js`、`app-primary-f49030709665.js` 和 `app-shared-2d77298f0100.js`。已核对 ProseMirror 编辑区、Markdown 解析与输入规则，以及 `getPersistedText`、`setPromptText` 的草稿读写流程。当前 UI 工具未提供原生客户端窗口，本次查验采用可取得的打包实现。网页按直接编辑排版正文的产品要求，使用 Milkdown/ProseMirror 提供文档编辑与 Markdown 输入规则，并将输入语法范围明确为 CommonMark、GFM 和公式，Mermaid 与 HTML 保留源码。
+
+### 原消息编辑回归
+
+执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/message-editing.mjs` 验证原地编辑。脚本使用生产构建、独立浏览器上下文与持久化的模拟历史，检查与底部输入框一致的背景、边框、阴影和聚焦反馈、主操作按钮配色、两行固定高度、紧凑宽度、长文本内部滚动及按钮位置稳定、铅笔图标、取消、Enter 换行、Ctrl+Enter 发送、文件引用、回退和发送失败重试、底部草稿隔离、刷新后的替换结果及切换对话时的迟到响应，覆盖深浅主题、80% 至 200% 缩放与窄屏。截图及构建来源保存在 `.cache/message-editing-browser/`。通过 `BROWSER_BEFORE=1`、`BROWSER_BUILD_DIR` 和 `BROWSER_BUILD_INFO` 指定隔离的旧构建及来源，复现恢复图标、回填底部输入和覆盖草稿，证据保存在 `.cache/message-editing-before-browser/`。领域与组件回归另覆盖完整轮次分页、旧接口兼容、运行状态、过期编辑、批注及附件独立性。
+
+客户端对照来自本机 Codex VS Code 扩展 `26.1021.22027` 的 `webview/assets/user-message-d77a1f7e2581.js`：消息组件在原位置切换编辑表单，包含独立正文、取消和发送操作；`local-conversation-thread-a37d62aef644.js` 将编辑动作提交到 `src-622b307a9baf.js` 的历史编辑流程，校验最近用户消息与活动轮次，调用 `thread/revert` 或 `thread/rollback` 后启动新轮次。本机后端 `codex-cli 0.162.1` 生成的协议确认 `thread/revert` 以 `beforeTurnId` 替换持久历史，并通过 `thread/reverted` 通知其他页面。客户端界面控制连接超时，交互证据使用本机打包实现；提取资源仅保存在忽略目录。
+
+编辑框尺寸的修改前对照可使用 `EDIT_SIZE_BEFORE=1`，并通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定修改前的生产构建和来源；结果保存在 `.cache/message-edit-size-before/browser/`。README 现有图片展示普通消息与文件预览，原地编辑框的尺寸变化通过专项浏览器截图核对。
+
+编辑框样式的修改前对照使用 `EDIT_STYLE_BEFORE=1` 并指定旧构建及来源，记录实际输入区与消息编辑框的背景、聚焦和失焦边框、阴影及发送按钮配色；结果保存在 `.cache/message-edit-style-before/browser/`。当前构建同时比较浅色、深色及跟随系统深色，确认两处输入区域使用一致的视觉反馈。

@@ -8,9 +8,10 @@ export function MarkdownEditor({
   activeId,
   ...inputProps
 }) {
+  const label = inputProps["aria-label"] || "消息";
   const props = {
     ...inputProps,
-    "aria-label": "消息",
+    "aria-label": label,
     "aria-autocomplete": "list",
     "aria-expanded": expanded,
     "aria-activedescendant": activeId,
@@ -100,14 +101,14 @@ export function MarkdownEditor({
     if (!editor.current) return;
     editor.current.setAttributes({
       role: "textbox",
-      "aria-label": "消息",
+      "aria-label": label,
       "aria-multiline": "true",
       "aria-autocomplete": "list",
       "aria-expanded": String(expanded),
       ...(activeId ? { "aria-activedescendant": activeId } : {}),
       "data-placeholder": props.placeholder,
     });
-  }, [ready, expanded, activeId, props.placeholder]);
+  }, [ready, expanded, activeId, props.placeholder, label]);
   const eventTarget = (event) => ({ ...event, target: inputRef.current });
   return (
     <div className="markdown-composer">
@@ -134,18 +135,18 @@ export function MarkdownEditor({
         hidden={!ready}
         onKeyDownCapture={(event) => {
           if (!ready || event.target.closest("input, textarea, button")) return;
-          props.onKeyDown(event);
+          props.onKeyDown?.(event);
           if (event.defaultPrevented) event.stopPropagation();
         }}
         onPasteCapture={(event) => {
-          props.onPaste(event);
+          props.onPaste?.(event);
           if (event.defaultPrevented) event.stopPropagation();
         }}
         onClick={(event) => {
-          if (ready) props.onClick(eventTarget(event));
+          if (ready) props.onClick?.(eventTarget(event));
         }}
         onKeyUp={(event) => {
-          if (ready) props.onKeyUp(eventTarget(event));
+          if (ready) props.onKeyUp?.(eventTarget(event));
         }}
       />
     </div>
