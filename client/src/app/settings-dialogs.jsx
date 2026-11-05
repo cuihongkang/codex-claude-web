@@ -5,12 +5,15 @@ import { ServiceTierToggle } from "../features/composer/service-tier-toggle.jsx"
 import { ReasoningEffortControl } from "../features/composer/reasoning-effort.jsx";
 import { VersionDetails } from "./version.jsx";
 import { LogoutButton } from "./auth.jsx";
+import { NotificationSettings } from "./notification-settings.jsx";
 export function SettingsDialog() {
   const s = useStore();
   return (
     <div className="settings-body">
       <h3>网页登录</h3>
       <LogoutButton />
+      <h3>通知</h3>
+      <NotificationSettings />
       <h3>外观</h3>
       <div className="theme-options">
         {[

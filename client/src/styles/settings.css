@@ -101,6 +101,26 @@
 .settings-body > h3:first-child {
   margin-top: 0.230769rem;
 }
+.notification-settings label {
+  display: flex;
+  align-items: center;
+  gap: 0.615385rem;
+  min-height: 2.25em;
+  font-size: 0.923077rem;
+  cursor: pointer;
+}
+.notification-settings input {
+  width: 1.1em;
+  height: 1.1em;
+  accent-color: var(--fg);
+}
+.notification-settings .section-description {
+  margin: 0.384615rem 0 0;
+  line-height: var(--ui-line-height);
+}
+.notification-settings .inline-error {
+  margin: 0.384615rem 0 0;
+}
 .theme-options {
   display: flex;
   gap: 0.692308rem;

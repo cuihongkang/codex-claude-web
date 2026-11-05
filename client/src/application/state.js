@@ -50,6 +50,12 @@ export function createAppState() {
     threadAccess: null,
     error: "",
     notice: "",
+    notifications: {
+      supported: false,
+      enabled: saved("cx-completion-notifications", true) === true,
+      permission: "unsupported",
+      error: "",
+    },
     panel: null,
     panelFile: null,
     panelAgent: null,

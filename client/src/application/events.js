@@ -10,6 +10,7 @@ export function createEvents({
   account,
   report,
   notice,
+  notifications,
 }) {
   function closeTerminal(processId) {
     if (localStorage.getItem("cx-terminal") !== processId) return;
@@ -111,6 +112,8 @@ export function createEvents({
       const observedTurn = get().active[p.threadId] === p.turn.id;
       account.refreshUsage();
       const entry = get().compactions[p.threadId];
+      if (observedTurn && !isCompacting(entry))
+        notifications?.completed(p.threadId, p.turn);
       if (isCompacting(entry) && entry.turnId === p.turn.id)
         set({
           compactions: {

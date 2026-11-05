@@ -10,6 +10,7 @@ import { createCompaction } from "./compaction.js";
 import { createEvents } from "./events.js";
 import { createConnection } from "./connection.js";
 import { createSession } from "./session.js";
+import { createNotifications } from "./notifications.js";
 import { persist } from "../infrastructure/storage.js";
 
 // 依赖在此处组装；控制器通过显式接口协作，各自持有请求版本和生命周期状态。
@@ -121,6 +122,13 @@ export function createApplication() {
     records,
     hasTracking: () => connection.hasTracking(),
   });
+  const notifications = createNotifications({
+    get,
+    set,
+    subscribe: store.subscribe,
+    navigation,
+    rpc,
+  });
   const events = createEvents({
     get,
     set,
@@ -130,6 +138,7 @@ export function createApplication() {
     account,
     report,
     notice,
+    notifications,
   });
   const connection = createConnection({
     get,
@@ -165,6 +174,8 @@ export function createApplication() {
     selectEffort: models.selectEffort,
     syncProjectModels: models.syncProjectModels,
     refreshUsage: account.refreshUsage,
+    setCompletionNotifications: notifications.setEnabled,
+    startNotifications: notifications.start,
     ...navigation,
     ...catalog,
     ...messages,

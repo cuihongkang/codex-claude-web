@@ -21,6 +21,8 @@ export const {
   listThreads,
   rpc,
   refreshUsage,
+  setCompletionNotifications,
+  startNotifications,
   respond,
   loadThreads,
   setDraft,

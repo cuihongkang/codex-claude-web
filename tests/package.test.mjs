@@ -30,6 +30,7 @@ test(
       "bin/codex-web.mjs",
       "client/dist/index.html",
       "client/dist/app.js",
+      "client/dist/notification-worker.js",
       "client/dist/file-panel.js",
       "client/dist/terminal-panel.js",
       "client/dist/mermaid.core.js",
@@ -194,6 +195,7 @@ test(
     for (const path of paths.filter(
       (path) =>
         path === "client/dist/mermaid.core.js" ||
+        path === "client/dist/notification-worker.js" ||
         path === "client/dist/document-editor.js" ||
         /^client\/dist\/(flowDiagram|sequenceDiagram)-.*\.js$/.test(path),
     )) {

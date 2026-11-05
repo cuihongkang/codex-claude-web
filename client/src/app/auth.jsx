@@ -7,6 +7,7 @@ import {
   logout,
   applySession,
   get,
+  startNotifications,
 } from "../store.js";
 import codexWebIcon from "../assets/codex-web.svg";
 import { CertificateHelp } from "./certificate-help.jsx";
@@ -15,6 +16,7 @@ export function AuthenticationGate({ children }) {
   const { auth, authError, theme } = useStore();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => startNotifications(), []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);

@@ -217,6 +217,14 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 ## 系统登录回归
 
+### 对话完成通知回归
+
+执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/completion-notifications.mjs`。脚本使用独立浏览器上下文、模拟轮次及真实 Service Worker 和 IndexedDB，检查默认开启、手动关闭后的刷新恢复、待授权入口及主动授权、正常状态省略重复文案、后台完成、不同对话标题、跨页面原子去重、历史与刷新重连、开关同步及关闭期间的异步取消、失败与中断、存储失败、权限撤销、不支持的环境、通知消息跳转和新页面目标恢复。通知的原生显示接口保留真实调用，并记录实际调用数量，避免同一 tag 替换掩盖重复提醒。截图及构建来源保存在 `.cache/completion-notifications`，包含深浅主题、窄屏和 80%～200% 缩放。可设置 `HEADED=1` 在可用桌面或 Xvfb 中运行；系统横幅展示以浏览器及系统通知设置为准。
+
+`client/tests/notifications.test.js` 验证应用层的授权、用户隔离、历史过滤、搜索列表外标题读取和生命周期清理，`client/tests/notification-worker.test.js` 验证点击时聚焦原窗口及窗口关闭后的打开目标。发行包回归检查 Worker 的交付清单及实际 HTTPS 路由。README 现有截图展示对话与文件界面，通知设置的新增入口通过专项截图核对。
+
+### 登录与证书
+
 `server/tests/auth.test.mjs` 通过临时 CODEX_HOME、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。
 
 浏览器回归使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/auth.mjs`，在生产构建和临时模拟后端上实际填写登录表单，检查刷新、跨标签页退出、草稿恢复、过期、证书下载、设备安装指引、关于页隐藏开发标记、深浅主题及手机布局。截图及构建信息保存在 `.cache/auth-browser`。
