@@ -451,6 +451,80 @@ try {
       "desktop-model-switch-detail",
       ".composer, .reasoning-effort-popover",
     );
+    if (!before) {
+      assert.equal(
+        await evaluate(
+          "document.querySelector('.reasoning-effort-popover').innerText",
+        ),
+        "思考强度\n极高",
+      );
+      assert.equal(
+        await evaluate(
+          "document.querySelectorAll('.reasoning-effort-stops span').length",
+        ),
+        4,
+      );
+      const track = await evaluate(
+        "(()=>{const r=document.querySelector('input[type=range]').getBoundingClientRect();return {x:r.x,y:r.y+r.height/2,width:r.width}})()",
+      );
+      await page("Input.dispatchMouseEvent", {
+        type: "mousePressed",
+        button: "left",
+        clickCount: 1,
+        x: track.x + track.width - 16,
+        y: track.y,
+      });
+      await page("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        button: "left",
+        buttons: 1,
+        x: track.x + 16,
+        y: track.y,
+      });
+      await page("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        button: "left",
+        clickCount: 1,
+        x: track.x + 16,
+        y: track.y,
+      });
+      await waitFor("document.querySelector('output').textContent==='低'");
+      for (const zoom of [0.8, 1, 1.25, 1.5, 2]) {
+        await page("Emulation.setDeviceMetricsOverride", {
+          width: Math.round(1200 / zoom),
+          height: Math.round(850 / zoom),
+          deviceScaleFactor: zoom,
+          mobile: false,
+        });
+        const bounds = await evaluate(
+          "(()=>{const r=document.querySelector('.reasoning-effort-popover').getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight}})()",
+        );
+        assert(
+          bounds.left >= 0 &&
+            bounds.right <= bounds.width &&
+            bounds.top >= 0 &&
+            bounds.bottom <= bounds.height,
+          JSON.stringify({ zoom, ...bounds }),
+        );
+        await screenshot(
+          `slider-zoom-${zoom * 100}`,
+          ".composer, .reasoning-effort-popover",
+        );
+      }
+      await page("Emulation.setDeviceMetricsOverride", {
+        width: 1200,
+        height: 850,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      proof.push({
+        stage: "slider-style-and-drag",
+        labels: "heading-only",
+        stops: 4,
+        zoom: [80, 100, 125, 150, 200],
+      });
+      await setEffort(3);
+    }
     assert.equal(await effort(), before ? "思考强度：低" : "思考强度：极高");
     proof.push({ stage: "model-switch", effort: await effort() });
     if (!before) {

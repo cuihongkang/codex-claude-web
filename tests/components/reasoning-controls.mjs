@@ -63,6 +63,17 @@ export async function testReasoningControls(app, fixture) {
     );
     assert.equal(range().props["aria-valuetext"], "高");
     assert.equal(
+      effortView.root.findAllByProps({ className: "reasoning-effort-labels" })
+        .length,
+      0,
+    );
+    assert.equal(
+      effortView.root.findByProps({ className: "reasoning-effort-stops" })
+        .children.length,
+      4,
+    );
+    assert.deepEqual(effortView.root.findByType("output").children, ["高"]);
+    assert.equal(
       effortView.root.findAll(
         (n) => n.type === "select" && n.props["aria-label"] === "思考强度",
       ).length,

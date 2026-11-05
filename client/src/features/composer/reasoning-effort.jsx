@@ -38,35 +38,35 @@ export function ReasoningEffortControl({ inline = false }) {
         <span>思考强度</span>
         <output htmlFor={id}>{label}</output>
       </div>
-      <input
-        id={id}
-        type="range"
-        min={0}
-        max={Math.max(0, options.length - 1)}
-        step={1}
-        value={index}
-        aria-label="思考强度"
-        aria-valuetext={label}
-        disabled={options.length < 2}
-        autoFocus={open && !inline}
+      <div
+        className="reasoning-effort-track"
         style={{
           "--effort-progress": `${options.length > 1 ? (index / (options.length - 1)) * 100 : 0}%`,
         }}
-        onChange={(e) =>
-          selectEffort(options[Number(e.target.value)].reasoningEffort)
-        }
-      />
-      <div className="reasoning-effort-labels" aria-hidden="true">
-        {options.map((option) => (
-          <span
-            key={option.reasoningEffort}
-            data-selected={option.reasoningEffort === effort}
-            title={option.description}
-          >
-            {reasoningEffortLabels[option.reasoningEffort] ||
-              option.reasoningEffort}
-          </span>
-        ))}
+      >
+        <input
+          id={id}
+          type="range"
+          min={0}
+          max={Math.max(0, options.length - 1)}
+          step={1}
+          value={index}
+          aria-label="思考强度"
+          aria-valuetext={label}
+          disabled={options.length < 2}
+          autoFocus={open && !inline}
+          onChange={(e) =>
+            selectEffort(options[Number(e.target.value)].reasoningEffort)
+          }
+        />
+        <div className="reasoning-effort-stops" aria-hidden="true">
+          {options.map((option, position) => (
+            <span
+              key={option.reasoningEffort}
+              data-active={position <= index}
+            />
+          ))}
+        </div>
       </div>
       {options.length < 2 && (
         <p className="reasoning-effort-hint">
