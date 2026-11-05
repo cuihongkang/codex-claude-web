@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 import WebSocket from "ws";
 
 // 独立后端只读取认证副本，工具配置与测试记录均留在临时目录。
-export async function isolatedCodex(home) {
+export async function isolatedCodex(home, extraConfig = "") {
   await copyFile(
     join(process.env.CODEX_HOME || join(homedir(), ".codex"), "auth.json"),
     join(home, "auth.json"),
@@ -15,7 +15,8 @@ export async function isolatedCodex(home) {
   await chmod(join(home, "auth.json"), 0o600);
   await writeFile(
     join(home, "config.toml"),
-    'model = "gpt-6-luna"\nthread_unload_delay_secs = 0\nweb_search = "disabled"\n[features]\napps = false\nplugins = false\nremote_plugin = false\nhooks = false\nmemories = false\nmulti_agent = false\n',
+    'model = "gpt-6-luna"\nthread_unload_delay_secs = 0\nweb_search = "disabled"\n[features]\napps = false\nplugins = false\nremote_plugin = false\nhooks = false\nmemories = false\nmulti_agent = false\n' +
+      extraConfig,
   );
   const reservation = createServer();
   reservation.listen(0, "127.0.0.1");

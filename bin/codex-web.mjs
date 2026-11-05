@@ -27,6 +27,7 @@ async function main() {
 用法：codex-web [命令]
   start                      前台启动网页服务（默认命令）
   backend                    前台启动 Codex app-server
+  adapter                    前台启动 Chat 模型转换服务
   config init                创建用户配置，保留已有配置
   service install            安装并启动 Linux systemd 用户服务
   service status             查看网页与后端服务状态
@@ -54,6 +55,7 @@ async function main() {
     ![
       "start",
       "backend",
+      "adapter",
       "config init",
       "service install",
       "service status",
@@ -95,6 +97,9 @@ async function main() {
     case "backend":
       await import("../scripts/start-backend.mjs");
       break;
+    case "adapter":
+      await import("../scripts/start-model-adapter.mjs");
+      break;
     case "service install": {
       const { installServices } =
         await import("../scripts/install-services.mjs");
@@ -113,7 +118,11 @@ async function main() {
       const action = args[1];
       const units = ["codex-lan-web.service"];
       if (action === "status")
-        units.push("codex-app-server.service", "--no-pager");
+        units.push(
+          "codex-app-server.service",
+          "codex-model-adapter.service",
+          "--no-pager",
+        );
       execFileSync("systemctl", ["--user", action, ...units], {
         stdio: "inherit",
       });

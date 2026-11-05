@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 
 export function readConfig(env = process.env) {
   const port = Number(env.PORT || 8766);
+  const adapterPort = Number(env.MODEL_ADAPTER_PORT || 8767);
+  if (!Number.isInteger(adapterPort) || adapterPort < 1 || adapterPort > 65535)
+    throw new Error("MODEL_ADAPTER_PORT 必须为 1 到 65535 之间的整数");
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new Error("PORT 必须为 0 到 65535 之间的整数");
   const upstreamUrl = env.CODEX_APP_SERVER_URL || "ws://127.0.0.1:8765";
@@ -34,6 +37,7 @@ export function readConfig(env = process.env) {
     tlsKey: env.TLS_KEY ? resolve(env.TLS_KEY) : null,
     host: env.HOST || "0.0.0.0",
     port,
+    adapterPort,
     upstreamUrl,
     codexHome,
     projectlessRoot: join(codexHome, "codex-web", "workspaces"),

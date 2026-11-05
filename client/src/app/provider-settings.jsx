@@ -54,7 +54,9 @@ export function ProviderSettings() {
             <small>
               {provider.builtin
                 ? "使用当前 Codex 配置"
-                : `${provider.models.length} 个模型`}
+                : provider.requiresMigration
+                  ? "重新保存以同步配置"
+                  : `${provider.models.length} 个模型`}
             </small>
           </span>
           {!provider.builtin && (

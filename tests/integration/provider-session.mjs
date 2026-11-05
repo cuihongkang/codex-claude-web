@@ -7,10 +7,18 @@ import { createAuthentication } from "../../server/src/auth.mjs";
 import { readConfig } from "../../server/src/config.mjs";
 import { authenticationFixture } from "../helpers/auth.mjs";
 import { isolatedCodex } from "./codex-backend.mjs";
+import { createPersistentAdapter } from "../../server/src/providers/adapter.mjs";
 
-export async function providerSession(onRequest = () => {}) {
+export async function providerSession(
+  onRequest = () => {},
+  createApplication = createWebApplication,
+  { backendConfig = "", prepareHome = async () => {} } = {},
+) {
   const home = await mkdtemp(join(tmpdir(), "codex-web-provider-session-"));
-  const backend = await isolatedCodex(home);
+  await prepareHome(home);
+  const backend = await isolatedCodex(home, backendConfig);
+  let adapter = await createPersistentAdapter({ codexHome: home, port: 0 });
+  const adapterPort = adapter.port;
   const auth = await authenticationFixture(home);
   const config = readConfig({
     ...process.env,
@@ -18,8 +26,9 @@ export async function providerSession(onRequest = () => {}) {
     CODEX_APP_SERVER_URL: backend.url,
     HOST: "127.0.0.1",
     PORT: "0",
+    MODEL_ADAPTER_PORT: String(adapterPort),
   });
-  const app = createWebApplication({
+  const app = createApplication({
     config,
     tls: auth.tls,
     authentication: await createAuthentication(config),
@@ -29,6 +38,8 @@ export async function providerSession(onRequest = () => {}) {
     pending = new Map(),
     threads = new Set();
   let sequence = 0;
+  let webClosed = false;
+  let backendClosed = false;
   await app.start();
   const origin = `https://127.0.0.1:${app.server.address().port}`;
   const socket = new WebSocket(origin.replace("https:", "wss:") + "/rpc", {
@@ -79,9 +90,30 @@ export async function providerSession(onRequest = () => {}) {
   await event("lan/state", (p) => p.ready);
   return {
     home,
+    origin,
+    cookie: auth.cookie,
+    backendUrl: backend.url,
     call,
     event,
     events,
+    async restartAdapter() {
+      await adapter.close();
+      adapter = await createPersistentAdapter({
+        codexHome: home,
+        port: adapterPort,
+      });
+    },
+    async stopWeb() {
+      if (webClosed) return;
+      webClosed = true;
+      socket.terminate();
+      await app.close();
+    },
+    async stopBackend() {
+      if (backendClosed) return;
+      backendClosed = true;
+      await backend.close();
+    },
     async turn(threadId, text, selection = {}) {
       const mark = events.length;
       const start = await call("turn/start", {
@@ -99,14 +131,14 @@ export async function providerSession(onRequest = () => {}) {
       return events.slice(mark);
     },
     async close() {
-      for (const threadId of threads) {
+      for (const threadId of webClosed ? [] : threads) {
         try {
           await call("thread/archive", { threadId });
         } catch {}
       }
-      socket.terminate();
-      await app.close();
-      await backend.close();
+      await this.stopWeb();
+      await this.stopBackend();
+      await adapter.close();
       await rm(home, {
         recursive: true,
         force: true,

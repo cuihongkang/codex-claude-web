@@ -232,6 +232,13 @@ test(
     );
     assert.ok(web.includes(`CODEX_WEB_CONFIG_DIR=${configDir}`));
     assert.match(web, /Wants=codex-app-server.service/);
+    const adapter = await readFile(
+      join(units, "codex-model-adapter.service"),
+      "utf8",
+    );
+    assert.match(adapter, /bin\/codex-web.mjs" adapter/);
+    assert.match(adapter, /Restart=on-failure/);
+    assert.equal(/PartOf=|BindsTo=/.test(adapter), false);
     const backendPath = join(units, "codex-app-server.service");
     const backend = await readFile(backendPath, "utf8");
     assert.ok(backend.includes(`ws://127.0.0.1:${upstream.address().port}`));

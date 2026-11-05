@@ -1,5 +1,4 @@
 import { createProviderRegistry } from "./providers/registry.mjs";
-import { createModelGateway } from "./providers/gateway.mjs";
 import https from "node:https";
 import { WebSocketServer } from "ws";
 import { createHttpHandler } from "./http/router.mjs";
@@ -26,15 +25,16 @@ export function createWebApplication({ config, tls, authentication, version }) {
       for (const monitor of monitors.clients)
         send(monitor, bridge.maintenanceState());
   }
-  const providers = createProviderRegistry(config.codexHome);
-  const gateway = createModelGateway(providers);
+  const providers = createProviderRegistry(
+    config.codexHome,
+    config.adapterPort,
+  );
   const bridge = createBridge({
     config,
     version,
     send,
     broadcast,
     providers,
-    gateway,
   });
   const { state, maintenanceState, releaseUnusedThreads, subscriptions } =
     bridge;
@@ -120,7 +120,6 @@ export function createWebApplication({ config, tls, authentication, version }) {
   return {
     server,
     async start() {
-      await gateway.start();
       try {
         await new Promise((resolve, reject) => {
           server.once("error", reject);
@@ -130,7 +129,6 @@ export function createWebApplication({ config, tls, authentication, version }) {
           });
         });
       } catch (error) {
-        await gateway.close();
         throw error;
       }
       bridge.connect();
@@ -138,7 +136,6 @@ export function createWebApplication({ config, tls, authentication, version }) {
     async close() {
       clearInterval(heartbeat);
       bridge.close();
-      await gateway.close();
       for (const client of [...clients.clients, ...monitors.clients])
         client.terminate();
       clients.close();

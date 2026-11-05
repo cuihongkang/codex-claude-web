@@ -20,6 +20,7 @@
     "shared/",
     "scripts/install-services.mjs",
     "scripts/start-backend.mjs",
+    "scripts/start-model-adapter.mjs",
     "scripts/restart-when-idle.mjs",
     ".env.example",
     "docs/",
@@ -36,6 +37,7 @@
     "prepack": "npm run build",
     "start": "node --env-file-if-exists=.env server/src/server.mjs",
     "start:backend": "node --env-file-if-exists=.env scripts/start-backend.mjs",
+    "start:adapter": "node --env-file-if-exists=.env scripts/start-model-adapter.mjs",
     "test": "npm run test:unit && npm run test:components",
     "test:unit": "node --test client/tests/*.test.js server/tests/*.test.mjs tests/architecture.test.mjs tests/version.test.mjs tests/release.test.mjs",
     "test:components": "node scripts/test-components.mjs",
@@ -49,7 +51,7 @@
     "check": "npm run version:check && npm run architecture:check && npm run format:check && npm test && npm run test:package",
     "service:install": "node --env-file-if-exists=.env scripts/install-services.mjs",
     "service:restart": "systemctl --user restart codex-lan-web.service",
-    "service:status": "systemctl --user status codex-lan-web.service codex-app-server.service --no-pager",
+    "service:status": "systemctl --user status codex-lan-web.service codex-app-server.service codex-model-adapter.service --no-pager",
     "service:restart-when-idle": "node --env-file-if-exists=.env scripts/restart-when-idle.mjs"
   },
   "devDependencies": {

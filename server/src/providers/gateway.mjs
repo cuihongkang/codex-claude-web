@@ -3,9 +3,11 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { once } from "node:events";
 import { normalizeChatMessages, streamChat } from "./chat-adapter.mjs";
 import { MAX_RPC_MESSAGE_BYTES } from "../rpc-transport.mjs";
+import { portableInput } from "./context-summary.mjs";
+import { fetchDeferredChat } from "./deferred-chat.mjs";
 
-export function createModelGateway(registry) {
-  const token = randomBytes(32).toString("hex");
+export function createModelGateway(registry, options = {}) {
+  const token = options.token || randomBytes(32).toString("hex");
   let base;
   const controllers = new Set();
   const server = createServer(async (request, response) => {
@@ -16,6 +18,12 @@ export function createModelGateway(registry) {
       !timingSafeEqual(supplied, expected)
     ) {
       response.writeHead(401).end();
+      return;
+    }
+    if (request.method === "GET" && request.url === "/healthz") {
+      response
+        .writeHead(200, { "Content-Type": "application/json" })
+        .end(JSON.stringify({ ready: true }));
       return;
     }
     const match =
@@ -42,12 +50,31 @@ export function createModelGateway(registry) {
         chunks.push(chunk);
       }
       const input = JSON.parse(Buffer.concat(chunks));
+      if (Array.isArray(input.input)) {
+        const compacted = input.input.findLast((item) =>
+          ["compaction", "context_compaction"].includes(item.type),
+        );
+        const threadId =
+          request.headers["thread-id"] || request.headers["session_id"];
+        const summary =
+          compacted &&
+          options.context &&
+          (await options.context.read(threadId, compacted));
+        input.input = portableInput(input.input, summary);
+      }
       if (Array.isArray(input.input))
         input.input = input.input.filter(
           (item) => item.type !== "reasoning" || !item.encrypted_content,
         );
       const model = provider.models.find((m) => m.id === input.model);
-      if (!model) throw new Error("供应商未配置此模型：" + input.model);
+      if (!model) {
+        response.writeHead(400, { "Content-Type": "application/json" }).end(
+          JSON.stringify({
+            error: { message: "供应商未配置此模型：" + input.model },
+          }),
+        );
+        return;
+      }
       if (provider.protocol === "chat" && match[2] === "responses") {
         await streamChat({
           input,
@@ -64,7 +91,7 @@ export function createModelGateway(registry) {
         throw new Error("此模型通过对话摘要整理上下文");
       if (provider.protocol === "chat")
         input.messages = normalizeChatMessages(input.messages);
-      const upstream = await fetch(provider.baseUrl + "/" + match[2], {
+      const options = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -74,7 +101,15 @@ export function createModelGateway(registry) {
         },
         body: JSON.stringify(input),
         signal: controller.signal,
-      });
+      };
+      const upstream =
+        provider.protocol === "chat"
+          ? await fetchDeferredChat(
+              provider.baseUrl + "/" + match[2],
+              input,
+              options,
+            )
+          : await fetch(provider.baseUrl + "/" + match[2], options);
       response.writeHead(upstream.status, {
         "Content-Type":
           upstream.headers.get("content-type") || "application/json",
@@ -97,12 +132,15 @@ export function createModelGateway(registry) {
   server.requestTimeout = 0;
   return {
     token,
+    get port() {
+      return server.address()?.port;
+    },
     url(id) {
       if (!base) throw new Error("模型网关尚未启动");
       return base + "/" + id + "/v1";
     },
     async start() {
-      server.listen(0, "127.0.0.1");
+      server.listen(options.port ?? 0, "127.0.0.1");
       await once(server, "listening");
       base = "http://127.0.0.1:" + server.address().port;
     },

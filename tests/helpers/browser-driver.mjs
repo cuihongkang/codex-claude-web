@@ -70,8 +70,9 @@ export async function browserDriver() {
       throw new Error(JSON.stringify(result.exceptionDetails));
     return result.result.value;
   }
-  async function waitFor(expression) {
-    for (let attempt = 0; attempt < 250; attempt++) {
+  async function waitFor(expression, timeout = 10000) {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
       if (await evaluate(`Boolean(${expression})`)) return;
       await new Promise((resolve) => setTimeout(resolve, 40));
     }

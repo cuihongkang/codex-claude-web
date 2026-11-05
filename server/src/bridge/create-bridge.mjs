@@ -11,14 +11,7 @@ import { createLocalMethods } from "./local-methods.mjs";
 
 import { createProviderRouting } from "../providers/routing.mjs";
 
-export function createBridge({
-  config,
-  version,
-  send,
-  broadcast,
-  providers,
-  gateway,
-}) {
+export function createBridge({ config, version, send, broadcast, providers }) {
   const questions = new Map();
   const activeTurns = new Map();
   const activeThreads = new Set();
@@ -49,6 +42,7 @@ export function createBridge({
       broadcast(state());
     },
   });
+  providers.connect(transport.call);
   const threadNaming = createThreadNaming({
     call: transport.call,
     generate: async (params) => {
@@ -76,7 +70,6 @@ export function createBridge({
     onSelection: (params) =>
       broadcast({ method: "lan/providers/thread", params }),
     registry: providers,
-    gateway,
     transport,
     subscriptions,
     activeTurns,
@@ -114,12 +107,13 @@ export function createBridge({
     ],
     ["lan/providers/models", ({ id }) => providers.discover(id)],
   ])
-    methods.offline.set(method, async (params) => {
+    methods.online.set(method, async (params) => {
       if (
-        method === "lan/providers/remove" &&
+        ["lan/providers/remove", "lan/providers/set"].includes(method) &&
+        params.id &&
         (await routing.providerBusy(params.id))
       )
-        throw new Error("请等待此供应商的任务结束后删除。");
+        throw new Error("请等待此供应商的任务结束后修改配置。");
       const result = await action(params);
       if (method === "lan/providers/set" || method === "lan/providers/remove")
         broadcast({ method: "lan/providers/updated", params: result });

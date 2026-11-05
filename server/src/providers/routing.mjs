@@ -1,9 +1,9 @@
 import { createPortableHistory } from "./portable-history.mjs";
+import { reasoningSource } from "./reasoning-source.mjs";
 import { threadMethods, loadedThreadMethods } from "../bridge/methods.mjs";
 
 export function createProviderRouting({
   registry,
-  gateway,
   transport,
   subscriptions,
   activeTurns,
@@ -15,67 +15,24 @@ export function createProviderRouting({
   const closing = new Map();
   const reserved = new Set();
   const closingWaiters = new Map();
-  let nativeSettings;
   async function providerParameters(selection) {
     const provider = await registry.get(selection.providerId);
     if (provider.builtin) {
-      if (!nativeSettings) {
-        const { config } = await transport.call("config/read", {
-          includeLayers: false,
-        });
-        const id = config?.model_provider || "openai";
-        const info = config?.model_providers?.[id];
-        if (id === "openai" || info) {
-          const definition = info || {
-            name: "OpenAI",
-            requires_openai_auth: true,
-            supports_websockets: true,
-            include_internal_metadata: true,
-            ...(config?.openai_base_url && {
-              base_url: config.openai_base_url,
-            }),
-          };
-          nativeSettings = {
-            modelProvider: "codex_web_default",
-            config: {
-              "model_providers.codex_web_default": {
-                ...definition,
-                capabilities: {
-                  ...definition.capabilities,
-                  remote_compaction: "unsupported",
-                },
-              },
-            },
-          };
-        } else nativeSettings = { modelProvider: id };
-      }
+      const config = await registry.readConfig();
       return {
-        ...nativeSettings,
+        modelProvider: config.model_provider || "openai",
         ...(selection.model && { model: selection.model }),
       };
     }
     const model = selection.model
       ? provider.models.find((m) => m.id === selection.model)
-      : provider.models[0];
-    if (!model) throw new Error("供应商未配置此模型，请重新选择模型。");
-    const key = "codex_web_" + Buffer.from(provider.id).toString("hex");
+      : null;
     return {
-      modelProvider: key,
-      model: model.id,
+      modelProvider: provider.id,
+      ...(selection.model && { model: selection.model }),
       serviceTier: null,
       config: {
-        ["model_providers." + key]: {
-          name: provider.name,
-          base_url: gateway.url(provider.id),
-          wire_api: "responses",
-          experimental_bearer_token: gateway.token,
-          supports_websockets: false,
-          capabilities: { remote_compaction: "unsupported" },
-        },
-        web_search: "disabled",
-        model_context_window: model.contextWindow,
-        model_auto_compact_token_limit: Math.floor(model.contextWindow * 0.75),
-        model_auto_compact_token_limit_scope: "total",
+        ...(model && { model_context_window: model.contextWindow }),
         thread_unload_delay_secs: 0,
       },
     };
@@ -108,6 +65,21 @@ export function createProviderRouting({
     compactions,
     parameters,
     unload,
+    saveContext: registry.saveContext,
+    removeContext: registry.removeContext,
+    async resolveSource(threadId) {
+      const { thread } = await transport.call("thread/read", {
+        threadId,
+        includeTurns: false,
+      });
+      return reasoningSource(thread.path, await registry.list(), async (id) => {
+        const { thread: parent } = await transport.call("thread/read", {
+          threadId: id,
+          includeTurns: false,
+        });
+        return parent.path;
+      });
+    },
   });
   function closed(threadId) {
     loaded.delete(threadId);
@@ -135,9 +107,27 @@ export function createProviderRouting({
   }
   async function selectionFor(threadId, params = {}) {
     const saved = threadId && (await registry.selection(threadId));
+    let actual, actualModel;
+    if (threadId) {
+      const { thread } = await transport.call("thread/read", {
+        threadId,
+        includeTurns: false,
+      });
+      actualModel = thread?.model;
+      if (thread?.modelProvider) {
+        const config = await registry.readConfig();
+        actual =
+          thread.modelProvider === (config.model_provider || "openai")
+            ? "codex"
+            : await registry.resolveId(thread.modelProvider);
+      }
+    }
     return {
-      providerId: params.providerId || saved?.providerId || "codex",
-      model: params.model || saved?.model,
+      providerId: params.providerId || actual || saved?.providerId || "codex",
+      model:
+        params.model ||
+        actualModel ||
+        (actual === saved?.providerId && saved?.model),
       ...((saved?.overrides || params.config) && {
         overrides: { ...saved?.overrides, ...params.config },
       }),
@@ -158,9 +148,7 @@ export function createProviderRouting({
     if (threadId && reserved.has(threadId))
       throw new Error("对话正在更新供应商，请稍后重试。");
     const previous =
-      threadId &&
-      (loaded.get(threadId) ||
-        (await registry.selection(threadId)) || { providerId: "codex" });
+      threadId && (loaded.get(threadId) || (await selectionFor(threadId)));
     const changes =
       threadId &&
       (previous.providerId !== selection.providerId ||
@@ -169,18 +157,16 @@ export function createProviderRouting({
           previous.model !== selection.model) ||
         JSON.stringify(previous.overrides) !==
           JSON.stringify(selection.overrides));
-    if (
-      changes &&
-      (activeTurns.has(threadId) ||
-        activeThreads.has(threadId) ||
-        compactions.busy(threadId) ||
-        [...transport.pending.values()].some(
-          (p) =>
-            p.threadId === threadId &&
-            (threadMethods.has(p.method) || loadedThreadMethods.has(p.method)),
-        ))
-    )
-      throw new Error("请等待当前任务结束后切换供应商。");
+    const busy =
+      activeTurns.has(threadId) ||
+      activeThreads.has(threadId) ||
+      compactions.busy(threadId) ||
+      [...transport.pending.values()].some(
+        (p) =>
+          p.threadId === threadId &&
+          (threadMethods.has(p.method) || loadedThreadMethods.has(p.method)),
+      );
+    if (changes && busy) throw new Error("请等待当前任务结束后切换供应商。");
     if (threadId) reserved.add(threadId);
     const release = () => {
       if (threadId) reserved.delete(threadId);
@@ -196,11 +182,13 @@ export function createProviderRouting({
         await wait;
       } else if (threadId && closing.has(threadId)) await closing.get(threadId);
       if (
-        threadId &&
-        selection.providerId !== "codex" &&
-        !(await registry.selection(threadId))
+        changes ||
+        (threadId &&
+          !busy &&
+          selection.providerId === "codex" &&
+          ["thread/resume", "turn/start"].includes(method))
       )
-        await portable.prepare(threadId);
+        await portable.prepare(threadId, previous, selection);
       const settings = await parameters(selection);
       selection.model ||= settings.model;
       const clean = { ...params };
@@ -261,7 +249,20 @@ export function createProviderRouting({
       }
       if (!message.error && message.result?.thread) {
         const thread = message.result.thread;
-        const selection = await registry.selection(thread.id);
+        const saved = await registry.selection(thread.id);
+        const config = await registry.readConfig();
+        const providerId = thread.modelProvider
+          ? thread.modelProvider === (config.model_provider || "openai")
+            ? "codex"
+            : await registry.resolveId(thread.modelProvider)
+          : saved?.providerId;
+        const selection = providerId && {
+          providerId,
+          model:
+            message.result.model ||
+            thread.model ||
+            (saved?.providerId === providerId ? saved?.model : undefined),
+        };
         if (selection || thread.modelProvider) {
           Object.assign(
             thread,
@@ -279,7 +280,9 @@ export function createProviderRouting({
   return {
     prepare,
     response,
-    event: portable.event,
+    event(message) {
+      return portable.event(message);
+    },
     isReserved: (id) => reserved.has(id),
     async providerBusy(id) {
       if (
@@ -304,12 +307,11 @@ export function createProviderRouting({
     closed,
     trackClosing,
     async resumeParameters(threadId) {
-      const selection = await registry.selection(threadId);
-      return selection ? parameters(selection) : {};
+      const saved = await registry.selection(threadId);
+      return saved ? parameters(await selectionFor(threadId)) : {};
     },
     reset() {
       portable.reset();
-      nativeSettings = undefined;
       for (const waiter of closingWaiters.values()) waiter.resolve();
       closingWaiters.clear();
       loaded.clear();

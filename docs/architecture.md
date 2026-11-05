@@ -166,13 +166,15 @@ sequenceDiagram
 
 当前非 GPT 模型接入 Codex 的方案定位为**兼容实现**，为使用 Codex 后端的部署提供多供应商能力。请求与响应协议、工具调用、推理内容、历史及上下文整理均需要额外适配。后续双后端路线见 [issue #5](https://github.com/hjd-hitsz/codex-web/issues/5)：实现 Codex 与 Claude Code 双后端后，GPT 模型继续使用 Codex，所有新增非 GPT 模型统一接入 Claude Code，当前 Codex 兼容路径由该方案取代。
 
-`providers/registry.mjs` 保存供应商配置、服务端凭据和对话当前选择，采用受限权限及串行原子写入。默认供应商沿用 Codex 当前配置与认证，为网页会话通过 Codex 的供应商能力配置使用可跨模型阅读的本地摘要整理；自定义供应商按模型声明上下文窗口和输出上限。`providers/routing.mjs` 在桥接转发前注入会话配置，按对话保护供应商变更，等待取消订阅及 `thread/closed` 后恢复同一对话，对后端明确返回的异步关闭状态执行有界重试。运行、整理和写入准备期间禁止切换，历史、工具执行及整理任务始终由 Codex 管理。
+供应商定义由 Codex 原生配置持有，网页通过 `config/read` 和 `config/value/write` 读取与修改。默认选择直接使用 Codex 当前 `model_provider`（未设置时为 `openai`），保留其登录、传输、能力和整理策略。自定义供应商使用稳定的真实配置标识作为会话 `modelProvider`。网页元数据保存模型选项和选择偏好，读取会话时以 Codex 实际记录优先；浏览器读取配置前移除认证字段。
 
-`providers/gateway.mjs` 持有仅监听回环地址的认证 HTTP 网关。原生 Responses 供应商由网关转发，Chat Completions 供应商使用 `vendor/anyresponses` 的请求、响应和 SSE 转换，系统消息折叠复用 `vendor/pi-ai`。加密推理在发往其他供应商的副本中省略，Chat 转换同时适配系统消息和工具形态；本地 Codex 历史保留原始记录。API Key 仅在网关发送到目标供应商时使用，浏览器读取配置只获得凭据存在状态。第三方源码、版本、许可证与修订范围维护在 `vendor/README.md`，该目录随发行包交付。
+只有 Chat Completions 接口的供应商通过独立常驻程序转换。`providers/adapter.mjs` 读取受限的上游配置，`providers/gateway.mjs` 监听配置的固定回环端口，并使用持久认证令牌；`vendor/anyresponses` 执行 Responses 与 Chat 请求、响应及 SSE 转换，系统消息折叠复用 `vendor/pi-ai`。原生 Responses 供应商由 Codex 直连。Chat 供应商在 Codex 配置中登记转换地址和本地令牌，实际供应商 API Key 只留在转换配置中。转换程序独立于网页和 app-server 启停，使用同一 CODEX_HOME 的 CLI、客户端及其他 app-server 可读取同一供应商定义；停止网页及重启转换程序后，固定地址和凭据继续有效。第三方源码、版本、许可证与修订范围维护在 `vendor/README.md`。
 
-已在官方供应商下产生加密整理的旧对话，首次转到其他供应商前由 `providers/portable-history.mjs` 使用 Codex 的原生摘要整理生成可迁移上下文；完成后才恢复目标供应商。整理的状态、完成通知、失败和恢复沿用桥接既有任务管理。显式会话配置随对话选择保存，恢复时重新应用；面向浏览器的对话选择只返回供应商与模型身份。
+`providers/routing.mjs` 按对话保护供应商变更，等待取消订阅及 `thread/closed` 后恢复同一对话，对异步关闭状态执行有界重试。运行、整理和写入准备期间暂停切换。第三方明文推理与 GPT 输入约束不兼容时，`providers/portable-history.mjs` 先通过源供应商执行 Codex 原生整理，成功后恢复 GPT；整理状态、失败和恢复沿用桥接任务管理，已保存历史继续由 Codex 持有。对已记录为 GPT、仍残留第三方明文推理的中断切换，从原生记录及分支历史边界只读追溯源模型；唯一匹配已配置供应商后先整理再恢复 GPT，同名模型歧义由用户选择原供应商。准备阶段最多等待 20 分钟，前端消息确认覆盖相同阶段，断线继续沿用请求清理与整理恢复。GPT 已产生原生加密整理时，`context-export.mjs` 使用保留原生身份的临时分支导出摘要，禁用执行工具并隔离其事件；受限的迁移缓存按对话及加密整理哈希隔离，转换程序仅在匹配时用摘要替代发送副本中的加密整理，再由目标 Chat 模型完成 Codex 原生整理并清理缓存。失败保留重试数据，原始历史由 Codex 保存。
 
 浏览器由 `application/providers.js` 管理配置同步，供应商与模型共同构成选择身份，避免同名模型混淆。新对话沿用项目偏好，已有对话从桥接恢复实际供应商；保存和读取按连接版本隔离。设置表单只保存编辑缓冲区，发送入口携带供应商选择，切换成功后由桥接持久保存。
+
+Chat 转换通过 `tool-discovery.mjs` 与 `deferred-chat.mjs` 对原生直接提供的 MCP 工具执行按需发现：首轮只暴露发现函数和基础工具，在转换程序内检索名称与描述，后续仅添加选中或已调用工具的完整定义。发现过程只处理元数据，实际工具调用继续交给 Codex 执行；已有原生 `tool_search` 通过 `tool-search.mjs` 保留原生搜索语义。流式正文与推理持续转发，发现有次数上限，认证错误保留原状态；上下文用量沿用最后一次上游请求。技能目录与选用后的正文读取继续由 Codex 管理。
 
 Chat Completions 供应商的独立推理字段通过转换器映射为 Responses 的 `reasoning_text` 内容与流式事件，由 Codex 保存并发出 `item/reasoning/textDelta`。浏览器的事件用例及子代理领域转换分别维护所属条目的 `content`，共用推理正文组件和既有翻译服务。推理正文按完整段落展示，摘要继续使用 `summary` 的标题与正文规则；流式翻译合并在途更新并复用已译前缀，历史恢复使用 Codex 保存的相同内容。
 

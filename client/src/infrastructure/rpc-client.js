@@ -1,5 +1,6 @@
 import { fullAccessParams } from "../domain/execution-policy.js";
 import { MAX_RPC_MESSAGE_BYTES } from "../../../shared/rpc-limits.mjs";
+import { PROVIDER_PREPARATION_TIMEOUT_MS } from "../../../shared/provider-lifecycle.mjs";
 
 // 每个实例独立持有连接和待完成请求，替换连接后丢弃旧连接的响应。
 export function createRpcClient({
@@ -23,7 +24,13 @@ export function createRpcClient({
     pending.clear();
   }
 
-  function rpc(method, params = {}, timeout = 120000) {
+  function rpc(
+    method,
+    params = {},
+    timeout = ["thread/resume", "turn/start"].includes(method)
+      ? PROVIDER_PREPARATION_TIMEOUT_MS + 120000
+      : 120000,
+  ) {
     return new Promise((resolve, reject) => {
       if (!isConnected() || connection?.readyState !== WebSocket.OPEN)
         return reject(new Error("与电脑的连接尚未就绪，正在自动重连。"));

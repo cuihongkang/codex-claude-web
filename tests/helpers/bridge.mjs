@@ -24,6 +24,7 @@ export async function bridge(t, handle = () => undefined) {
   await once(backend, "listening");
   const requests = [],
     sockets = [];
+  const nativeConfig = { model_providers: {} };
   let upstream,
     sequence = 1;
   const respond = (request, result) =>
@@ -35,6 +36,18 @@ export async function bridge(t, handle = () => undefined) {
       if (request.id === undefined) return;
       requests.push(request);
       if (handle(request, socket)) return;
+      if (request.method === "config/read") {
+        respond(request, { config: nativeConfig });
+        return;
+      }
+      if (request.method === "config/value/write") {
+        const key = request.params.keyPath.replace(/^model_providers\./, "");
+        if (request.params.value === null)
+          delete nativeConfig.model_providers[key];
+        else nativeConfig.model_providers[key] = request.params.value;
+        respond(request, { status: "ok" });
+        return;
+      }
       respond(
         request,
         ["thread/start", "thread/resume", "thread/fork"].includes(
@@ -91,6 +104,7 @@ export async function bridge(t, handle = () => undefined) {
   });
   return {
     requests,
+    nativeConfig,
     respond,
     logs: () => stderr,
     disconnect: () => upstream.terminate(),

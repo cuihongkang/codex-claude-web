@@ -231,6 +231,10 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 `server/tests/provider-reasoning.test.mjs` 验证 Chat 推理字段的流式与非流式转换、条目标识、工具顺序和输出截断。`node tests/integration/provider-reasoning.mjs` 使用真实隔离 Codex 后端及模拟模型，核对原生推理正文事件和历史恢复；提供 `MODEL_BASE_URL`、`MODEL_ID` 和可选 `MODEL_API_KEY` 时改为真实模型调用。`PROVIDER_EVENTS` 和 `PROVIDER_RESULT` 分别指定本地事件与结果文件。组件回归覆盖推理正文翻译、增量合并、完成及重开恢复，子代理回归同时核对分页与增量的重叠合并。
 
+`server/tests/provider-native-identity.test.mjs` 验证默认供应商直接沿用原生配置、身份及能力。`node tests/integration/native-subscription.mjs` 使用真实 GPT 验证网页停止后的 CLI 续跑；`node tests/integration/native-provider-config.mjs` 验证原生供应商配置，设置 `CHAT_PROVIDER=1` 验证 Chat 常驻转换程序重启及原生 CLI 续跑。`node tests/integration/provider-switch-reasoning.mjs` 验证源模型原生整理后切回真实 GPT；设置 `MODEL_BASE_URL`、`MODEL_ID` 与可选 `MODEL_API_KEY` 可使用远端模型，`GPT_MODEL` 选择 GPT 型号，`PROVIDER_RESULT` 保存结果。`node tests/integration/legacy-provider-recovery.mjs` 模拟身份已变更、上下文仍保留第三方明文推理的中断切换，验证原对话恢复与记忆。所有测试使用临时认证副本与独立记录。`node tests/integration/provider-discovery.mjs` 使用隔离的 MCP 工具目录和技能，验证首轮工具定义、发现后的真实执行及技能选用前后的正文加载；设置同样的模型环境变量可通过远端 Chat 模型验证，结果由 `PROVIDER_RESULT` 保存。
+
+`CHROME_PATH=/path/to/chromium node tests/browser/provider-switch-reasoning.mjs` 使用生产构建、隔离 Codex 后端、模拟推理模型和真实 GPT，实际选择供应商和模型、键入后按 Ctrl+Enter 发送，记录桌面与手机截图。账户展示使用演示资料，其他对话和模型事件沿用真实桥接。修改前使用 `git archive <基线提交> server/src` 将桥接源码解压到 `.cache/provider-switch-before-source`，为其中的 `client`、`shared`、`vendor` 和 `node_modules` 建立指向当前检出的符号链接，再以 `BROWSER_BEFORE=1` 运行同一脚本验证 400。前后截图、生产构建信息和验证结果保存在 `.cache/provider-switch-browser/before` 与 `after`；现有 README 图片展示常规已完成对话，继续适用于本修复。
+
 工作过程收纳回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/process-folding.mjs`。脚本使用生产构建与隔离的多轮历史，验证无阶段中途回复、推理与工具的连续替换、迟到翻译、手动收起后的译文更新、轮次完成、刷新恢复及下一轮隔离，覆盖深浅主题、80% 至 200% 缩放和手机布局；截图、构建来源与结果写入 `.cache/process-folding-browser/after/`。修改前将旧 `client/dist` 和 `build-info.json` 分别保存到 `.cache/process-folding-before/dist` 与 `.cache/process-folding-before/build-info.json`，以 `BROWSER_BEFORE=1` 运行同一脚本，复现较早思考译文和脱离过程的中途回复同时展开，结果写入 `before/`。领域和组件回归同时覆盖主对话活动状态、子代理轮次状态、明确的最终回答标记及旧版历史。README 和其他文档的现有图片展示已完成的任务与折叠过程，未展示本回归中的运行状态，图片内容保持适用。
 
 真实集成测试通过网页桥接调用指定 Codex 后端，使用独立的临时工作目录及明确命名的测试对话，结束后归档测试对话并删除临时文件：

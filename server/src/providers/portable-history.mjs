@@ -1,4 +1,6 @@
 import { resumeAfterClose } from "./resume.mjs";
+import { createContextExport } from "./context-export.mjs";
+import { PROVIDER_PREPARATION_TIMEOUT_MS } from "../../../shared/provider-lifecycle.mjs";
 
 export function createPortableHistory({
   transport,
@@ -6,31 +8,61 @@ export function createPortableHistory({
   compactions,
   parameters,
   unload,
+  saveContext,
+  removeContext,
+  resolveSource,
 }) {
   const waiting = new Map();
-  async function prepare(threadId) {
-    const { thread } = await transport.call("thread/read", {
-      threadId,
-      includeTurns: false,
-    });
-    if (thread.modelProvider !== "openai") return;
+  const exporter = createContextExport(transport);
+  async function prepare(threadId, source, target) {
+    if (
+      source.providerId === target.providerId &&
+      target.providerId !== "codex"
+    )
+      return;
+    if (source.providerId !== "codex" && target.providerId !== "codex") return;
     let cursor,
-      compacted = false;
+      needsSummary = false,
+      summarized = false;
     do {
       const page = await transport.call("thread/turns/list", {
         threadId,
         limit: 100,
         itemsView: "full",
+        sortDirection: "desc",
         ...(cursor && { cursor }),
       });
-      compacted = page.data?.some((turn) =>
-        turn.items?.some((item) => item.type === "contextCompaction"),
-      );
+      for (const turn of page.data || []) {
+        for (const item of (turn.items || []).toReversed()) {
+          if (item.type === "contextCompaction") {
+            summarized = true;
+            break;
+          }
+          if (
+            item.type === "reasoning" &&
+            item.content?.some((text) => text.trim())
+          )
+            needsSummary = true;
+        }
+        if (summarized) break;
+      }
       cursor = page.nextCursor;
-    } while (!compacted && cursor);
-    if (!compacted) return;
+    } while (!needsSummary && !summarized && cursor);
+    if (
+      source.providerId === "codex" &&
+      target.providerId === "codex" &&
+      needsSummary
+    ) {
+      source = await resolveSource(threadId);
+      if (!source)
+        throw new Error(
+          "此对话保留了第三方明文推理，请先选择原供应商整理上下文，再切回 GPT。",
+        );
+    } else if (source.providerId === "codex")
+      needsSummary = summarized && target.providerId !== "codex";
+    if (!needsSummary) return;
     await unload(threadId);
-    const settings = await parameters({ providerId: "codex" });
+    let settings = await parameters(source);
     await resumeAfterClose(transport.call, {
       threadId,
       excludeTurns: true,
@@ -46,15 +78,27 @@ export function createPortableHistory({
     const completed = new Promise((resolve, reject) => {
       timer = setTimeout(
         () => reject(new Error("整理既有对话超时，请检查对话状态后重试。")),
-        300000,
+        PROVIDER_PREPARATION_TIMEOUT_MS,
       );
       waiting.set(threadId, { resolve, reject });
     });
     completed.catch(() => {});
     try {
+      if (source.providerId === "codex") {
+        await saveContext(threadId, await exporter.run(threadId, settings));
+        await unload(threadId);
+        settings = await parameters(target);
+        await resumeAfterClose(transport.call, {
+          threadId,
+          excludeTurns: true,
+          ...settings,
+        });
+        subscriptions.subscriptions.set(threadId, new Set());
+      }
       await transport.call("thread/compact/start", { threadId });
       await completed;
       await unload(threadId);
+      if (source.providerId === "codex") await removeContext(threadId);
     } catch (error) {
       compactions.reject(threadId, requestId, error.message);
       throw error;
@@ -66,6 +110,7 @@ export function createPortableHistory({
   return {
     prepare,
     event(message) {
+      if (exporter.event(message)) return true;
       if (message.method !== "turn/completed") return;
       const waiter = waiting.get(message.params.threadId);
       if (!waiter) return;
@@ -75,6 +120,7 @@ export function createPortableHistory({
         waiter.reject(new Error(turn.error?.message || "既有对话整理未完成"));
     },
     reset() {
+      exporter.reset();
       for (const waiter of waiting.values())
         waiter.reject(new Error("Codex 连接已断开，请重试供应商切换。"));
       waiting.clear();

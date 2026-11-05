@@ -147,7 +147,11 @@ codex-web service restart-when-idle
 
 任务结束后可切换供应商，下一条消息继续使用原对话。历史消息会发送给所选供应商，模型调用、工具执行及上下文整理按该供应商的能力和费用计算。供应商提供的模型需支持工具调用，文件、终端等任务继续在运行 Codex 的电脑上执行。
 
-供应商配置与 API Key 保存在服务所在电脑的 `CODEX_HOME/codex-web/providers.json`，文件仅对该系统账户开放。浏览器读取配置时只获得是否已保存 Key 的状态；迁移服务时将此文件作为凭据保护并一并迁移。
+供应商定义写入 Codex 配置，默认 GPT 订阅沿用 Codex 登录。Responses 供应商由 Codex 直接连接。Chat Completions 供应商需要常驻转换服务：全局安装运行 `codex-web adapter`，源码运行 `npm run start:adapter`；`service install` 会安装并启动独立的 `codex-model-adapter.service`。转换程序与 Codex 后端部署在同一电脑，网页、转换程序和 Codex 使用同一 `CODEX_HOME`。网页与转换程序读取同一配置目录，`MODEL_ADAPTER_PORT` 设置固定回环端口（默认 8767）；停止网页后保持转换服务运行，CLI 和客户端可从 Codex 配置选择该供应商继续对话。
+
+模型选项和 Chat 上游凭据保存在 `CODEX_HOME/codex-web/providers.json`，转换令牌保存在 `CODEX_HOME/codex-web/model-adapter/token`。这些文件仅对运行账户开放，浏览器只获得凭据存在状态。迁移时保护并迁移 Codex 配置和上述文件，保持转换端口一致。旧版供应商在设置中重新保存即可登记到 Codex。第三方推理历史切回 GPT 时先执行源模型的上下文整理，原始历史继续保留；整理及摘要导出按实际使用的模型计费。GPT 原生加密整理切换到 Chat 模型时，会先导出可迁移摘要，再由目标模型整理；失败可重试，历史记录继续保留。
+
+Chat 模型通过工具发现按需取得外部工具的完整定义，技能正文按选用加载。发现可能增加模型请求次数，实际工具仍由 Codex 执行。
 
 ## 数据保存与迁移
 

@@ -1,5 +1,6 @@
 import WebSocket from "ws";
 import { threadMethods } from "./methods.mjs";
+import { publicCodexConfig } from "../providers/codex-config.mjs";
 export function createBridgeEvents({
   routing,
   questions,
@@ -16,7 +17,7 @@ export function createBridgeEvents({
   releaseUnusedThreads,
 }) {
   function onEvent(message) {
-    routing.event(message);
+    if (routing.event(message)) return;
     if (message.id !== undefined) questions.set(String(message.id), message);
     const p = message.params || {};
     if (message.method === "thread/closed") routing.closed(p.threadId);
@@ -76,6 +77,14 @@ export function createBridgeEvents({
     return;
   }
   async function onResponse(request, message) {
+    if (!message.error && request.method === "config/read") {
+      message.result.config = publicCodexConfig(message.result.config);
+      if (message.result.layers)
+        message.result.layers = message.result.layers.map((layer) => ({
+          ...layer,
+          config: publicCodexConfig(layer.config),
+        }));
+    }
     if (message.error && request.method === "thread/compact/start")
       compactions.reject(request.threadId, message.id, message.error.message);
     if (

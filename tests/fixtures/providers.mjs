@@ -2,7 +2,7 @@ export function providerFixture() {
   window.providerRequests = [];
   const storageKey = "provider-fixture-settings";
   const providers = JSON.parse(localStorage.getItem(storageKey) || "null") || [
-    { id: "codex", name: "ChatGPT / Codex", builtin: true, models: [] },
+    { id: "codex", name: "ChatGPT", builtin: true, models: [] },
     {
       id: "open-model",
       name: "第三方供应商 A",

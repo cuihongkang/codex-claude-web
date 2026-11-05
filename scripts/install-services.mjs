@@ -65,6 +65,28 @@ WantedBy=default.target
       "保留现有 codex-app-server.service 的登录环境、代理和启动配置。",
     );
 
+  const adapterPath = join(userUnits, "codex-model-adapter.service");
+  if (await exists(adapterPath))
+    await copyFile(adapterPath, join(backups, "codex-model-adapter.service"));
+  await writeFile(
+    adapterPath,
+    `[Unit]
+Description=Codex Chat model adapter
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=${unitPath(configDir)}
+${cli ? `Environment=${quote("CODEX_WEB_CONFIG_DIR=" + configDir)}\n` : ""}EnvironmentFile=-${unitPath(join(configDir, ".env"))}
+ExecStart=${quote(process.execPath)} ${quote(join(root, cli ? "bin/codex-web.mjs" : "scripts/start-model-adapter.mjs"))}${cli ? " adapter" : ""}
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=default.target
+`,
+  );
   const webPath = join(userUnits, "codex-lan-web.service");
   if (await exists(webPath))
     await copyFile(webPath, join(backups, "codex-lan-web.service"));
@@ -72,7 +94,7 @@ WantedBy=default.target
     webPath,
     `[Unit]
 Description=Codex Web
-Wants=codex-app-server.service
+Wants=codex-app-server.service codex-model-adapter.service
 After=network.target codex-app-server.service
 
 [Service]
@@ -88,9 +110,13 @@ UMask=0077
 WantedBy=default.target
 `,
   );
-  execFileSync("systemd-analyze", ["--user", "verify", webPath, backendPath], {
-    stdio: "inherit",
-  });
+  execFileSync(
+    "systemd-analyze",
+    ["--user", "verify", webPath, backendPath, adapterPath],
+    {
+      stdio: "inherit",
+    },
+  );
   execFileSync("systemctl", ["--user", "daemon-reload"], { stdio: "inherit" });
   execFileSync(
     "systemctl",
@@ -100,6 +126,7 @@ WantedBy=default.target
       "--now",
       "codex-app-server.service",
       "codex-lan-web.service",
+      "codex-model-adapter.service",
     ],
     { stdio: "inherit" },
   );

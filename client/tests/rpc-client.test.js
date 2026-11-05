@@ -70,6 +70,19 @@ test("RPC 请求按实例与连接隔离，发送异常、断开和超时均清�
   sockets[3].fail = false;
   await assert.rejects(first.rpc("thread/read", {}, 5), /超时/);
   assert.equal(first.pending.size, 0);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const preparing = first.rpc("thread/resume", { threadId: "migration" });
+  const ordinary = first.rpc("thread/read", { threadId: "ordinary" });
+  const timedOut = assert.rejects(ordinary, /超时/);
+  t.mock.timers.tick(600001);
+  await timedOut;
+  assert.equal(first.pending.size, 1);
+  const preparation = sockets[3].sent.findLast(
+    (message) => message.method === "thread/resume",
+  );
+  sockets[3].reply(preparation.id, { model: "restored" });
+  assert.deepEqual(await preparing, { model: "restored" });
+  t.mock.timers.reset();
   first.disconnect(new Error("结束"));
   second.disconnect(new Error("结束"));
 });

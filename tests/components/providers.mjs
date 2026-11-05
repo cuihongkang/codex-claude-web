@@ -6,7 +6,7 @@ export async function testProviders(app, fixture) {
   const previous = app.get(),
     respond = fixture.responseFor;
   const providers = [
-    { id: "codex", name: "ChatGPT / Codex", builtin: true, models: [] },
+    { id: "codex", name: "ChatGPT", builtin: true, models: [] },
     {
       id: "custom",
       name: "自定义模型",

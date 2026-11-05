@@ -2,6 +2,7 @@ import { once } from "node:events";
 import clientModule from "../../../vendor/anyresponses/src/client/openai.js";
 import sseModule from "../../../vendor/anyresponses/src/stream/sse.js";
 import { collapseSystemMessages } from "../../../vendor/pi-ai/transcript.js";
+import { prepareToolSearch, restoreToolSearch } from "./tool-search.mjs";
 
 export function normalizeChatMessages(messages) {
   return collapseSystemMessages({
@@ -19,6 +20,7 @@ export async function streamChat({
   signal,
   response,
 }) {
+  input = prepareToolSearch(input);
   const names = new Map();
   for (const tool of input.tools || []) {
     if (tool.type === "namespace") {
@@ -32,6 +34,7 @@ export async function streamChat({
       names.set(tool.name, { name: tool.name, custom: true });
   }
   function restore(item) {
+    restoreToolSearch(item);
     if (item?.type !== "function_call" || !names.has(item.name)) return;
     const { custom, ...identity } = names.get(item.name);
     Object.assign(item, identity);
