@@ -1,0 +1,277 @@
+.provider-filter {
+  background: var(--sidebar);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.3rem;
+  max-width: 11rem;
+}
+.provider-badge {
+  color: var(--muted);
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+.claude-search {
+  display: block;
+  width: calc(100% - 1.5rem);
+  margin: 0.2rem 0.75rem 0.6rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--fg);
+}
+.claude-sidebar {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.7rem;
+}
+.claude-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.claude-directory {
+  color: var(--muted);
+  padding: 0.4rem 1.5rem;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.claude-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem clamp(1rem, 4vw, 4rem) 2rem;
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+}
+.claude-message {
+  margin: 0.8rem 0;
+  overflow-wrap: anywhere;
+}
+.claude-message img {
+  max-width: 100%;
+}
+.claude-message pre,
+.claude-permission pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 28rem;
+  overflow: auto;
+  font-size: var(--code-font-size);
+}
+.claude-user {
+  margin-left: auto;
+  width: fit-content;
+  max-width: 90%;
+  padding: 0.4rem 1rem;
+  background: var(--bubble);
+  border-radius: 1rem;
+}
+.claude-assistant {
+  width: 100%;
+}
+.claude-tool {
+  background: var(--subtle);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  margin: 0.4rem 0;
+  padding: 0.5rem 0.8rem;
+}
+.claude-tool summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.claude-status {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.claude-welcome {
+  max-width: 44rem;
+  margin: 3rem auto;
+}
+.claude-welcome h2 {
+  font-weight: 500;
+}
+.claude-welcome p {
+  color: var(--muted);
+}
+.claude-welcome label,
+.claude-permission label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.8rem 0;
+}
+.claude-welcome input,
+.claude-permission input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border-strong);
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+}
+.claude-composer {
+  margin: 0.5rem clamp(1rem, 4vw, 4rem) 1rem;
+  padding: 0.8rem;
+  background: var(--composer);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--composer-shadow);
+  border-radius: 1rem;
+}
+.claude-composer textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 4em;
+  max-height: 35vh;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+  outline: none;
+}
+.claude-composer-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.claude-composer-actions small {
+  color: var(--muted);
+  margin-right: auto;
+}
+.claude-composer-actions button,
+.claude-permission button,
+.claude-blocked button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--fg);
+}
+.claude-composer-actions button:last-child {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.claude-permission {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.8rem;
+}
+.claude-permission > div {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.claude-blocked {
+  padding: 1rem 1.5rem;
+  background: var(--subtle);
+  color: var(--muted);
+}
+.claude-blocked button {
+  margin: 0.5rem;
+}
+
+.claude-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.5em 1em;
+}
+.claude-settings label {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.claude-settings select {
+  max-width: min(18em, 60vw);
+}
+.claude-settings input {
+  width: 10em;
+  max-width: 40vw;
+}
+.claude-settings input,
+.claude-settings select {
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.4em;
+  padding: 0.3em;
+}
+
+.claude-history-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.claude-scroll-bottom {
+  position: absolute;
+  bottom: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+}
+
+.notification-settings label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.notification-inbox {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  max-height: 30vh;
+  overflow: auto;
+}
+.notification-inbox summary {
+  cursor: pointer;
+}
+.notification-inbox button {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  width: 100%;
+  text-align: left;
+}
+.notification-inbox span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-inbox strong {
+  flex-shrink: 0;
+}
+.notification-settings h3 {
+  margin-top: 1rem;
+}

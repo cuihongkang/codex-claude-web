@@ -1,5 +1,5 @@
-import { isCompacting } from "./compaction-state.mjs";
-export { isCompacting } from "./compaction-state.mjs";
+import { isCompacting } from "../../shared/compaction-state.mjs";
+export { isCompacting } from "../../shared/compaction-state.mjs";
 
 // 手动整理的 RPC 响应仅确认提交；轮次结束才释放整理占用。
 export function createCompactions(notify, now = () => Date.now() / 1000) {

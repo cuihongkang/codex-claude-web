@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { nextForkTitle } from "../src/fork-title.js";
+import { nextForkTitle } from "../src/domain/fork-title.js";
 
 const root = { id: "root", name: "汇总最新训练进展" };
 const branch = (id, name, parent = root.id) => ({

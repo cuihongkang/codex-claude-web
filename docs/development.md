@@ -2,9 +2,15 @@
 
 本文面向修改、测试和发布 Codex Web 的开发者。安装发行包及日常使用见 [README](../README.md)，运行配置和故障处理见[部署与维护](deployment.md)。实现设计见[架构说明](architecture.md)，版本选择和完整发布流程见[版本管理](versioning.md)。
 
+## 后台任务 MCP 的开发归属
+
+后台终端任务能力按[独立项目计划](background-tasks.md)推进。`feat/mcp-background-tasks` 是早期集成原型，后续工作应从中提取通用任务服务与 MCP 接口，在独立仓库设计、验证和发布。该分支的任务守护进程、自动续跑、专用网页面板、CLI 入口和服务安装配置均排除在 Codex Web 的合并与发布范围之外。
+
+Codex Web 的现有网页交互终端、后端原生后台终端 `/stop` 命令以及通用 MCP 状态与工具结果展示按各自契约维护。独立项目应能在未安装、未启动 Codex Web 时完成任务执行与结果读取；宿主相关的完成通知及续跑适配单独验证。当前记录的是开发方向，独立仓库创建和代码迁移的实施范围另行确定。
+
 ## 本地环境与源码启动
 
-开发环境需要 Linux、Node.js 24+、npm、已登录的 Codex CLI 和 `/usr/bin/zsh`。本项目使用根目录 npm workspaces 和单一 `package-lock.json` 管理前后端依赖。
+开发环境需要 Linux、Node.js 24+、npm、OpenSSL、Linux PAM、pamtester、已登录的 Codex CLI 和 `/usr/bin/zsh`。本项目使用根目录 npm workspaces 和单一 `package-lock.json` 管理前后端依赖。
 
 克隆仓库后，在项目根目录安装依赖并创建配置：
 
@@ -33,26 +39,37 @@ npm start
 npm run dev
 ```
 
-打开 Vite 输出的地址。开发服务器将 `/rpc`、`/healthz` 和 `/api/translate` 代理到网页桥接端口，模型调用和工具执行由 Codex 后端处理，摘要翻译由桥接直接调用远程翻译服务。
+打开 Vite 输出的 HTTPS 地址。Vite 与桥接复用证书，代理验证桥接证书；本地开发同样使用系统账户登录。开发服务器将 `/rpc`、`/healthz` 和 `/api` 代理到网页桥接端口，模型调用和工具执行由 Codex 后端处理，摘要翻译由桥接直接调用远程翻译服务。
 
-验证生产构建时，执行 `npm run build`，再通过网页桥接地址访问，默认 `http://127.0.0.1:8766`。生产服务直接读取 `client/dist`，前端更新后重新构建并刷新网页即可；桥接代码更新后需要重启网页服务。
+验证生产构建时，执行 `npm run build`，再通过网页桥接地址访问，默认 `https://127.0.0.1:8766`。生产服务直接读取 `client/dist`，前端更新后重新构建并刷新网页即可；桥接代码更新后需要重启网页服务。
 
 ## 项目结构
 
 ```text
 bin/codex-web.mjs      全局命令入口和用户配置加载
 client/
-  src/                 前端组件、状态和 JSON-RPC 客户端
+  src/app/             页面布局、侧栏、登录和弹窗
+  src/application/     状态容器、用例和请求生命周期
+  src/domain/          消息、历史、排序、差异和命令规则
+  src/infrastructure/  RPC、存储、翻译和浏览器适配
+  src/features/        按功能组织的界面与交互
+  src/ui/              基础控件与纯展示
+  src/styles/          有序加载的职责样式模块
   tests/               消息、过程分组、翻译和权限策略测试
   vite.config.js       构建与开发代理
 server/
   src/config.mjs       环境配置和默认目录
-  src/server.mjs       HTTP、WebSocket 转发与终端恢复
+  src/server.mjs       进程启动与依赖组装
+  src/application.mjs  HTTPS/WSS 应用生命周期
+  src/http/            HTTP 路由与静态资源
+  src/bridge/          请求、事件、订阅与后端连接
   src/summary-translation.mjs  TranSmart 匿名 HTTP API 与本站翻译接口
   src/version.mjs      正式版本与 Git / 安装包构建来源
   tests/               配置和桥接集成测试
 scripts/               后端启动、组件测试、systemd 安装及发布脚本
+shared/                跨端纯逻辑和传输限制
 tests/components/      隔离环境中的实际 React 组件测试
+tests/helpers/         认证、桥接和输入事件等测试夹具
 docs/architecture.md   架构与协议实现
 docs/deployment.md     使用者部署、配置与故障处理
 docs/versioning.md     版本管理与发布流程
@@ -68,25 +85,42 @@ package-lock.json      全项目依赖锁文件
 
 ## 格式与验证
 
+长对话切换回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/history-performance.mjs`。脚本使用生产构建、独立浏览器和 15 轮、3,210 条记录、33 页的隔离历史，每页模拟 50 毫秒往返；记录首屏和完整恢复耗时，验证最近消息及输入先可用、自动完整分页、普通状态更新复用 Markdown、读取期间草稿与实时更新保留、历史前插时的阅读位置、目录跳转和快速切换隔离，覆盖深浅主题、80% 至 200% 缩放及窄屏。证据与构建来源保存在 `.cache/history-performance/after`。修改前的构建及来源分别保存为 `.cache/history-performance-before/dist` 和 `build-info.json`，以 `BROWSER_BEFORE=1` 记录同机对照，耗时用于比较同机行为。单元及组件回归同时验证旧接口完整轮次回退、分页失败后的可读记录与重试、实时结果优先及切换隔离。现有 README 图片展示完整加载后的界面，布局和内容继续适用。
+
+侧栏收纳回归执行 `SIDEBAR_DENSITY=1 CHROME_PATH=/path/to/chromium node tests/browser/project-pins.mjs`，使用隔离的 Atlas/Beacon 与最近有活动的未分类对话、超过 60 条的后端分页，验证未分类始终位于末尾、固定与未固定的默认收放、每组最新五条、全部展开及收起、刷新重置、键盘操作、深浅主题、80% 至 200% 缩放和手机布局。截图与构建信息保存在 `.cache/sidebar-density-browser/after/`。旧构建及来源位于 `.cache/sidebar-density-before/`，追加 `SIDEBAR_DENSITY_BEFORE=1` 保存旧版全部展开的对照截图。
+
+固定文件夹回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/project-pins.mjs`。脚本使用生产构建、隔离浏览器与模拟 Atlas/Beacon 对话，实际点击图钉和归档按钮，验证固定后全部归档、刷新恢复、空项目新建、取消固定、草稿与同类项目顺序保留、键盘操作、深浅主题及手机布局，结果和截图写入 `.cache/project-pins-browser/after/`。旧构建及来源保存在 `.cache/project-pins-before/dist` 与 `.cache/project-pins-before/build-info.json`，通过 `BROWSER_BEFORE=1` 复现重新加载后空文件夹消失，保存对照截图。取消固定的鼠标与键盘焦点回归同时核对图钉及加号的实际透明度：鼠标移开后隐藏，Tab 聚焦时显示；固定状态仅常显图钉，加号在点击新建对话并移开鼠标后隐藏。通过 `PIN_VISIBILITY_BEFORE=1` 读取 `.cache/project-pin-visibility-before/` 保存的构建及来源，复现鼠标点击保留焦点导致按钮常显，结果保存到 `.cache/project-pins-browser/visibility-before/`。固定记录复用 `cx-projects`，已有手动项目继续保留。README 的桌面及手机侧栏图片使用当前生产构建重新生成。
+
+项目模型偏好回归执行 `CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，使用生产构建、隔离的 Atlas/Beacon 项目与模拟后端，通过模型选择框和强度滑块的键盘操作验证保留强度、最近档位、项目切换、刷新恢复及实际发送参数，保存桌面深浅主题和手机截图。修改前的构建及来源分别保存在 `.cache/project-model-before/dist` 和 `.cache/project-model-before/build-info.json`，以 `BROWSER_BEFORE=1` 复现切换模型重置强度；执行证据写入 `.cache/project-model-browser/`。组件回归同时覆盖历史及迟到恢复、未分类隔离和选择目录时保留草稿附件。README 图片使用当前生产构建重新生成，并通过 Markdown HTML 浏览器回归检查加载与排版。
+
+同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CODEX_HOME` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
+
 ```bash
 npm run format
+npm run architecture:check
 npm test
 npm run check
 ```
 
-`format` 使用 Prettier 格式化项目。`test` 包含单元测试、隔离的桥接协议测试和 React 组件测试；`check` 依次执行版本一致性、格式检查、全部测试、生产构建和发行包安装测试。提交修改前执行 `npm run check`。
+`format` 使用 Prettier 格式化项目。`architecture:check` 检查生产源码单文件 500 行上限、导入完整性、循环和分层依赖；`test` 包含单元测试、隔离的桥接协议测试和 React 组件测试；`check` 依次执行版本一致性、架构检查、格式检查、全部测试、生产构建和发行包安装测试。提交修改前执行 `npm run check`。
+
+`.github/workflows/check.yml` 对分支推送和 PR 执行同一完整检查，使用只读仓库权限；同一引用有新检查时取消旧运行。发布工作流在版本标签上独立重复完整检查。
+
+状态容器和 RPC 客户端的单元回归分别位于 `client/tests/application-state.test.js` 和 `client/tests/rpc-client.test.js`。服务应用生命周期回归位于 `server/tests/application.test.mjs`，使用临时 HTTPS 服务验证实例缓存隔离、监听失败和关闭后连接清理。组件总入口 `tests/components/client.mjs` 只组织夹具和场景，新增场景放入对应模块；桥接订阅、写入与整理分别维护测试文件并复用 `tests/helpers/bridge.mjs`。
 
 分支标题回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/fork-titles.mjs`。脚本使用隔离模拟历史和生产构建，实际点击回复分支按钮与侧栏菜单，验证兼容客户端编号、连续分支到两位数、刷新恢复、深浅主题及手机侧栏；截图和构建信息保存到 `.cache/fork-titles-browser/after`。修改前将旧 `client/dist` 与 `build-info.json` 复制到 `.cache/fork-titles-before/`，以 `BROWSER_BEFORE=1` 运行同一脚本，复现后缀逐次叠加并保存对照截图。单元与组件测试另覆盖旧后缀、手动改名、独立同名对话、60 字符截断、归档分页和筛选外编号。README 的现有演示图片未展示分支标题，相关图片继续使用既有演示内容。
 
-测试采用模拟后端，不消耗模型额度，也不修改真实聊天。协议或生命周期变更应补充对应回归测试；真实后端验证使用临时会话或明确的测试数据。各测试目录的覆盖范围见[架构说明中的测试章节](architecture.md#测试)。
+测试采用模拟后端，不消耗模型额度，也不修改真实聊天。协议或生命周期变更应补充对应回归测试；真实后端验证使用临时会话或明确的测试数据。各测试目录的覆盖范围见[架构设计中的验证章节](architecture.md#7-可执行约束与验证)。
 
 输入性能回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/composer-performance.mjs`。脚本使用独立浏览器配置和模拟 WebSocket，载入 60 轮 Markdown 历史及 31 个侧栏对话，通过浏览器输入事件一次写入大段文字并连续补充，记录输入事件到下一绘制帧的耗时和 React 历史渲染次数；断言输入期间历史渲染次数为零，耗时作为同机对照记录。继续验证组合输入、Enter 换行、刷新恢复、发送失败与等待期间继续编辑，保存桌面深浅主题和窄屏截图。结果和构建来源保存在 `.cache/composer-performance/after`；修改前将 `client/dist` 与 `build-info.json` 复制到 `.cache/composer-performance-before/`，分别保存为 `dist` 与 `build-info.json`，以 `BROWSER_BEFORE=1` 运行同一脚本记录历史随输入重渲染的对照结果。`tests/components/composer-performance.mjs` 独立验证共享快照引用、渲染次数、即时发送值、持久化、草稿清理与对话切换。此修复保留界面布局，README 及其他文档引用的现有截图仍与页面一致。
 
-批注浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/annotations.mjs`。脚本复制当前生产资源，在独立浏览器配置目录中使用模拟 WebSocket 历史，验证多批注草稿、悬浮编辑、缩放、窄屏、刷新恢复、失败重试及正文统一提交；截图和构建来源记录默认写入 `.cache/annotations-browser`，可通过 `BROWSER_OUTPUT_DIR` 指定目录。
+批注浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/annotations.mjs`。脚本复制当前生产资源，在独立浏览器配置目录中使用模拟 WebSocket 历史，验证多批注草稿、Enter 完成并返回主输入框、Shift+Enter 换行、悬浮编辑、缩放、窄屏、刷新恢复、失败重试及 Ctrl+Enter 统一提交；截图和构建来源记录默认写入 `.cache/annotations-browser`，可通过 `BROWSER_OUTPUT_DIR` 指定目录。使用 `ANNOTATION_ENTER_BEFORE=1` 对照旧构建，可复现 Enter 插入换行并保存截图。组件回归同时检查输入法组合输入和键码 229 的 Enter 保持编辑。README 图片展示任务消息、文件变更和侧栏，未包含批注浮层，图片内容保持适用。
 
 后台恢复浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/connection-recovery.mjs`。脚本使用隔离模拟 WebSocket 与真实标签切换，在桌面和手机尺寸下验证连接正常时持续更新、断线后延迟重连、后台历史补齐、工作过程展开状态、同步期间编辑草稿及向上翻阅位置。记录消息和输入框的 DOM 实例及移除事件，确认恢复期间保留已有界面，并核对页面时间来源保持一致。截图及构建路径写入 `.cache/background-recovery-browser/after`。修改前将旧 `client/dist` 复制到 `.cache/background-recovery-before/dist`，以 `BROWSER_BEFORE=1` 运行同一脚本，复现消息与输入框被移除、显示加载提示和工作过程收起，结果写入 `before` 目录。
 
 视觉调整的浏览器检查使用生产构建与隔离的模拟历史，覆盖正文、代码块、工作过程、输入框草稿、右侧详情、设置弹窗及欢迎页。浅色、深色、跟随系统深色和窄屏分别核对文字对比度、选中状态、换行、控件位置及全宽布局。80%、100%、125%、150% 和 200% 缩放按物理窗口尺寸除以缩放倍数设置 CSS 视口，并同步设置设备像素比，检查发送按钮和底栏的可见性。修改前后采用相同数据和视口截图，图片及构建信息保存在 `.cache` 中。
+
+账户点数展示对照本机 Codex VS Code 客户端 `26.1021.22027` 的 `webview/assets/rail-menu-cae2fdac3263.js`：`fe` 读取并校验 `credits.balance`，`It` 展示余额，`banner-suppression-f959351fdc5c.js` 的 `O` 将后端点数字段映射到 `hasCredits`、`unlimited` 和 `balance`。原生客户端界面控制连接未提供，以上打包实现及本机 app-server 的 `CreditsSnapshot` 协议定义作为数据依据。网页保留百分比圆环，在展开详情中单独显示点数；余额四舍五入至最多两位小数并省略末尾的零，另覆盖零余额、无限额、暂缺、仅点数、稀疏通知、失败保留、完整读取清除和账户切换隔离。README 当前截图展示折叠圆环，图示仍符合默认界面。
 
 账户额度浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/account-usage.mjs`。脚本注入隔离的 Pro 和 Plus 账户，核对默认圆环、账户行高度和单行重置信息，通过实际点击、Enter、空格、Esc 与外部点击验证详情收放；推进本地时钟并触发 30 秒倒计时回调，确认时间更新及后端请求数量。额度自动读取测试把 60 秒轮询缩短至 200 毫秒并按需启用，组件测试另行断言两个生产间隔。继续验证额度通知、接口失败、回到前台与设置页精简，覆盖浅色、深色、跟随系统深色、五档缩放、390px 窄屏和基础字号放大。截图及构建来源写入 `.cache/account-usage-compact-browser/after`。修改前先将旧 `client/dist` 与 `build-info.json` 复制到 `.cache/account-usage-compact-before/`，分别命名为 `dist` 与 `build-info.json`，再以 `BROWSER_BEFORE=1` 运行同一脚本，记录原有展开大卡片的对照结果。
 
@@ -96,7 +130,9 @@ Markdown HTML 回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/
 
 工具记录浏览器回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/tool-activities.mjs`。脚本在独立浏览器配置中注入 `tests/fixtures/tool-activities.mjs` 的模拟历史，验证图片直接显示、点击放大与焦点恢复、搜索结果仅显示标题链接（缺少标题时显示网址）、搜索记录折叠与恢复、可读网页操作和工具结果，以及深浅主题、80% 至 200% 缩放与窄屏；截图和构建来源写入 `.cache/tool-activities-browser/after`。搜索结果精简的修改前对照先把 `client/dist` 与 `build-info.json` 分别复制到 `.cache/tool-activities-before/dist` 与 `.cache/tool-activities-before/build-info.json`，再用 `BROWSER_BEFORE=1` 运行同一脚本，确认搜索结果仍显示摘要及内部字段，结果写入 `before` 目录。
 
-文件打开回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/files.mjs`，本机需有支持 H.264 编码的 `ffmpeg`。脚本生成临时音视频、PDF、BMP 和二进制样本，注入隔离的模拟历史，实际点击并验证播放、进度跳转、媒体切换后的资源清理、图片与 PDF 预览、文件下载字节、文本编辑和失败重试，覆盖深浅主题与窄屏。截图、下载样本和构建来源保存在 `.cache/file-preview-browser/after`。修改前对照将旧构建及来源复制到 `.cache/file-preview-before/dist` 与 `.cache/file-preview-before/build-info.json`，以 `BROWSER_BEFORE=1` 分别记录音频的二进制提示与 PDF 被当作源码显示的结果。`server/tests/file-content.test.mjs` 覆盖 MIME、附件文件名、原始字节、Range、大文件及取消读取；桥接测试验证 HTTP 路由，文件面板组件测试覆盖类型切换、保存保护、草稿与迟到读取隔离。
+文件打开回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/files.mjs`，本机需有支持 H.264 编码的 `ffmpeg`。脚本生成临时音视频、PDF、BMP 和二进制样本，注入隔离的模拟历史，实际点击并验证播放、进度跳转、媒体切换后的资源清理、图片与 PDF 预览、文件下载字节、文本编辑和失败重试，覆盖深浅主题与窄屏。截图、下载样本和构建来源保存在 `.cache/file-preview-browser/after`。修改前对照将旧构建及来源复制到 `.cache/file-preview-before/dist` 与 `.cache/file-preview-before/build-info.json`，以 `BROWSER_BEFORE=1` 分别记录音频的二进制提示与 PDF 被当作源码显示的结果。`server/tests/file-content.test.mjs` 覆盖 MIME、附件文件名、原始字节、Range、大文件及取消读取；桥接测试验证 HTTPS 路由，文件面板组件测试覆盖类型切换、保存保护、草稿与迟到读取隔离。
+
+文件详情布局回归同时检查面板延伸到工作区底部、桌面输入框避让、折叠后恢复全宽，以及下载图标的位置、可访问名称和实际下载。深浅主题与 80%、100%、125%、150%、200% 缩放检查记录在 `.cache/file-layout-verified/`，其中 `pdf-chrome.png` 使用完整 Chromium 验证内置 PDF 阅读器；README 桌面截图同步更新，手机截图中的折叠布局继续适用。本次客户端对照以使用者提供的桌面截图为视觉依据；界面工具未提供可操作的客户端窗口，本机可取得的 Codex VS Code 客户端版本为 `26.1021.22027`，其资源位于扩展的 `webview/assets/`，桌面客户端布局的源码核对仍需对应安装资源。
 
 单独验证发行包时执行：
 
@@ -106,9 +142,11 @@ npm run test:package
 
 该测试在临时 npm prefix 中全局安装打包产物，检查命令入口、静态资源、构建来源、用户配置和服务生成。后端与服务管理命令使用模拟实现。安装优先复用 npm 缓存，缺少包元数据或依赖时访问配置的 registry，因此执行环境需要相应缓存或网络连接。
 
-文件引用与批注展示回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium USER_CONTEXT=1 BROWSER_OUTPUT_DIR=.cache/user-message-context/after node tests/browser/annotations.mjs`。脚本使用隔离模拟历史，验证目录与文件引用、目录定位及子文件打开、批注原文收放、文件打开、编辑恢复、移除引用、批注修改与统一提交、刷新，以及深浅主题、80% 至 200% 缩放和窄屏。旧构建通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定，以 `BROWSER_BEFORE=1` 复现引用说明外露和编辑时批注协议进入输入框；截图与构建记录写入指定目录。目录跳转的修改前对照使用 `REFERENCE_NAVIGATION_BEFORE=1` 及旧构建，实际点击目录引用后确认面板保持折叠。单元与组件检查覆盖完整封装解析、普通文本保留、批注来源、编辑去重及失败重试，以及目录切换的未保存编辑确认、读取失败、目录与文件的迟到响应隔离。README 现有图片展示普通任务消息，未包含文件引用或批注，图片内容保持适用。
+文件引用与批注展示回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium USER_CONTEXT=1 BROWSER_OUTPUT_DIR=.cache/user-message-context/after node tests/browser/annotations.mjs`。脚本使用隔离模拟历史，验证目录与文件引用、目录定位及子文件打开、批注原文收放、文件打开、原位编辑与取消、移除引用、批注修改及正文引用提交、刷新，以及深浅主题、80% 至 200% 缩放和窄屏。旧构建通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定，以 `BROWSER_BEFORE=1` 复现引用说明外露和编辑时批注协议进入输入框；截图与构建记录写入指定目录。目录跳转的修改前对照使用 `REFERENCE_NAVIGATION_BEFORE=1` 及旧构建，实际点击目录引用后确认面板保持折叠。单元与组件检查覆盖完整封装解析、普通文本保留、批注来源、编辑去重及失败重试，以及目录切换的未保存编辑确认、读取失败、目录与文件的迟到响应隔离。README 现有图片展示普通任务消息，未包含文件引用或批注，图片内容保持适用。
 
 此次交互对照使用本机 Codex VS Code 客户端 `26.1021.22027` 的打包资源：`app-initial` 中的 `Ht`、`Ut` 与 `Sn` 分离上下文和用户请求；`src` 中的 `Su`、`Cu` 恢复文件引用，提交时生成文件上下文并保留正文；`comment-editor` 保留引用标签和路径，并在编辑模式转换时恢复。实际客户端界面控制连接不可用时，以这些实现作为行为证据，客户端运行界面的视觉对照另行记录。提取资源与查验记录仅保存在 `.cache/client-inspection/`。
+
+右侧详情隔离回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium CONTEXT_RESET=1 BROWSER_OUTPUT_DIR=.cache/context-reset/after node tests/browser/annotations.mjs`。脚本以隔离 WebSocket 历史和独立浏览器配置，实际打开文件差异与变更面板并点击新建，检查默认收起、重新展开的概览、文件列表、深浅主题和手机布局。修改前的生产构建及构建信息分别保存在 `.cache/context-reset-before/dist` 与 `.cache/context-reset-before/build-info.json`，通过 `BROWSER_BEFORE=1`、`BROWSER_BUILD_DIR` 和 `BROWSER_BUILD_INFO` 指定并复现残留；截图和构建来源写入指定目录。组件回归补充文件、变更、子代理与待打开文件的清理，以及原对话未保存文件的恢复。README 及其他文档引用的现有截图展示任务对话与文件预览，本次修复的新建状态未出现在这些图片中，图片内容保持适用。
 
 ## 从源码运行后台服务
 
@@ -130,7 +168,7 @@ npm run service:restart-when-idle
 
 确认任务与终端均已结束时，也可使用 `npm run service:restart`。终端状态和输出保存在桥接进程中，重启前应保护运行中的工作。迁移源码目录后，先重新安装服务以更新路径，再重启。
 
-空闲判断只使用连接就绪状态、对话轮次与上下文整理占用。打开的网页终端与任务分别处理，等待程序只执行网页服务重启。日志在等待数量改变时更新，重启后检查 `/healthz` 并报告实际运行版本；自动化交付还需核对 `lan/state` 的所需接口。`server/tests/restart-when-idle.test.mjs` 在临时目录提供模拟 systemctl 与 HTTP/WebSocket 服务，验证终端保持打开、任务和整理占用、等待期间新轮次、健康检查重试及重启失败，不操作真实服务。
+空闲判断只使用连接就绪状态、对话轮次与上下文整理占用。打开的网页终端与任务分别处理，等待程序只执行网页服务重启。日志在等待数量改变时更新，重启后检查 `/healthz` 并报告实际运行版本；自动化交付还需核对 `lan/state` 的所需接口。`server/tests/restart-when-idle.test.mjs` 在临时目录提供模拟 systemctl 与 HTTPS/WSS 服务，验证终端保持打开、任务和整理占用、等待期间新轮次、健康检查重试及重启失败，不操作真实服务。
 
 源码部署与全局安装使用相同服务名，同一用户使用一套部署。从源码切换到全局包时，将项目 `.env` 中需要保留的配置迁移到用户配置目录，再按[发行包安装说明](deployment.md#安装发行包)更新服务。
 
@@ -169,7 +207,51 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 ## 构建来源
 
-版本来源的生成机制、开发构建标识和正式发布身份见[版本管理](versioning.md#正式版本与开发构建)。网页来源在构建时固定，源码桥接来源在进程启动时固定；排查更新时分别核对网页“设置 → 关于”和 `/healthz` 中的信息。
+版本来源的生成机制、开发构建标识和正式发布身份见[版本管理](versioning.md#正式版本与开发构建)。网页来源在构建时固定，源码桥接来源在进程启动时固定；排查更新时分别核对 `build-info.json` 和 `/healthz` 中的信息；网页“设置 → 关于”仅展示产品版本号。
+
+子代理主代理消息回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium node tests/browser/subagent-messages.mjs`。脚本使用隔离模拟后端，实际打开子代理详情，验证初始任务的位置、发送者标注、后续消息自动补齐、刷新去重、只读行为及桌面深浅主题和手机布局。旧构建和构建信息分别保存在 `.cache/subagent-messages-before/dist` 与 `.cache/subagent-messages-before/build-info.json`，使用 `BROWSER_BEFORE=1` 复现只有子代理回复的状态；截图及来源保存在 `.cache/subagent-messages-browser/`。服务端测试使用临时 rollout，覆盖调用与接收者核对、轮次定位、其他代理隔离、未接收消息和写入中的尾行；组件测试覆盖实时补齐及切换隔离。README 与其他文档现有截图展示主对话、文件预览和账户状态，未包含子代理详情，现有图片保持适用。
+
+加密消息回归在上述浏览器命令前增加 `BROWSER_ENCRYPTED=1`，使用临时父子 rollout 和真实桥接读取函数生成消息，检查加密状态、消息顺序、刷新、后续明文与深浅主题及手机布局。截图和构建来源写入 `.cache/subagent-encryption-browser/after/`。修复前的读取模块可保存在 `.cache/subagent-encryption-before/agent-messages.mjs`，再增加 `BROWSER_CIPHERTEXT_BEFORE=1` 复现密文长气泡，截图写入同目录的 `before/`。测试数据均为人工构造的记录；加密状态的单元回归同时覆盖结构化标记、非固定前缀、重复发送和其他发送者隔离。
+
+等待接收的加密消息回归使用 `BROWSER_QUEUED_ENCRYPTED=1`，临时父记录包含已接收的初始任务和已发送的加密补充消息，子记录只包含初始任务，验证接收记录落盘前的状态及刷新后的持续隐藏。截图及构建来源保存在 `.cache/subagent-queued-browser/after/`。修改前将读取模块保存到 `.cache/subagent-queued-before/agent-messages.mjs`，增加 `BROWSER_CIPHERTEXT_BEFORE=1` 精准复现初始任务已隐藏、补充消息仍显示密文的状态，保存到 `before/`。`server/tests/agent-messages-queued.test.mjs` 覆盖接收前后、重复消息、带与不带填充的完整封包、普通前缀文字、引用封包的正文和无效封包；封包结构依据 [Fernet 规范](https://github.com/fernet/spec/blob/master/Spec.md)。
+
+## 系统登录回归
+
+### 对话完成通知回归
+
+执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/completion-notifications.mjs`。脚本使用独立浏览器上下文、模拟轮次及真实 Service Worker 和 IndexedDB，检查默认开启、手动关闭后的刷新恢复、待授权入口及主动授权、正常状态省略重复文案、后台完成、不同对话标题、跨页面原子去重、历史与刷新重连、开关同步及关闭期间的异步取消、失败与中断、存储失败、权限撤销、不支持的环境、通知消息跳转和新页面目标恢复。通知的原生显示接口保留真实调用，并记录实际调用数量，避免同一 tag 替换掩盖重复提醒。截图及构建来源保存在 `.cache/completion-notifications`，包含深浅主题、窄屏和 80%～200% 缩放。可设置 `HEADED=1` 在可用桌面或 Xvfb 中运行；系统横幅展示以浏览器及系统通知设置为准。
+
+`client/tests/notifications.test.js` 验证应用层的授权、用户隔离、历史过滤、搜索列表外标题读取和生命周期清理，`client/tests/notification-worker.test.js` 验证点击时聚焦原窗口及窗口关闭后的打开目标。发行包回归检查 Worker 的交付清单及实际 HTTPS 路由。README 现有截图展示对话与文件界面，通知设置的新增入口通过专项截图核对。
+
+### 登录与证书
+
+`server/tests/auth.test.mjs` 通过临时 CODEX_HOME、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。
+
+浏览器回归使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/auth.mjs`，在生产构建和临时模拟后端上实际填写登录表单，检查刷新、跨标签页退出、草稿恢复、过期、证书下载、设备安装指引、关于页隐藏开发标记、深浅主题及手机布局。截图及构建信息保存在 `.cache/auth-browser`。
+
+Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER 到 PEM 转换、系统安装命令及 Chrome / Chromium 和 Firefox 导入说明，保存桌面深浅主题、手机与 80% 至 200% 缩放截图。README 和其他文档引用的截图展示对话与文件预览，未包含证书安装区域，现有图片保持适用。
+
+固定项目排序回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/project-priority.mjs`。脚本使用独立浏览器配置和模拟 WebSocket，对照钉选空项目、较早对话与未钉选项目的最新对话，实际点击固定、取消固定、展开收起及新建入口，验证立即重排、草稿保留和刷新恢复，并保存桌面深浅主题与手机侧栏截图。修改前先将生产构建及 `build-info.json` 保存为 `.cache/project-priority-before/dist` 和 `.cache/project-priority-before/build-info.json`，使用 `BROWSER_BEFORE=1` 复现原顺序；结果和截图写入 `.cache/project-priority/before` 与 `after`。README 现有截图中的唯一钉选项目已位于未钉选项前方，现有图片与此排序规则一致。
+
+### Markdown 富文本输入回归
+
+输入框采用直接编辑排版正文的交互，持久化与提交使用 Markdown。执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/markdown-composer.mjs` 验证生产构建。脚本使用隔离模拟后端和独立浏览器上下文，检查双美元符号公式的同段渲染、单美元符号普通文本、闭合前源码、源码重入及撤销重做；同时检查延迟加载期间的文本及选区恢复、快速切换对话后的实例隔离、正文及列表两行的完整边界、点击与方向键定位、撤销重做、滚动后继续输入、原生光标、连续换行时的固定高度与位置、编辑区滚轮上下滚动、混合 Markdown 粘贴、表格直接编辑、任务复选框、公式、脚注、代码与 HTML 源码保留、草稿、发送及快捷建议，并覆盖深浅主题、80%～200% 缩放和窄屏。截图、结果和构建来源保存在 `.cache/markdown-composer`。组件回归使用文本输入适配，实际富文本行为由浏览器回归覆盖；发行包回归验证编辑器分块的安装与资源响应，浏览器回归拦截外站请求。
+
+使用相同环境变量运行 `tests/browser/markdown-typing.mjs`，验证逐字键入、整段插入、粘贴和中文组合输入自动排版。覆盖列表内公式 `- $$x_{t+1}=x_{t}+dx$$`、标题、强调、链接、任务列表、表格分隔行及代码围栏进出，同时核对实际可见排版、表格光标和 Markdown 草稿。证据保存在 `.cache/markdown-typing/after`。
+
+附件草稿回归先执行 `npm run build`，再使用相同环境变量运行 `tests/browser/attachment-drafts.mjs`。脚本在独立浏览器上下文中同时上传生成的测试 PNG 和文本文件，通过侧栏切换到已有对话，再通过新建入口返回，检查文字、图片原始尺寸、文件附件、对话隔离和移除后的状态，覆盖桌面、窄屏及深浅主题。截图和结果保存在 `.cache/attachment-drafts/after`；通过 `BROWSER_BEFORE=1` 与 `BROWSER_BUILD_DIR` 指定旧构建，复现文字保留而附件消失，保存至同目录的 `before`。组件回归另覆盖图片及文件读取期间切换、首次创建对话的草稿迁移、发送失败重试、实际发送的文件正文，以及发送成功后保留等待期间新增的附件。README 现有截图展示已发送消息和文件预览，图片内容继续适用。
+
+客户端交互的本机实现参考为 Codex 26.1007.21434，查验来源是 `/usr/lib/chatgpt/resources/app.asar` 的 `package.json`、`webview/assets/app-initial-ed5807835d97.js`、`app-primary-f49030709665.js` 和 `app-shared-2d77298f0100.js`。已核对 ProseMirror 编辑区、Markdown 解析与输入规则，以及 `getPersistedText`、`setPromptText` 的草稿读写流程。当前 UI 工具未提供原生客户端窗口，本次查验采用可取得的打包实现。网页按直接编辑排版正文的产品要求，使用 Milkdown/ProseMirror 提供文档编辑与 Markdown 输入规则，并将输入语法范围明确为 CommonMark、GFM 和公式，Mermaid 与 HTML 保留源码。
+
+### 原消息编辑回归
+
+执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/message-editing.mjs` 验证原地编辑。脚本使用生产构建、独立浏览器上下文与持久化的模拟历史，检查与底部输入框一致的背景、边框、阴影和聚焦反馈、主操作按钮配色、两行固定高度、紧凑宽度、长文本内部滚动及按钮位置稳定、铅笔图标、取消、Enter 换行、Ctrl+Enter 发送、文件引用、回退和发送失败重试、底部草稿隔离、刷新后的替换结果及切换对话时的迟到响应，覆盖深浅主题、80% 至 200% 缩放与窄屏。截图及构建来源保存在 `.cache/message-editing-browser/`。通过 `BROWSER_BEFORE=1`、`BROWSER_BUILD_DIR` 和 `BROWSER_BUILD_INFO` 指定隔离的旧构建及来源，复现恢复图标、回填底部输入和覆盖草稿，证据保存在 `.cache/message-editing-before-browser/`。领域与组件回归另覆盖完整轮次分页、旧接口兼容、运行状态、过期编辑、批注及附件独立性。
+
+客户端对照来自本机 Codex VS Code 扩展 `26.1021.22027` 的 `webview/assets/user-message-d77a1f7e2581.js`：消息组件在原位置切换编辑表单，包含独立正文、取消和发送操作；`local-conversation-thread-a37d62aef644.js` 将编辑动作提交到 `src-622b307a9baf.js` 的历史编辑流程，校验最近用户消息与活动轮次，调用 `thread/revert` 或 `thread/rollback` 后启动新轮次。本机后端 `codex-cli 0.162.1` 生成的协议确认 `thread/revert` 以 `beforeTurnId` 替换持久历史，并通过 `thread/reverted` 通知其他页面。客户端界面控制连接超时，交互证据使用本机打包实现；提取资源仅保存在忽略目录。
+
+编辑框尺寸的修改前对照可使用 `EDIT_SIZE_BEFORE=1`，并通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定修改前的生产构建和来源；结果保存在 `.cache/message-edit-size-before/browser/`。README 现有图片展示普通消息与文件预览，原地编辑框的尺寸变化通过专项浏览器截图核对。
+
+编辑框样式的修改前对照使用 `EDIT_STYLE_BEFORE=1` 并指定旧构建及来源，记录实际输入区与消息编辑框的背景、聚焦和失焦边框、阴影及发送按钮配色；结果保存在 `.cache/message-edit-style-before/browser/`。当前构建同时比较浅色、深色及跟随系统深色，确认两处输入区域使用一致的视觉反馈。
 
 ## Claude 本地扩展验证
 

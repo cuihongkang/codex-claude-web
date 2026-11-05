@@ -2,7 +2,7 @@
 
 对照基于 2026-10-29 本机安装的 `codex-cli 0.162.1`，检查其命令定义、命令分发及 `codex app-server generate-ts --experimental` 生成的协议。网页按已确认的功能范围增加 `/init`、`/goal` 和清理后台终端的 `/stop`。
 
-统一注册表位于 `client/src/composer-commands.js`，共 18 个命令，各命令使用独立名称。菜单选择、Ctrl+Enter 和发送按钮共用分发逻辑。Enter 在普通消息中换行，在命令建议中确认选项。未知命令和不支持的参数显示错误并保留输入；命令执行失败保留草稿和附件以便重试。
+统一注册表位于 `client/src/features/commands/composer-commands.js`，共 18 个命令，各命令使用独立名称。菜单选择、Ctrl+Enter 和发送按钮共用分发逻辑。Enter 在普通消息中换行，在命令建议中确认选项。未知命令和不支持的参数显示错误并保留输入；命令执行失败保留草稿和附件以便重试。
 
 ## 新增能力
 
@@ -44,3 +44,9 @@ CHROME_PATH=/path/to/chromium node tests/browser/commands.mjs
 ```
 
 截图、构建来源和请求清单保存在被 Git 忽略的 `.cache/commands-browser`。完整检查使用 `npm run check`。
+
+手动整理进度去重回归使用同一浏览器脚本，检查输入框上方仅有一个整理状态栏、聊天区省去重复进度，并覆盖刷新恢复、桌面深浅主题、窄屏与 80%、100%、125%、150%、200% 缩放布局；缩放通过反向调整 CSS 视口并同步设备像素比例模拟。修复前后截图与构建来源分别保存在 `.cache/compaction-dedup/before` 和 `.cache/compaction-dedup/after`，通过 `BROWSER_OUTPUT_DIR` 指定输出目录。组件回归覆盖提交、运行、断线核对、其他轮次历史、同轮其他活动、完成记录及自动整理。README 和文档引用的图片展示普通任务与文件预览，现有图片保持适用。
+
+`tests/browser/compaction-reload.mjs` 同时验证旧桥接的分页恢复与现代桥接的整理快照：进行中的任务在完整刷新后继续恢复，刷新期间结束的任务显示实际结果；已显示的完成结果、切换后返回的提示及手动关闭的提示，在新页面接收旧结果快照时保持收起。组件回归补充重复结果通知、新整理任务与旧结果隔离、相同对话元数据更新及切换时保留进行中的任务。
+
+整理完成提示的浏览器回归覆盖 390px 深色界面的发送按钮与 1440px 浅色界面的 Ctrl+Enter，断言提交后提示自动关闭，并保存发送前后截图。修改前的生产构建及构建信息分别复制到 `.cache/compaction-dismiss-before/dist` 与 `.cache/compaction-dismiss-before/build-info.json`，设置 `COMPACTION_DISMISS_BEFORE=1` 运行同一脚本，可复现发送后提示仍显示的行为；通过 `BROWSER_OUTPUT_DIR` 分别保存修改前后结果。组件回归同时验证空消息保留提示、请求等待期间立即关闭、发送失败保留草稿附件及重试、切换对话和迟到响应隔离。README 与其他文档引用的界面图片展示普通任务及文件预览，整理完成提示未出现在这些图片中，现有图片继续适用。

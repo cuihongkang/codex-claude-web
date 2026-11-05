@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { asyncQuestionState, questionAnswers } from "../src/question-state.js";
+import {
+  asyncQuestionState,
+  questionAnswers,
+} from "../src/domain/question-state.js";
 
 const question = (id, title = "选择部署方式") => ({
   id,

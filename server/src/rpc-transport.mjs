@@ -1,7 +1,9 @@
 import WebSocket from "ws";
-
-export const MAX_RPC_MESSAGE_BYTES = 64 * 1024 * 1024;
-export const RPC_FRAME_BYTES = 1024 * 1024;
+import { RPC_FRAME_BYTES } from "../../shared/rpc-limits.mjs";
+export {
+  MAX_RPC_MESSAGE_BYTES,
+  RPC_FRAME_BYTES,
+} from "../../shared/rpc-limits.mjs";
 
 // Codex 的 WebSocket 接口分别限制单帧与完整消息的大小。
 export function sendRpcText(socket, text) {

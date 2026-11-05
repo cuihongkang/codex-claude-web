@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { conversationGroups } from "../src/conversation-groups.js";
+import { conversationGroups } from "../src/domain/conversation-groups.js";
 const item = (id, type, props = {}) => ({
   id,
   type,

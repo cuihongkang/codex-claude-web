@@ -1,8 +1,10 @@
+import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { findSharedBridge } from "../../server/src/claude-shared-client.mjs";
-import http from "node:http";
+import https from "node:https";
+import { readTls } from "../../server/src/tls.mjs";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
@@ -191,29 +193,33 @@ function launch() {
   p.kill = () => p.emit("close", null, "SIGTERM");
   return p;
 }
-const server = http.createServer(async (req, res) => {
-  try {
-    const path = new URL(req.url, "http://localhost").pathname;
-    if (process.env.DEBUG_BROWSER) console.log("HTTP", path);
-    const file = path === "/" ? "index.html" : path.slice(1);
-    if (file.includes("..")) throw Error();
-    const body = await readFile(
-      join(process.env.STATIC_TEST_DIR || join(root, "client/dist"), file),
-    );
-    res.setHeader(
-      "content-type",
-      extname(file) === ".js"
-        ? "text/javascript"
-        : extname(file) === ".css"
-          ? "text/css"
-          : "text/html",
-    );
-    res.end(body);
-  } catch {
-    res.writeHead(404);
-    res.end();
-  }
-});
+const server = https.createServer(
+  await readTls({ codexHome: home }),
+  async (req, res) => {
+    if (serveDemoSession(req, res)) return;
+    try {
+      const path = new URL(req.url, "http://localhost").pathname;
+      if (process.env.DEBUG_BROWSER) console.log("HTTP", path);
+      const file = path === "/" ? "index.html" : path.slice(1);
+      if (file.includes("..")) throw Error();
+      const body = await readFile(
+        join(process.env.STATIC_TEST_DIR || join(root, "client/dist"), file),
+      );
+      res.setHeader(
+        "content-type",
+        extname(file) === ".js"
+          ? "text/javascript"
+          : extname(file) === ".css"
+            ? "text/css"
+            : "text/html",
+      );
+      res.end(body);
+    } catch {
+      res.writeHead(404);
+      res.end();
+    }
+  },
+);
 let historyRequests = 0;
 const manager = attachClaude(
   server,
@@ -318,6 +324,7 @@ const browser = await chromium.launch({
 });
 try {
   const page = await browser.newPage({
+    ignoreHTTPSErrors: true,
     viewport: { width: 1440, height: 1000 },
   });
   if (process.env.NOTIFICATIONS_ONLY)
@@ -345,6 +352,9 @@ try {
         close() {}
       };
     });
+  await page.addInitScript(() =>
+    localStorage.setItem("cx-projects", JSON.stringify(["/demo/web-project"])),
+  );
   let blockClaude = false;
   await page.routeWebSocket("**/claude/rpc", (ws) => {
     if (!blockClaude) ws.connectToServer();
@@ -357,7 +367,7 @@ try {
     errors.push(e.message);
     console.log("PAGEERROR", e.message);
   });
-  await page.goto(`http://127.0.0.1:${server.address().port}`, {
+  await page.goto(`https://127.0.0.1:${server.address().port}`, {
     waitUntil: "domcontentloaded",
   });
   if (process.env.NOTIFICATIONS_ONLY) {
@@ -388,6 +398,15 @@ try {
       .filter({ hasText: "图片上传 · Claude" })
       .click();
     await page.getByText("单元测试全部通过", { exact: false }).waitFor();
+    if (process.env.DEBUG_BROWSER) {
+      await page.waitForTimeout(1500);
+      console.log("SIDEBAR", await page.locator(".sidebar").innerText());
+      console.log(
+        "STORAGE",
+        await page.evaluate(() => localStorage.getItem("cx-projects")),
+      );
+    }
+    await page.getByText("接口重构 · Codex", { exact: true }).waitFor();
     assert.equal(
       await page.getByText("接口重构 · Codex", { exact: true }).count(),
       1,
@@ -755,7 +774,7 @@ try {
       .click();
     await page.getByRole("button", { name: "停止 Claude 任务" }).waitFor();
     // Second browser observes the same running process, then stops it.
-    const second = await browser.newPage();
+    const second = await browser.newPage({ ignoreHTTPSErrors: true });
     await second.goto(page.url());
     await second
       .getByRole("button")

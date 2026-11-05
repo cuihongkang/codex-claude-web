@@ -1,7 +1,7 @@
 import { open } from "node:fs/promises";
 import { basename, isAbsolute } from "node:path";
 import { pipeline } from "node:stream/promises";
-import { filePresentation } from "./file-types.mjs";
+import { filePresentation } from "../../shared/file-types.mjs";
 
 export async function serveFile(request, response) {
   response.setHeader("Cache-Control", "no-store");

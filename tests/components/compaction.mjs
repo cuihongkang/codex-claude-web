@@ -17,6 +17,9 @@ export async function testCompaction(app, requests, setResponse, emit) {
   };
   let view,
     acknowledge,
+    acknowledgeSend,
+    holdSend = false,
+    failSend = false,
     fail = false;
   const response = ({ method }) => {
     if (method === "thread/compact/start") {
@@ -31,8 +34,13 @@ export async function testCompaction(app, requests, setResponse, emit) {
     }
     if (method === "thread/list" || method === "skills/list")
       return { data: [] };
-    if (method === "turn/start")
-      return { turn: { id: "after-compact", status: "completed" } };
+    if (method === "turn/start") {
+      if (holdSend)
+        return new Promise((resolve) => (acknowledgeSend = resolve));
+      return failSend
+        ? { error: { message: "模拟发送失败" } }
+        : { turn: { id: "after-compact", status: "completed" } };
+    }
     return {};
   };
   const text = () => JSON.stringify(view.toJSON());
@@ -178,6 +186,15 @@ export async function testCompaction(app, requests, setResponse, emit) {
     assert(!text().includes("上下文整理完成"));
     assert.equal(send().props.disabled, false);
     await act(async () => app.set({ current: thread }));
+    assert(!text().includes("上下文整理完成"), "切换回来保持完成提示关闭");
+    await act(async () =>
+      snapshot({
+        id: "bridge-1",
+        status: "completed",
+        turnId: "compact-turn",
+      }),
+    );
+    assert(!text().includes("上下文整理完成"), "重复结果通知保持提示关闭");
 
     fail = true;
     await act(async () => app.setDraft("/compact"));
@@ -237,11 +254,48 @@ export async function testCompaction(app, requests, setResponse, emit) {
     );
     assert.equal(send().props.disabled, false);
     const beforeSend = requests.length;
+    const completed = app.get().compactions[thread.id];
+    const otherId = "other-compact-chat";
+    await act(async () => {
+      app.set({
+        compactions: { ...app.get().compactions, [otherId]: completed },
+      });
+      assert.equal(await app.sendMessage("", []), false);
+    });
+    assert(text().includes("上下文整理完成"), "空消息保留完成提示");
+    holdSend = true;
+    let sending;
     await act(async () => {
       app.setDraft("整理结束后的消息");
-      await app.sendMessage();
+      sending = app.sendMessage();
     });
+    assert(!text().includes("上下文整理完成"), "发送等待期间立即关闭完成提示");
+    assert.equal(app.get().compactions[thread.id], undefined);
+    assert.equal(app.get().compactions[otherId], completed, "保留其他对话提示");
+    await act(async () => {
+      app.set({ current: { id: otherId } });
+      acknowledgeSend({ turn: { id: "after-compact", status: "completed" } });
+      await sending;
+    });
+    assert(text().includes("上下文整理完成"), "迟到发送响应保留当前对话提示");
+    await act(async () => app.set({ current: thread, draft: "" }));
+    assert(!text().includes("上下文整理完成"), "返回原对话后完成提示保持关闭");
     assert.equal(writesSince(beforeSend).length, 1);
+    assert.equal(app.get().draft, "");
+    holdSend = false;
+    failSend = true;
+    await act(async () => {
+      app.set({
+        compactions: { ...app.get().compactions, [thread.id]: completed },
+      });
+      app.setDraft("发送失败后重试的消息");
+      assert.equal(await app.sendMessage(), false);
+    });
+    assert(!text().includes("上下文整理完成"));
+    assert.equal(app.get().draft, "发送失败后重试的消息");
+    assert.deepEqual(app.get().attachments, [attachment]);
+    failSend = false;
+    await act(async () => assert.equal(await app.sendMessage(), true));
     assert.equal(app.get().draft, "");
     let late;
     await act(async () => {

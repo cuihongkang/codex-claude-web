@@ -203,6 +203,42 @@ export async function testCompactionRecovery(
       "手动检查应用返回值",
     );
 
+    const finished = app.get().compactions[thread.id];
+    const bridgeSnapshot = () =>
+      emit("lan/state", {
+        ready: true,
+        activeTurns: {},
+        questions: [],
+        compactions: { [thread.id]: finished },
+      });
+    await act(async () => {
+      view.root.findByProps({ title: "关闭整理状态" }).props.onClick();
+      await bridgeSnapshot();
+    });
+    assert.equal(
+      app.get().compactions[thread.id],
+      undefined,
+      "重连快照保留关闭状态",
+    );
+    await act(async () => {
+      app.set({ compactions: {} });
+      await bridgeSnapshot();
+    });
+    assert.equal(
+      app.get().compactions[thread.id],
+      undefined,
+      "新页面忽略已结束任务快照",
+    );
+    await act(async () => {
+      app.set({ compactions: { [thread.id]: entry } });
+      await bridgeSnapshot();
+    });
+    assert.deepEqual(
+      app.get().compactions[thread.id],
+      finished,
+      "未结束的本地任务恢复实际结果",
+    );
+
     unsupported = true;
     turns = [
       {

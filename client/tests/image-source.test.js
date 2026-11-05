@@ -4,7 +4,7 @@ import {
   imageDataUrl,
   localImagePath,
   messageUrlTransform,
-} from "../src/image-source.js";
+} from "../src/domain/image-source.js";
 
 test("本地图片识别绝对路径、文件 URI、沙箱引用和相对工作目录", () => {
   assert.equal(localImagePath("/tmp/preview.jpg"), "/tmp/preview.jpg");

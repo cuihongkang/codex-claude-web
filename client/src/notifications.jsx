@@ -12,8 +12,8 @@ const useNotifications = () =>
 export function NotificationSettings() {
   const s = useNotifications();
   return (
-    <section className="notification-settings">
-      <h3>消息提醒</h3>
+    <section className="claude-notification-settings">
+      <h3>Claude 消息提醒</h3>
       <label>
         <input
           type="checkbox"
@@ -25,7 +25,7 @@ export function NotificationSettings() {
         离开标签页时提醒我
       </label>
       <p className="section-description">
-        Codex 和 Claude 的任务完成、失败或需要确认时提醒。请保持网页打开。
+        Claude 的任务完成、失败或需要确认时提醒。手机后台提醒继续使用 ntfy。
       </p>
       <p className="section-description" role="status">
         {s.permission === "unavailable"

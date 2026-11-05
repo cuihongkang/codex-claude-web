@@ -3,7 +3,7 @@ const labels = {
   failed: "任务失败",
   attention: "需要你确认",
 };
-export { codexNotification } from "../../server/src/notification-events.mjs";
+export { codexNotification } from "../../shared/notification-events.mjs";
 export function notificationLabel(event) {
   return `${event.provider === "claude" ? "Claude" : "Codex"} · ${labels[event.kind] || "新提醒"}`;
 }

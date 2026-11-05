@@ -92,6 +92,8 @@ export async function testThreadAccess(app, requests, setResponse, emit) {
     assert.equal(app.get().serviceTier, null);
     assert(JSON.stringify(view.toJSON()).includes("此对话由另一端使用"));
     assert(!JSON.stringify(view.toJSON()).includes("正在查看已保存的记录"));
+    assert(!JSON.stringify(view.toJSON()).includes("历史记录可"));
+    assert(!JSON.stringify(view.toJSON()).includes("草稿和附件已保留"));
     assert.equal(inputs().length, 0);
     assert.equal(retryButton().props.disabled, false);
     assert.equal(await app.sendMessage(), false);

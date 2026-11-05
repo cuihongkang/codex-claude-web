@@ -1,3 +1,4 @@
+import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn, execFileSync } from "node:child_process";
@@ -235,6 +236,7 @@ function fixture(directory, files) {
 
 const mediaRequests = [];
 const server = http.createServer(async (req, res) => {
+  if (serveDemoSession(req, res)) return;
   const url = new URL(req.url, "http://fixture");
   if (["/api/files", "/api/media"].includes(url.pathname)) {
     mediaRequests.push({
@@ -518,6 +520,39 @@ try {
     await waitFor("document.querySelector('.file-preview object')");
     await new Promise((resolve) => setTimeout(resolve, 1200));
     await screenshot("pdf-preview");
+    const fileLayouts = [];
+    for (const theme of ["light", "dark"]) {
+      await evaluate(
+        "document.documentElement.dataset.theme=" + JSON.stringify(theme),
+      );
+      for (const zoom of [0.8, 1, 1.25, 1.5, 2]) {
+        await evaluate("document.documentElement.style.zoom=" + zoom);
+        const layout = await evaluate(
+          "(()=>{const rect=s=>document.querySelector(s).getBoundingClientRect();const p=rect('.context-workspace'),w=rect('.workspace'),c=rect('.composer');const d=document.querySelector('.file-download'),r=d.getBoundingClientRect();return {fullHeight:Math.abs(p.bottom-w.bottom)<2,composerBeside:c.right<=p.left+1,toolbar:d.parentElement.classList.contains('file-tab'),iconOnly:d.textContent.trim()===''&&Boolean(d.querySelector('svg')),visible:r.width>0&&r.left>=p.left&&r.right<=p.right,overflow:document.documentElement.scrollWidth>innerWidth}})()",
+        );
+        assert(
+          layout.fullHeight &&
+            layout.composerBeside &&
+            layout.toolbar &&
+            layout.iconOnly &&
+            layout.visible &&
+            !layout.overflow,
+          JSON.stringify({ theme, zoom, ...layout }),
+        );
+        fileLayouts.push({ theme, zoom, ...layout });
+        await screenshot("pdf-" + theme + "-" + zoom);
+      }
+    }
+    await evaluate("document.documentElement.style.zoom=1");
+    await click('.context-backbar [aria-label="收起对话详情"]');
+    assert(
+      await evaluate(
+        "document.querySelector('.composer').getBoundingClientRect().width > document.querySelector('.workspace').getBoundingClientRect().width * 0.9",
+      ),
+    );
+    await click(".message-link[href$='.pdf']");
+    results.fileLayouts = fileLayouts;
+
     const downloads = [];
     const downloadDirectory = join(output, "downloads");
     await mkdir(downloadDirectory, { recursive: true });

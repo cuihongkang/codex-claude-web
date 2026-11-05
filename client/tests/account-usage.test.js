@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   mergeUsageUpdate,
+  quotaCreditsText,
   quotaLabel,
   quotaPlan,
   quotaResetText,
   quotaShortLabel,
   quotaSnapshot,
   quotaWindows,
-} from "../src/account-usage.js";
+} from "../src/domain/account-usage.js";
 
 const weekly = {
   usedPercent: 41,
@@ -117,4 +118,57 @@ test("重置倒计时按天小时与分钟更新，过期窗口等待后端更�
   assert.equal(quotaResetText(now / 1000 + 60, now), "1 分钟后重置");
   assert.equal(quotaResetText(now / 1000 + 30, now), "不到 1 分钟后重置");
   assert.equal(quotaResetText(now / 1000, now), "正在更新重置额度…");
+});
+
+test("点数按额度桶展示余额、零值、无限额与暂缺状态", () => {
+  const usage = (credits) => ({ rateLimits: { credits } });
+  for (const [balance, expected] of [
+    ["1250.756789", "1,250.76"],
+    ["1250.751234", "1,250.75"],
+    ["1250.000000", "1,250"],
+    ["1250.500000", "1,250.5"],
+  ])
+    assert.equal(
+      quotaCreditsText(usage({ hasCredits: true, balance })),
+      expected,
+    );
+  assert.equal(quotaCreditsText(null), null);
+  assert.equal(quotaCreditsText(usage(null)), null);
+  assert.equal(
+    quotaCreditsText(usage({ hasCredits: true, balance: "1250.75" })),
+    "1,250.75",
+  );
+  assert.equal(
+    quotaCreditsText(usage({ hasCredits: true, balance: "0" })),
+    "0",
+  );
+  assert.equal(
+    quotaCreditsText(usage({ hasCredits: false, balance: "200" })),
+    "0",
+  );
+  assert.equal(
+    quotaCreditsText(usage({ unlimited: true, hasCredits: false })),
+    "无限额",
+  );
+  for (const balance of [null, "", " ", "bad", "Infinity", "-5"])
+    assert.equal(
+      quotaCreditsText(usage({ hasCredits: true, balance })),
+      "余额暂不可用",
+    );
+  assert.equal(
+    quotaCreditsText({
+      rateLimits: { credits: { balance: "999" } },
+      rateLimitsByLimitId: { codex: limits },
+    }),
+    "200",
+  );
+  const updated = mergeUsageUpdate(
+    usage({ hasCredits: true, balance: "200" }),
+    { credits: { balance: "0" } },
+  );
+  assert.equal(quotaCreditsText(updated), "0");
+  assert.equal(
+    quotaCreditsText(mergeUsageUpdate(updated, { credits: null })),
+    "0",
+  );
 });

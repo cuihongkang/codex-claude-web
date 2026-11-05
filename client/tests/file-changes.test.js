@@ -6,7 +6,7 @@ import {
   unifiedFiles,
   turnFileChanges,
   diffRows,
-} from "../src/file-changes.js";
+} from "../src/domain/file-changes.js";
 
 const change = (path, diff, type = "update", move_path = null) => ({
   path,

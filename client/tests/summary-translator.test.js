@@ -4,7 +4,7 @@ import {
   createSummaryTranslator,
   needsTranslation,
   translateSummaries,
-} from "../src/summary-translator.js";
+} from "../src/infrastructure/summary-translator.js";
 
 test("中文摘要与纯代码直接显示，英文摘要请求翻译", () => {
   assert.equal(needsTranslation("检查当前 Git 分支"), false);
@@ -268,7 +268,7 @@ test("通过本站批量请求翻译，恢复代码、路径和 Markdown 标记"
 
 test("翻译服务异常或条目缺失时报告失败", async (t) => {
   for (const [data, status, message] of [
-    [{}, 404, /网页服务尚未加载翻译接口/],
+    [{}, 404, /翻译暂不可用/],
     [{}, 503, /请求失败/],
     [{ error: "翻译服务暂不可用，请重试" }, 502, /暂不可用/],
     [{ translations: [] }, 200, /不完整/],
@@ -284,16 +284,13 @@ test("翻译服务异常或条目缺失时报告失败", async (t) => {
   }
 });
 
-test("旧桥接返回纯文本 404 时提示等待网页服务更新", async (t) => {
+test("翻译不可用时提示用户稍后重试", async (t) => {
   t.mock.method(
     globalThis,
     "fetch",
     async () => new Response("Not found", { status: 404 }),
   );
-  await assert.rejects(
-    translateSummaries(["Checking files"]),
-    /网页服务尚未加载翻译接口/,
-  );
+  await assert.rejects(translateSummaries(["Checking files"]), /翻译暂不可用/);
 });
 
 test("代码占位符缺失、重复或未知时拒绝译文，重试可恢复", async (t) => {

@@ -100,8 +100,17 @@ export async function testConnectionLifecycle(
     app.set({ attachments: [], draft: "", error: "" });
     const connection = getSocket();
     const originalTimeout = globalThis.setTimeout;
+    const originalFetch = globalThis.fetch;
     let reconnect;
     try {
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+          authenticated: true,
+          username: "fixture",
+          expiresAt: Date.now() + 86400000,
+        }),
+      });
       globalThis.setTimeout = (callback, milliseconds, ...args) => {
         if (milliseconds === 1500) {
           reconnect = callback;
@@ -109,9 +118,11 @@ export async function testConnectionLifecycle(
         }
         return originalTimeout(callback, milliseconds, ...args);
       };
+      connection.readyState = 3;
       connection.onclose();
       assert(reconnect);
       reconnect();
+      for (let attempt = 0; attempt < 10; attempt++) await Promise.resolve();
       assert.notEqual(getSocket(), connection);
       app.set({ connected: true });
       connection.onmessage({
@@ -130,6 +141,7 @@ export async function testConnectionLifecycle(
       active.readyState = WebSocket.OPEN;
     } finally {
       globalThis.setTimeout = originalTimeout;
+      globalThis.fetch = originalFetch;
     }
   } finally {
     if (finishTurn)

@@ -1,0 +1,45 @@
+.terminal-panel {
+  height: 240px;
+  flex: none;
+  border-top: 1px solid var(--border);
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.terminal-header {
+  flex-shrink: 0;
+  min-height: 2.615385em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.769231rem;
+  color: #252523;
+  border-bottom: 1px solid #e9e9e5;
+}
+.terminal-header > span {
+  display: flex;
+  align-items: center;
+  gap: 0.538462rem;
+  font-size: 0.846154rem;
+  min-width: 0;
+}
+.terminal-header small {
+  color: #6c6c67;
+  margin-left: 0.923077rem;
+  font-size: 0.769231rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.terminal-header > div {
+  display: flex;
+}
+.terminal-header .icon-button {
+  height: 2.153846rem;
+  color: #6c6c67;
+}
+.terminal-header .icon-button:hover {
+  background: #efefec;
+  color: #252523;
+}

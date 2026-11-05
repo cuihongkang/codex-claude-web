@@ -8,7 +8,7 @@ const browserDocument = globalThis.document;
 const baseTitle = browserDocument?.title || "Codex Web";
 let snapshot, worker;
 const systemAvailable = () =>
-  globalThis.window?.isSecureContext && "Notification" in window;
+  globalThis.window?.isSecureContext && !!window.Notification;
 function changed() {
   snapshot = {
     enabled: center.enabled,
@@ -39,13 +39,33 @@ async function deliver(event) {
   try {
     if (navigator.serviceWorker) {
       worker ||= navigator.serviceWorker
-        .register("/notification-worker.js")
+        .register("/claude-notification-worker.js", {
+          scope: "/claude-notifications/",
+        })
         .catch((error) => {
           worker = null;
           throw error;
         });
-      await worker;
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await worker;
+      if (!registration.active) {
+        const installing = registration.installing || registration.waiting;
+        await new Promise((resolve, reject) => {
+          if (!installing) return reject(new Error("通知服务尚未就绪"));
+          const changed = () => {
+            if (
+              installing.state === "activated" ||
+              installing.state === "redundant"
+            ) {
+              installing.removeEventListener("statechange", changed);
+              installing.state === "activated"
+                ? resolve()
+                : reject(new Error("通知服务未启动"));
+            }
+          };
+          installing.addEventListener("statechange", changed);
+          changed();
+        });
+      }
       await registration.showNotification(notificationLabel(event), options);
       return;
     }

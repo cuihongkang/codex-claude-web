@@ -7,8 +7,14 @@ export function attachClaude(server, config, options = {}) {
     noServer: true,
     maxPayload: 1024 * 1024,
   });
-  const send = (socket, message) =>
+  const send = (socket, message) => {
+    if (
+      options.authentication &&
+      !options.authentication.valid(socket.authSessionId)
+    )
+      return;
     sendRpcText(socket, JSON.stringify(message));
+  };
   const sessions = new ClaudeSessions({
     defaultCwd: config.defaultCwd,
     ...options,
@@ -64,9 +70,16 @@ export function attachClaude(server, config, options = {}) {
       socket.destroy();
       return;
     }
-    clients.handleUpgrade(request, socket, head, (client) =>
-      clients.emit("connection", client),
-    );
+    const auth = options.authentication;
+    const id = auth?.sessionId(request);
+    if (auth && (!auth.sameOrigin(request) || !auth.valid(id))) {
+      socket.end("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+      return;
+    }
+    clients.handleUpgrade(request, socket, head, (client) => {
+      auth?.attach(client, id);
+      clients.emit("connection", client);
+    });
   });
   clients.on("connection", (socket) => {
     socket.alive = true;
@@ -76,6 +89,11 @@ export function attachClaude(server, config, options = {}) {
     socket.on("error", () => {});
     send(socket, { method: "claude/ready" });
     socket.on("message", async (bytes) => {
+      if (
+        options.authentication &&
+        !options.authentication.valid(socket.authSessionId)
+      )
+        return;
       let m;
       try {
         m = JSON.parse(bytes.toString());
@@ -109,5 +127,8 @@ export function attachClaude(server, config, options = {}) {
     clients.close();
     sessions.close();
   });
+  sessions.closeClients = () => {
+    for (const socket of clients.clients) socket.terminate();
+  };
   return sessions;
 }

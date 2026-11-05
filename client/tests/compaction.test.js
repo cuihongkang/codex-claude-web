@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { recoverCompaction } from "../src/compaction.js";
+import {
+  mergeCompactions,
+  recoverCompaction,
+} from "../src/domain/compaction.js";
 
 const entry = { id: "request", status: "reconnecting", startedAt: 100 };
 const active = { status: { type: "active" } };
@@ -9,6 +12,26 @@ const compactTurn = {
   startedAt: 101,
   items: [{ type: "contextCompaction" }],
 };
+
+test("桥接结果按任务合并，已收起的提示及新任务隔离旧结果", () => {
+  const finished = { ...entry, status: "completed", turnId: "compact" };
+  assert.deepEqual(mergeCompactions({}, { thread: finished }), {});
+  assert.deepEqual(mergeCompactions({ thread: entry }, { thread: finished }), {
+    thread: finished,
+  });
+  const next = { id: "next", status: "starting", startedAt: 200 };
+  assert.deepEqual(mergeCompactions({ thread: next }, { thread: finished }), {
+    thread: next,
+  });
+  assert.deepEqual(mergeCompactions({}, { thread: entry }), { thread: entry });
+  assert.deepEqual(
+    mergeCompactions(
+      { thread: { ...entry, id: "local", turnId: "compact" } },
+      { thread: finished },
+    ),
+    { thread: finished },
+  );
+});
 
 test("按整理轮次恢复完成、失败和中断，不采用旧轮次结果", () => {
   for (const status of ["completed", "failed", "interrupted"])

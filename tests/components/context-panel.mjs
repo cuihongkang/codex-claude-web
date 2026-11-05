@@ -50,7 +50,19 @@ export async function testContextPanel(app, requests, setResponse, emit) {
   let hold = false;
   let release;
   let view;
+  let incoming = [
+    {
+      id: "parent-task",
+      type: "userMessage",
+      authorLabel: "主代理",
+      turnId: "child-turn",
+      beforeItemId: "task",
+      content: [{ type: "text", text: "主代理交付的检查要求" }],
+    },
+  ];
   setResponse(({ method, params }) => {
+    if (method === "lan/agents/messages")
+      return { messages: params.threadId === "agent-a" ? incoming : [] };
     if (method === "fs/readDirectory") return { entries: [] };
     if (method === "fs/readFile")
       return { dataBase64: Buffer.from("文件原始内容").toString("base64") };
@@ -122,7 +134,7 @@ export async function testContextPanel(app, requests, setResponse, emit) {
       assert(button, label);
       button.props.onClick();
     });
-  const openAgent = (id) => click("/root/" + id);
+  const openAgent = (id) => click(id);
   const tools = () => view.root.findByProps({ className: "context-tools" });
   const toggle = () =>
     tools()
@@ -158,9 +170,10 @@ export async function testContextPanel(app, requests, setResponse, emit) {
     await click("展开对话详情", tools());
     assert.equal(
       view.root.findAllByProps({ title: "/root/agent-a" }).length,
-      1,
+      0,
     );
     assert(text().includes("工作区") && text().includes("子代理"));
+    assert.equal(view.root.findAllByProps({ title: "agent-a" }).length, 1);
     assert.deepEqual(
       tools()
         .findAllByType("button")
@@ -264,12 +277,32 @@ export async function testContextPanel(app, requests, setResponse, emit) {
       text().includes("检查子代理分页任务") && text().includes("分页结果"),
     );
     assert(text().includes("child-model"));
+    assert(text().includes("主代理交付的检查要求"));
+    await act(async () => {
+      incoming = [
+        ...incoming,
+        {
+          id: "parent-followup",
+          type: "userMessage",
+          authorLabel: "主代理",
+          content: [{ type: "text", text: "主代理后续补充要求" }],
+        },
+      ];
+      emit("item/completed", {
+        threadId: parent.id,
+        turnId: "parent-turn",
+        item: activity("agent-a", "interacted"),
+      });
+    });
+    assert(text().includes("主代理后续补充要求"));
+    assert(!text().includes("子代理对话 · 只读"));
+    assert(!text().includes("/root/agent-a"));
     assert.equal(app.get().current.id, parent.id);
     assert.equal(app.get().draft, "父对话草稿");
     assert.equal(app.get().attachments[0].id, "parent-attachment");
     assert.deepEqual(app.get().items, parentItems);
     assert.equal(
-      view.root.findAllByProps({ title: "编辑并重新发送" }).length,
+      view.root.findAllByProps({ title: "编辑上一条消息" }).length,
       0,
     );
     assert.equal(view.root.findAllByProps({ title: "添加批注" }).length, 0);
@@ -333,6 +366,7 @@ export async function testContextPanel(app, requests, setResponse, emit) {
       }),
     );
     assert(text().includes("第二个子代理任务"));
+    assert(!text().includes("主代理交付的检查要求"));
     await act(async () => release());
     assert(!text().includes("分页结果"));
     fail = true;
@@ -342,7 +376,7 @@ export async function testContextPanel(app, requests, setResponse, emit) {
     await click("重试读取");
     assert(!text().includes("模拟子代理读取失败"));
     await act(async () => app.set({ connected: false }));
-    assert(text().includes("连接恢复后自动更新"));
+    assert(!text().includes("连接恢复后自动更新"));
     await act(async () => app.set({ connected: true }));
     assert(text().includes("第二个子代理任务"));
     legacy = true;
@@ -389,6 +423,49 @@ export async function testContextPanel(app, requests, setResponse, emit) {
     assert.equal(tools().props["data-open"], true);
     await act(async () => app.set({ contextOpen: null }));
     assert.equal(toggle().props["aria-expanded"], false);
+    await act(async () => app.set({ current: parent, cwd: parent.cwd }));
+    await click("文件", tools());
+    assert.equal(
+      view.root.findByProps({ "aria-label": "文件源码" }).props.value,
+      "文件未保存内容",
+    );
+    await act(async () => app.newChat(undefined, { reuseDirectory: true }));
+    assert.equal(app.get().current, null);
+    assert.equal(app.get().contextOpen, false);
+    assert.equal(app.get().panel, null);
+    assert.equal(app.get().panelFile, null);
+    assert.equal(app.get().panelAgent, null);
+    await click("展开对话详情", tools());
+    assert(view.root.findByProps({ className: "context-card" }));
+    await click("文件", tools());
+    assert.equal(
+      view.root.findAllByProps({ "aria-label": "文件源码" }).length,
+      0,
+    );
+    assert.equal(
+      view.root.findAllByProps({ className: "file-diff-view" }).length,
+      0,
+    );
+    hold = false;
+    await act(async () => app.openThread(parent.id));
+    assert.equal(app.get().contextOpen, false);
+    await click("文件", tools());
+    assert.equal(
+      view.root.findByProps({ "aria-label": "文件源码" }).props.value,
+      "文件未保存内容",
+      "回到原对话继续编辑未保存文件",
+    );
+    for (const panel of ["files", "changes", "agent"]) {
+      await act(async () => {
+        app.set({ panel, panelAgent: { id: "agent-a", parentId: parent.id } });
+        app.set({ panelFile: "/fixture/pending.txt" });
+        app.newChat(parent.cwd);
+      });
+      assert.equal(app.get().contextOpen, false, panel);
+      assert.equal(app.get().panel, null, panel);
+      assert.equal(app.get().panelFile, null, panel);
+      assert.equal(app.get().panelAgent, null, panel);
+    }
   } finally {
     await act(async () => view?.unmount());
     assert.equal(mediaListeners.size, 0);

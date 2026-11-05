@@ -7,9 +7,9 @@ import {
   threadTime,
   threadGroupPath,
   PROJECTLESS_SOURCE,
-} from "../src/thread-order.js";
+} from "../src/domain/thread-order.js";
 
-test("完成时间决定对话和项目初始顺序，打开时间、项目添加顺序与置顶不干扰初始排序", () => {
+test("完成时间决定对话顺序与同类项目初始顺序，固定项目优先显示", () => {
   const threads = [
     { id: "opened", cwd: "/a", createdAt: 1, updatedAt: 999, completedAt: 10 },
     { id: "done", cwd: "/b", createdAt: 2, updatedAt: 20, completedAt: 20 },
@@ -25,15 +25,57 @@ test("完成时间决定对话和项目初始顺序，打开时间、项目添�
       ([path, list]) => [path, list.map((t) => t.id)],
     ),
     [
-      ["/c", []],
       ["/b", ["done", "new"]],
       ["/a", ["opened"]],
-      ["", []],
       ["/empty", []],
+      ["/c", []],
+      ["", []],
     ],
   );
   assert.equal(threadTime(threads[3]), 15);
   assert.equal(threads[0].id, "opened");
+});
+
+test("固定项目优先于活动与快照顺序，空项目和仅含置顶对话的项目继续置前", () => {
+  const threads = [
+    { id: "new", cwd: "/recent", createdAt: 300 },
+    { id: "old", cwd: "/pinned", createdAt: 10 },
+    { id: "top", cwd: "/top-only", createdAt: 5 },
+    { id: "none", createdAt: 999 },
+  ];
+  const projects = ["/empty", "/pinned", "/top-only"];
+  const paths = (order) =>
+    projectGroups(threads, projects, ["top"], {}, "", order).map(
+      ([path]) => path,
+    );
+  assert.deepEqual(paths([]), [
+    "/pinned",
+    "/top-only",
+    "/empty",
+    "/recent",
+    "",
+  ]);
+  assert.deepEqual(paths(["/recent", "/pinned", "/empty", "/top-only", ""]), [
+    "/pinned",
+    "/empty",
+    "/top-only",
+    "/recent",
+    "",
+  ]);
+});
+
+test("固定与取消固定立即重新分组，同类项目保留快照顺序", () => {
+  const threads = [
+    { id: "a", cwd: "/a", createdAt: 300 },
+    { id: "b", cwd: "/b", createdAt: 200 },
+  ];
+  const order = ["/a", "/b", "/empty", ""];
+  const paths = (projects) =>
+    projectGroups(threads, projects, [], {}, "", order).map(([path]) => path);
+  assert.deepEqual(paths(["/empty"]), ["/empty", "/a", "/b", ""]);
+  assert.deepEqual(paths(["/empty", "/b"]), ["/b", "/empty", "/a", ""]);
+  assert.deepEqual(paths(["/b"]), ["/b", "/a", "/empty", ""]);
+  assert.deepEqual(paths([]), order);
 });
 
 test("首次加载后沿用项目顺序，归档、恢复和完成时间变化仅更新组内对话", () => {
@@ -110,11 +152,31 @@ test("客户端自动目录合并到未分类，CLI 与外部对话保留实际�
       pinned: scratch + "/pin",
     }).map(([path, list]) => [path, list.map((t) => t.id)]),
     [
-      ["", ["desktop-b", "desktop-a", "missing-cwd"]],
       ["/code/x", ["cli"]],
       ["/code/mu-q", ["external"]],
+      ["", ["desktop-b", "desktop-a", "missing-cwd"]],
     ],
   );
+});
+
+test("未分类始终位于末尾，保留其他项目快照顺序", () => {
+  const threads = [
+    { id: "unclassified", createdAt: 999 },
+    { id: "project", cwd: "/a", createdAt: 1 },
+  ];
+  for (const order of [[], ["", "/empty", "/a"], ["/empty", "", "/a"]]) {
+    const groups = projectGroups(threads, ["/empty"], [], {}, "", order);
+    assert.equal(groups.at(-1)[0], "");
+    assert.deepEqual(
+      groups.at(-1)[1].map((t) => t.id),
+      ["unclassified"],
+    );
+    if (order.length)
+      assert.deepEqual(
+        groups.map(([path]) => path),
+        ["/empty", "/a", ""],
+      );
+  }
 });
 
 test("明确项目归属、改变后的目录和未被记录的相似目录保持文件夹分组", () => {
@@ -136,7 +198,7 @@ test("明确项目归属、改变后的目录和未被记录的相似目录保�
     projectGroups(threads, [scratch + "/b"], [], directories).map(
       ([path]) => path,
     ),
-    [...threads.map((t) => t.cwd), ""],
+    [threads[1].cwd, threads[0].cwd, ...threads.slice(2).map((t) => t.cwd), ""],
   );
   assert.deepEqual(projectGroups([], [], [], directories), [["", []]]);
 });
@@ -279,7 +341,7 @@ test("跨对话页、轮次页读取完成时间，忽略运行中轮次并缓�
       .filter((r) => r.method === "thread/list")
       .every((r) => r.params.sortKey === "created_at"),
   );
-  ordering.completed("opened", { status: "completed", completedAt: 200 });
+  ordering.observe("opened", { status: "completed", completedAt: 200 });
   assert.deepEqual(
     (await ordering.list({ archived: false })).map((t) => t.id),
     ["opened", "recent"],
@@ -312,7 +374,7 @@ test("读取期间收到完成事件时采用后端完成时间，重建读取�
       }),
   );
   const pending = ordering.hydrate([{ id: "a", createdAt: 5, updatedAt: 999 }]);
-  ordering.completed("a", { status: "completed", completedAt: 80 });
+  ordering.observe("a", { status: "completed", completedAt: 80 });
   finish({ data: [{ status: "completed", completedAt: 20 }] });
   assert.equal((await pending)[0].completedAt, 80);
   const fresh = createThreadOrdering(async () => ({
@@ -323,4 +385,59 @@ test("读取期间收到完成事件时采用后端完成时间，重建读取�
       .completedAt,
     80,
   );
+});
+
+test("运行中的新轮次按开始时间参与排序，更晚结束的对话仍排在前面", async () => {
+  const threads = [
+    { id: "running", cwd: "/project", createdAt: 1, updatedAt: 9999 },
+    { id: "finished", cwd: "/project", createdAt: 2, updatedAt: 2 },
+  ];
+  const rpc = async (_, { threadId }) => ({
+    data:
+      threadId === "running"
+        ? [
+            { status: "inProgress", startedAt: 120 },
+            { status: "completed", startedAt: 5, completedAt: 10 },
+          ]
+        : [{ status: "completed", startedAt: 20, completedAt: 100 }],
+  });
+  const ordering = createThreadOrdering(rpc);
+  const initial = await ordering.hydrate(threads);
+  assert.deepEqual(
+    initial.map((t) => t.id),
+    ["running", "finished"],
+  );
+  assert.equal(initial[0].completedAt, 10);
+  assert.equal(threadTime(initial[0]), 120);
+  assert.deepEqual(
+    projectGroups(initial, [], [])[0][1].map((t) => t.id),
+    ["running", "finished"],
+  );
+  ordering.observe("finished", { status: "completed", completedAt: 130 });
+  assert.deepEqual(
+    (await ordering.hydrate(threads)).map((t) => t.id),
+    ["finished", "running"],
+  );
+  assert.deepEqual(
+    (await createThreadOrdering(rpc).hydrate(threads)).map((t) => t.id),
+    ["running", "finished"],
+    "完整刷新从后端开始时间恢复顺序",
+  );
+});
+
+test("读取期间的新轮次开始、迟到完成及旧历史响应保持最新活动时间", async () => {
+  let finish;
+  const ordering = createThreadOrdering(
+    () => new Promise((resolve) => (finish = resolve)),
+  );
+  const thread = { id: "active", createdAt: 1, updatedAt: 1 };
+  const pending = ordering.hydrate([thread]);
+  ordering.observe(thread.id, { status: "inProgress", startedAt: 200 });
+  ordering.observe(thread.id, { status: "completed", completedAt: 100 });
+  finish({ data: [{ status: "completed", completedAt: 50 }] });
+  const [result] = await pending;
+  assert.equal(threadTime(result), 200);
+  assert.equal(result.completedAt, 100);
+  ordering.forget(thread.id);
+  assert.equal(threadTime(ordering.apply(thread)), 1);
 });

@@ -1,3 +1,7 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { authenticationFixture } from "../../tests/helpers/auth.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -331,6 +335,8 @@ test(
       }
       respond(socket, request, {});
     });
+    const directory = await mkdtemp(join(tmpdir(), "codex-web-title-auth-"));
+    const auth = await authenticationFixture(directory);
     const child = spawn(
       process.execPath,
       [fileURLToPath(new URL("../src/server.mjs", import.meta.url))],
@@ -338,6 +344,7 @@ test(
         env: {
           ...process.env,
           HOST: "127.0.0.1",
+          CODEX_HOME: directory,
           PORT: "0",
           CODEX_APP_SERVER_URL: app.url,
         },
@@ -350,16 +357,23 @@ test(
       const exited = once(child, "exit");
       child.kill();
       await exited;
+      await rm(directory, { recursive: true, force: true });
     });
     const url = await new Promise((resolve) =>
       child.stdout.on("data", (bytes) => {
-        const match = bytes.toString().match(/http:\/\/127\.0\.0\.1:\d+/);
-        if (match) resolve(match[0].replace("http:", "ws:") + "/rpc");
+        const match = bytes.toString().match(/https:\/\/127\.0\.0\.1:\d+/);
+        if (match) resolve(match[0].replace("https:", "wss:") + "/rpc");
       }),
     );
     let latestState;
     async function connect() {
-      const socket = new WebSocket(url);
+      const socket = new WebSocket(url, {
+        ca: auth.tls.cert,
+        headers: {
+          Cookie: auth.cookie,
+          Origin: new URL(url).origin.replace("wss:", "https:"),
+        },
+      });
       sockets.push(socket);
       await new Promise((resolve) =>
         socket.on("message", (bytes) => {

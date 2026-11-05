@@ -1,3 +1,4 @@
+import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { readFile, mkdir, writeFile, mkdtemp, rm, cp } from "node:fs/promises";
@@ -223,6 +224,7 @@ const mime = {
   ".css": "text/css",
 };
 const server = http.createServer(async (request, response) => {
+  if (serveDemoSession(request, response)) return;
   try {
     const path = new URL(request.url, "http://fixture").pathname;
     let content = await readFile(

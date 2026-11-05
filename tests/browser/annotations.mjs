@@ -1,3 +1,4 @@
+import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { readFile, mkdir, writeFile, mkdtemp, rm, cp } from "node:fs/promises";
@@ -6,6 +7,7 @@ import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { contextItems, verifyUserContext } from "./user-message-context.mjs";
+import { contextResetItems, verifyContextReset } from "./context-reset.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const output =
@@ -128,7 +130,9 @@ function fixture(contextItems) {
         };
       if (m.method === "thread/items/list")
         result = {
-          data: [...items].reverse().map((item) => ({ turnId: "turn", item })),
+          data: [...items]
+            .reverse()
+            .map((item) => ({ turnId: item.turnId || "turn", item })),
           nextCursor: null,
         };
       if (m.method === "skills/list") result = { data: [] };
@@ -172,6 +176,7 @@ const mime = {
   ".css": "text/css",
 };
 const server = http.createServer(async (request, response) => {
+  if (serveDemoSession(request, response)) return;
   try {
     const path = new URL(request.url, "http://fixture").pathname;
     let content = await readFile(
@@ -182,7 +187,7 @@ const server = http.createServer(async (request, response) => {
         .toString()
         .replace(
           "<head>",
-          `<head><script>(${fixture.toString()})(${process.env.USER_CONTEXT === "1" ? JSON.stringify(contextItems) : "null"})</script>`,
+          `<head><script>(${fixture.toString()})(${process.env.CONTEXT_RESET === "1" ? JSON.stringify(contextResetItems) : process.env.USER_CONTEXT === "1" ? JSON.stringify(contextItems) : "null"})</script>`,
         );
     response
       .writeHead(200, {
@@ -336,7 +341,7 @@ async function runScenario() {
         key,
         code: key === "Enter" ? "Enter" : key,
         modifiers,
-        ...(key === "Enter" && !modifiers && type === "keyDown"
+        ...(key === "Enter" && !(modifiers & 7) && type === "keyDown"
           ? { text: "\r" }
           : {}),
       });
@@ -383,8 +388,12 @@ async function runScenario() {
   await waitFor(
     `document.querySelector('textarea[aria-label="消息"]') && document.querySelector('.assistant-message')`,
   );
-  if (process.env.USER_CONTEXT === "1") {
-    await verifyUserContext({
+  if (process.env.USER_CONTEXT === "1" || process.env.CONTEXT_RESET === "1") {
+    const verify =
+      process.env.CONTEXT_RESET === "1"
+        ? verifyContextReset
+        : verifyUserContext;
+    await verify({
       evaluate,
       page,
       waitFor,
@@ -456,6 +465,48 @@ async function runScenario() {
     assert.equal(surface.doneWidth, surface.doneHeight);
     await screenshot("after-floating-editor");
     await key("Enter");
+    if (process.env.ANNOTATION_ENTER_BEFORE === "1") {
+      assert(
+        (
+          await evaluate(
+            `document.querySelector('.annotation-editor textarea').value`,
+          )
+        ).includes("\n"),
+      );
+      await screenshot("before-enter-newline");
+      await writeFile(
+        join(output, "results.json"),
+        JSON.stringify(
+          { passed: true, reproduced: "Enter 插入换行", build: buildInfo },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    assert.equal(
+      await evaluate(`!!document.querySelector('.annotation-editor')`),
+      false,
+    );
+    assert.equal(
+      await evaluate(`document.activeElement.getAttribute('aria-label')`),
+      "消息",
+    );
+    assert.equal(await sentCount(), 0, "Enter 完成批注仅保存草稿");
+    await screenshot("after-enter-completed");
+    await click('button[aria-label="打开批注 1"]');
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.annotation-editor textarea').value`,
+      ),
+      "请明确需要检查的配置文件。",
+    );
+    await key("Enter", 8);
+    assert.equal(
+      await evaluate(`!!document.querySelector('.annotation-editor')`),
+      true,
+      "Shift+Enter 保留批注编辑",
+    );
     assert(
       (
         await evaluate(
@@ -463,7 +514,7 @@ async function runScenario() {
         )
       ).includes("\n"),
     );
-    await screenshot("editor-multiline");
+    await screenshot("after-shift-enter");
     await fill(
       ".annotation-editor textarea",
       "需要保留的长批注内容。".repeat(45),
@@ -542,7 +593,14 @@ async function runScenario() {
     await pause(150);
     await checkFloating("窄屏深色");
     await screenshot("after-mobile-dark");
-    await click('.annotation-editor button[type="submit"]');
+    await click(".annotation-editor textarea");
+    await key("Enter");
+    assert.equal(
+      await evaluate(`!!document.querySelector('.annotation-editor')`),
+      false,
+    );
+    assert.equal(await sentCount(), 0);
+    await screenshot("after-mobile-enter-completed");
     await evaluate(`annotationFixture.setFail(true)`);
     await click(".send-button");
     await waitFor(`document.querySelector('.send-button:not(:disabled)')`);

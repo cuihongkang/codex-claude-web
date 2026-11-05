@@ -1,5 +1,5 @@
 import { receiveNotification } from "./notifications.js";
-import { mergeClaudeMessages as mergeMessages } from "../../server/src/claude-timeline.mjs";
+import { mergeClaudeMessages as mergeMessages } from "../../shared/claude-timeline.mjs";
 import { useSyncExternalStore } from "react";
 import { readClaudeCache, writeClaudeCache } from "./claude-cache.js";
 const listeners = new Set(),
@@ -36,6 +36,7 @@ let state = {
   drafts: saved("claude-drafts", {}),
   query: "",
 };
+let connectionEnabled = false;
 let socket,
   seq = 0,
   epoch = 0,
@@ -237,6 +238,7 @@ function uuid() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 function connect() {
+  if (!connectionEnabled) return;
   const ws = new WebSocket(
     `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/claude/rpc`,
   );
@@ -297,7 +299,17 @@ function connect() {
   };
   ws.onerror = () => {};
 }
-connect();
+export function startClaudeConnection() {
+  connectionEnabled = true;
+  connect();
+  return () => {
+    connectionEnabled = false;
+    const old = socket;
+    socket = null;
+    old?.close();
+    update({ connected: false });
+  };
+}
 setInterval(() => {
   if (state.connected) loadClaude().catch(() => {});
 }, 15000);

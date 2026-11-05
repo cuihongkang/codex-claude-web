@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { reasoningSummaries } from "../src/reasoning-summary.js";
+import { reasoningSummaries } from "../src/domain/reasoning-summary.js";
 
 test("空摘要和空标题不生成思考行", () => {
   assert.deepEqual(reasoningSummaries(), []);

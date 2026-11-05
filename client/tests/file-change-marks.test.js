@@ -1,8 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EditorState } from "@codemirror/state";
-import { fileChangeHighlights, turnFileChanges } from "../src/file-changes.js";
-import { fileChangeMarks } from "../src/file-change-marks.js";
+import {
+  fileChangeHighlights,
+  turnFileChanges,
+} from "../src/domain/file-changes.js";
+import { fileChangeMarks } from "../src/features/workspace/file-change-marks.js";
 
 const text = "before\nnew content\nafter\n";
 const diff =

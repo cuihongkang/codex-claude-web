@@ -4,33 +4,83 @@
 
 ## 安装发行包
 
-预构建 npm 安装包通过 [GitHub Releases](https://github.com/hjd-hitsz/codex-web/releases) 分发。在已配置 Node.js 24+、npm、Codex CLI、`/usr/bin/zsh` 和 systemd 的 Linux 电脑上，以运行 Codex 的普通用户完成本机 Codex 登录，然后执行：
+预构建 npm 安装包通过 [GitHub Releases](https://github.com/hjd-hitsz/codex-web/releases) 分发。在已配置 Node.js 24+、npm、Codex CLI、OpenSSL、Linux PAM、`pamtester`、`/usr/bin/zsh` 和 systemd 的 Linux 电脑上，以运行 Codex 的普通用户完成本机 Codex 登录，然后执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
 codex-web service install
 loginctl enable-linger "$USER"
 codex-web service status
-curl http://127.0.0.1:8766/healthz
+curl --cacert "${CODEX_HOME:-$HOME/.codex}/codex-web/tls/certificate.pem" https://127.0.0.1:8766/healthz
 ```
 
 `service install` 创建缺失的后端服务并安装网页服务，启用两者的自启动；已有后端服务继续使用原配置。`enable-linger` 使用户服务可在开机后、登录前启动，是否需要管理员操作由系统授权策略决定。npm 全局命令所在目录需在 `PATH` 中，目标电脑的防火墙需允许访问网页端口。
 
-默认网页地址为 `http://电脑IP:8766`，本机可使用 `http://127.0.0.1:8766`。网页沿用本机 Codex 登录，以服务用户的完全访问权限执行任务，通过 HTTP 提供访问，适合在可信网络中使用。
+默认网页地址为 `https://电脑IP:8766`，本机可使用 `https://127.0.0.1:8766`。网页登录使用运行服务的系统账户，成功后沿用本机 Codex 授权，以服务用户的完全访问权限执行任务。访问和登录均使用加密连接。
 
 ### 下载后安装与校验
 
-也可以下载或复制 Release 中的 `codex-web-2.4.1.tgz` 和 `codex-web-2.4.1.tgz.sha256` 到同一目录，然后执行：
+也可以下载或复制 Release 中的 `codex-web-3.1.1.tgz` 和 `codex-web-3.1.1.tgz.sha256` 到同一目录，然后执行：
 
 ```bash
-sha256sum -c codex-web-2.4.1.tgz.sha256
-npm install -g ./codex-web-2.4.1.tgz
+sha256sum -c codex-web-3.1.1.tgz.sha256
+npm install -g ./codex-web-3.1.1.tgz
 codex-web service install
 ```
 
 安装使用 Release 的 `.tgz` 附件。安装过程中，npm 会获取运行依赖，目标电脑需具备相应缓存或能访问配置的 npm registry。
 
-文件差异与撤销校验需要服务环境能够运行 `git`。文件变更汇总也支持 Git 仓库以外的目录；“撤销”遇到后续修改冲突时会保留当前文件。升级后先等待当前任务和网页终端结束，再重启网页服务并刷新页面，以加载新的界面和撤销接口。
+文件差异与撤销校验需要服务环境能够运行 `git`。文件变更汇总也支持 Git 仓库以外的目录；“撤销”遇到后续修改冲突时会保留当前文件。升级后先等待当前任务和网页终端结束，再重启网页服务并刷新页面，以使用更新后的功能。
+
+## HTTPS 与系统登录
+
+系统登录需要 Linux PAM 与 `pamtester`。Debian / Ubuntu 可由管理员安装：
+
+```bash
+sudo apt-get install pamtester openssl
+```
+
+网页登录只允许运行 Codex Web 的系统账户，使用该账户的系统密码。账户须有可用密码，且处于允许登录的状态。默认使用系统的 `login` PAM 服务，管理员可通过 `AUTH_PAM_SERVICE` 指定专用策略。仅配置 SSH 密钥、没有可用系统密码的账户，需要先在系统中设置密码。网页服务继续以普通用户身份运行。
+
+登录状态默认保留 30 天，`AUTH_SESSION_DAYS` 可设为 1～90 天。刷新网页、重新打开浏览器或重启服务后，有效登录会自动恢复。退出会让同一浏览器的所有标签页返回登录页面，其他设备继续保持登录。到期或清除浏览器 Cookie 后需要重新登录。未发送草稿保留在原浏览器，已经提交的任务继续运行。
+
+### 证书配置
+
+未指定证书时，首次启动生成一年有效的本站证书，保存在 `CODEX_HOME/codex-web/tls`（默认 `~/.codex/codex-web/tls`）。证书包含 localhost、当前主机名及生成时的本机 IP，私钥仅服务用户可读。首次访问前，在服务电脑查看指纹，并与浏览器显示的证书核对，再按设备的证书管理方式安装该证书：
+
+```bash
+openssl x509 -in "${CODEX_HOME:-$HOME/.codex}/codex-web/tls/certificate.pem" -noout -fingerprint -sha256
+```
+
+登录页和“设置 → 网页登录”中的“浏览器证书安装”提供证书下载与 Ubuntu、Windows、macOS、iPhone/iPad、Android 安装步骤。先向管理员核对证书，再下载并安装到用于访问的设备上。安装后重新打开浏览器，确认地址栏的证书警告消失，再输入登录密码。
+
+Ubuntu 上，在文件管理器中打开证书下载目录，右键选择“在终端打开”。将下载的 DER 格式证书转换为 PEM 格式并安装到系统信任库，按提示输入本机管理员密码：
+
+```bash
+openssl x509 -inform DER -in codex-web.cer -out codex-web.crt
+sudo install -m 644 codex-web.crt /usr/local/share/ca-certificates/codex-web.crt
+sudo update-ca-certificates
+```
+
+重复下载时请核对实际文件名。完全退出浏览器后重新访问；Chrome / Chromium 仍有警告时，在“设置 → 隐私和安全 → 安全 → 管理证书”的自定义或受信任证书中导入 `codex-web.crt`。Firefox 可在“设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构”中导入，并信任此证书以标识网站。浏览器版本不同，入口名称可能略有差异；完成后重启浏览器并检查证书警告。
+
+首次证书警告发生在网页打开之前。核对证书后，可通过浏览器的“高级 → 继续访问”进入下载页面；浏览器没有继续入口时，请管理员直接提供证书。证书更新后，各设备需要重新核对并安装。使用证书机构签发的证书仍有警告时，请管理员检查证书配置或提供所需的信任证书。
+
+也可在网页配置文件中指定受浏览器信任的证书链与私钥：
+
+```dotenv
+TLS_CERT=/absolute/path/to/fullchain.pem
+TLS_KEY=/absolute/path/to/privkey.pem
+AUTH_SESSION_DAYS=30
+```
+
+两项证书路径须同时设置，并允许服务用户读取；私钥权限应设为 600。域名、IP 或证书有效期变化时更新证书并在空闲时重启网页服务。需要重新生成自动证书时，在服务停止后将整个 `tls` 目录移至备份位置，再启动服务；客户端需重新核对和信任新证书。
+
+网页端口只接受 HTTPS。旧的 HTTP 书签应改为 HTTPS；切换地址前，请先保存旧页面中的未发送草稿；新地址会单独保存浏览器偏好。使用域名反向代理时，浏览器到代理及代理到网页服务两段都使用 TLS，代理应验证上游证书，并保留原始 Host、Origin 和 WebSocket 升级头。Codex 后端的 `ws://` 仅限本机回环地址，跨主机后端必须使用 `wss://`。
+
+### 登录故障
+
+用户名或密码错误、账户锁定或到期时，请确认用户名、密码和账户状态。提示“登录暂不可用”时，由管理员检查 `pamtester` 是否安装及服务日志。非标准安装路径可通过 `AUTH_PAMTESTER=/absolute/path/to/pamtester` 指定。尝试次数过多时，请按页面提示稍后重试。
 
 ## 命令与前台运行
 
@@ -51,10 +101,10 @@ codex-web service install
 
 systemd 服务会记录安装时的配置目录，后续启动继续使用该目录。更换配置目录时，用新的 `CODEX_WEB_CONFIG_DIR` 执行 `codex-web service install`，再按下文方法重启网页服务。
 
-- `HOST`：HTTP 监听地址，初始为 `0.0.0.0`，支持通过电脑 IP 访问；仅本机访问可设为 `127.0.0.1`。
+- `HOST`：HTTPS 监听地址，初始为 `0.0.0.0`，支持通过电脑 IP 访问；仅本机访问可设为 `127.0.0.1`。
 - `PORT`：网页端口，初始为 `8766`。
 - `CODEX_APP_SERVER_URL`：Codex 后端 WebSocket 地址，初始为 `ws://127.0.0.1:8765`；使用已有后端时填写其实际地址。
-- `CODEX_HOME`：本机 Codex 配置目录，未设置时使用当前用户的 `~/.codex`。用于读取桌面端的无项目目录信息，并保存网页“未分类”对话的独立工作目录。使用独立 Codex 配置目录时，填写对应目录。
+- `CODEX_HOME`：本机 Codex 配置目录，未设置时使用当前用户的 `~/.codex`。“未分类”对话的工作文件也保存在该目录中。使用独立 Codex 配置目录时，填写对应目录。
 - `DEFAULT_CWD`：首次打开网页时的默认目录，未设置时使用当前用户的主目录；浏览器已经选择的项目目录优先。
 - `STATIC_DIR`：网页资源目录，未设置时自动定位到当前安装包中的网页资源；相对路径以用户配置目录为基准。
 
@@ -76,7 +126,7 @@ systemd 服务会记录安装时的配置目录，后续启动继续使用该目
 systemctl --user status codex-lan-web.service codex-app-server.service
 journalctl --user -u codex-lan-web.service -n 100 --no-pager
 journalctl --user -u codex-app-server.service -n 100 --no-pager
-curl http://127.0.0.1:8766/healthz
+curl --cacert "${CODEX_HOME:-$HOME/.codex}/codex-web/tls/certificate.pem" https://127.0.0.1:8766/healthz
 ```
 
 自定义网页端口时，相应替换健康检查地址。`/healthz` 在已连接 Codex 后端时返回 HTTP 200，后端未连接时返回 HTTP 503；响应包含连接状态 `ready` 和正在运行的网页服务版本 `version`。
@@ -86,7 +136,7 @@ curl http://127.0.0.1:8766/healthz
 从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
 codex-web service install
 codex-web service restart-when-idle
 ```
@@ -95,7 +145,7 @@ codex-web service restart-when-idle
 
 日志显示实际等待的任务与上下文整理数量；执行重启后继续检查 `/healthz`，连接就绪时报告实际运行版本，重启或健康检查失败时保留失败状态。
 
-升级后刷新网页，在“设置 → 关于”核对网页和服务版本。`codex-web version --json` 查看当前磁盘安装包，`/healthz` 中的 `version` 查看实际运行的服务，便于确认重启是否生效。
+升级后刷新网页，在“设置 → 关于”核对产品版本。`codex-web version --json` 查看当前磁盘安装包，`/healthz` 中的 `version` 查看实际运行的服务，便于确认重启是否生效。
 
 需要回退程序时，使用目标旧版本 Release 的 `.tgz` 安装地址重新安装，执行 `codex-web service install`，再等待空闲后重启。用户配置继续保留；涉及配置或数据迁移的版本，先查看对应发布说明。
 
@@ -103,28 +153,29 @@ codex-web service restart-when-idle
 
 ## 数据保存与迁移
 
-- 聊天记录和登录凭据由 Codex 自身管理。
-- 草稿、置顶、项目快捷列表和主题保存在当前浏览器中。
-- “未分类”对话的文件位于 `CODEX_HOME/codex-web/workspaces/chat-XXXXXX`，首次发送时分配；未设置 `CODEX_HOME` 时位于 `~/.codex/codex-web/workspaces`。迁移电脑时，可随 Codex 配置目录一起保留。
+- 聊天记录和 Codex 登录凭据由 Codex 自身管理。网页登录与 Codex 账户登录分别管理，系统密码仅用于登录验证，不会保存。
+- 草稿、置顶、固定文件夹、项目快捷列表和主题保存在当前浏览器中。固定文件夹在全部对话归档后仍会在刷新或重新打开网页时显示；手动添加的项目自动固定，取消固定后在下次加载时按未归档对话重新确定是否显示。使用同一浏览器及站点地址可恢复固定记录，清除站点数据会清除这些记录。
+- 每个项目上次选择的模型和思考强度保存在服务所在电脑的 `CODEX_HOME/codex-web/project-models.json`；未设置 `CODEX_HOME` 时位于 `~/.codex/codex-web/project-models.json`，迁移服务时一并保留。同项目新建沿用当前选择，跨项目及重新打开网页时恢复目标项目设置，清空浏览器数据后可再次从服务端读取。保存失败时会提示重试。切换模型时保留当前思考强度，目标模型缺少该档位时采用最近的可用档位，距离相同时选较低档。
+- “未分类”对话的文件保存在 `CODEX_HOME/codex-web/workspaces/chat-XXXXXX`，首次发送时分配；未设置 `CODEX_HOME` 时位于 `~/.codex/codex-web/workspaces`。迁移电脑时，可随 Codex 配置目录一起保留。
 - 网页配置 `.env` 与新建后端服务使用的 `.env.backend` 位于用户配置目录，迁移时应一并保留；已有后端服务的配置按原部署方式迁移。
-- 摘要翻译由服务所在电脑调用免费、免认证的 TranSmart 服务，浏览器仅访问当前网页服务；待译摘要会发送至 TranSmart，代码、路径和链接在发送前替换为占位符。成功译文缓存在当前标签页会话中，刷新页面和切换对话继续复用，关闭标签页或浏览器后清空。
+- 摘要翻译由服务所在电脑调用免费、免认证的 TranSmart 服务，浏览器仅访问当前网页服务；待译摘要会发送至 TranSmart，代码、路径和链接在发送前替换为占位符。
 - 自动对话标题使用 Codex 模型，会产生少量额外模型用量。
 
 ## 故障定位
 
 网页不可访问时，先检查网页服务状态、监听端口和主机网络。网页可打开但显示后端未连接时，检查 Codex 后端服务日志、实际监听地址和本机 Codex 登录状态。
 
-账户额度从本机已登录的 Codex 账户自动读取，按实际返回显示周额度和 5 小时额度。默认以圆环和百分比显示，展开详情后在同一行查看重置倒计时与具体日期时间。页面可见时每分钟校准，回到页面、任务结束和连接恢复后自动更新。读取暂缓时保留上次成功读取的数值，圆环变灰，详情显示“待更新”；恢复后自动重新同步。倒计时在详情打开期间独立更新。额度读取沿用已有后端连接，仅查询账户用量。
+账户额度会自动更新。若额度变灰并显示“待更新”，可稍后重试并检查网络连接。恢复连接后会自动更新。
 
-摘要翻译失败时，页面保留原文并提供重试入口。检查服务所在电脑能否访问 `transmart.qq.com`，以及翻译服务是否正常响应。升级后若本站 `/api/translate` 返回 404，先等待任务与网页终端空闲，再重启网页服务以加载翻译接口。
+摘要翻译失败时，页面保留原文并提供重试入口。检查服务所在电脑能否访问 `transmart.qq.com`，以及翻译服务是否正常响应。升级后翻译仍不可用时，等待任务与网页终端结束，再重启网页服务。
 
-### 对话占用与后端回收
+### 对话被占用
 
-网页进入对话时先显示历史，再检查写入权。检查期间暂停输入；其他客户端持有写入权时，发送框位置显示占用说明和“重试”按钮。先在持有该对话的客户端结束任务并释放对话，再点击重试；成功后恢复输入框、草稿和附件，由用户继续发送。
+提示对话被占用时，先在另一个 Codex 窗口中结束该对话的任务并关闭对话，再返回网页点击“重试”。恢复后可继续编辑和发送，原有草稿及附件会保留。
 
 网页会在对话空闲时释放自身的占用，下一次发送时自动恢复。关闭页面后，已经提交的任务继续执行，结束后释放占用。独立 Codex 客户端的占用由对应客户端和后端管理，结束任务后仍被占用时，需检查该客户端是否继续加载对话。
 
-为使空闲对话及时释放，本项目启动的 Codex 后端使用以下命令，将无订阅对话的回收延迟设为零：
+为使空闲对话及时释放，本项目启动的 Codex 后端使用以下命令，让无人使用的对话及时解除占用：
 
 ```bash
 codex -c thread_unload_delay_secs=0 app-server --listen ws://127.0.0.1:8765
@@ -155,7 +206,7 @@ Claude 的网页会话索引默认保存在 `~/.local/state/codex-web/claude-ses
 
 当前 Claude 界面支持文字输入、历史图片显示、工具记录、授权和提问。Codex 专属的文件变更面板、目标管理、技能菜单和新附件上传未移植到 Claude 界面。搜索框、归档按钮与账户额度的 Codex 功能沿用原后端；Claude 会话使用自己侧栏中的搜索框。
 
-与原项目一样，网页没有独立登录验证，仅在受信任的内网或受控 VPN 中开放端口。Claude 由网页启动时默认使用 Auto 自动审核模式；可切换 Manual 手动确认、自动编辑、Plan 计划、不询问或跳过权限确认。需审批的操作仍显示“允许本次／拒绝”。已在插件中运行的共享会话保留原模式，网页在空闲时点击应用才修改；旧版共享进程需要重新打开插件会话才能使用新增的模式切换。
+Codex 与 Claude 统一使用 HTTPS 和系统账户登录，实时连接同样检查会话有效性。Claude 由网页启动时默认使用 Auto 自动审核模式；可切换 Manual 手动确认、自动编辑、Plan 计划、不询问或跳过权限确认。需审批的操作仍显示“允许本次／拒绝”。已在插件中运行的共享会话保留原模式，网页在空闲时点击应用才修改；旧版共享进程需要重新打开插件会话才能使用新增的模式切换。
 
 ### 与 VS Code Claude 插件共享同一进程
 
@@ -190,7 +241,7 @@ Claude 运行中补充的消息按原始记录位置恢复，使用原始消息 
 
 ### Android 手机 ntfy 系统通知
 
-设置 `NTFY_URL=https://ntfy.sh/随机长主题名` 和 `NTFY_WEB_URL=现有网页地址` 后重启网页服务。也可使用自己的 HTTPS ntfy 服务，并通过 `NTFY_TOKEN` 设置其访问令牌。Android 安装官方 ntfy App，订阅同一服务与主题，允许通知并解除后台电池限制；使用不带 Google 服务的手机时可在 ntfy 中启用即时投递/常驻连接。
+设置 `NTFY_URL=https://ntfy.sh/随机长主题名` 和 `NTFY_WEB_URL=https://电脑IP:8766` 后重启网页服务。也可使用自己的 HTTPS ntfy 服务，并通过 `NTFY_TOKEN` 设置其访问令牌。Android 安装官方 ntfy App，订阅同一服务与主题，允许通知并解除后台电池限制；使用不带 Google 服务的手机时可在 ntfy 中启用即时投递/常驻连接。
 
 服务器直接推送它接收到的 Codex 事件和已接入的 Claude 会话事件，支持完成、失败、待确认；手机切到其他 App 或网页关闭后仍可接收，不需要给网页增加 HTTPS 或暴露公网端口。独立客户端中未接入网页服务的会话不在此范围。推送发送失败会重试，队列与去重信息保存在 `~/.local/state/codex-web/ntfy.json`，超过一天的旧推送丢弃。服务重启后继续处理队列；离线期间未被后端接收到的事件不会从历史补发。
 

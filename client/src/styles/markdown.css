@@ -1,0 +1,208 @@
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown p {
+  line-height: inherit;
+  margin: 1em 0;
+}
+.markdown details {
+  margin-block: 1em;
+}
+.markdown summary {
+  cursor: pointer;
+}
+.markdown details[open] > summary {
+  margin-bottom: 0.5em;
+}
+.markdown .message-link {
+  color: var(--link);
+  text-decoration: none;
+  border-radius: 2px;
+}
+.markdown .message-link:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+.markdown .message-link:focus-visible {
+  outline-color: var(--link);
+}
+.message-link-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-inline-end: 0.25em;
+  vertical-align: -0.13em;
+}
+.markdown .message-link code {
+  color: inherit;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+.markdown h1 {
+  font-size: 1.769231rem;
+  margin: 1.923077rem 0 1.076923rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.markdown h2 {
+  font-size: 1.461538rem;
+  margin: 1.846154rem 0 0.923077rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.markdown h3 {
+  font-size: 1.230769rem;
+  margin: 1.538462rem 0 0.769231rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.markdown ul,
+.markdown ol {
+  padding-left: 1.846154rem;
+  margin: 0.5em 0 1em;
+}
+.markdown li {
+  padding-left: 0.375em;
+  margin: 0.5em 0;
+  min-height: 1.5em;
+}
+.markdown li > p {
+  margin-bottom: 0.538462rem;
+}
+.markdown blockquote {
+  margin: 1.153846rem 0;
+  border-left: 3px solid var(--border);
+  padding: 0.076923rem 1.230769rem;
+  color: var(--muted);
+}
+.markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.846154rem 0;
+}
+.markdown code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--bubble);
+  padding: 0.153846rem 0.384615rem;
+  border-radius: 4px;
+}
+.markdown pre code {
+  font-size: 1rem;
+  background: none;
+  padding: 0;
+  white-space: pre;
+  line-height: 1.7;
+}
+.markdown table {
+  display: block;
+  border-collapse: collapse;
+  max-width: 100%;
+  overflow: auto;
+  margin: 1.384615rem 0;
+  font-size: 1rem;
+}
+.markdown td,
+.markdown th {
+  border: 1px solid var(--border);
+  padding: 0.692308rem 0.923077rem;
+  text-align: left;
+}
+.markdown th {
+  background: var(--subtle);
+  font-weight: 600;
+}
+.markdown img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.code-block {
+  border: 1px solid var(--border);
+  background: var(--subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 1.230769rem 0;
+}
+.code-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.923077rem;
+  color: var(--muted);
+  padding: 0.384615rem 0.692308rem 0.384615rem 1.076923rem;
+  border-bottom: 1px solid var(--border);
+}
+.code-heading .icon-button {
+  height: 1.923077rem;
+}
+.code-block pre {
+  margin: 0;
+  padding: 1.076923rem 1.230769rem;
+  overflow: auto;
+}
+.mermaid-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.615385rem;
+}
+.mermaid-actions > button:not(.icon-button) {
+  padding: 0.307692rem 0.461538rem;
+  border-radius: 4px;
+}
+.mermaid-diagram {
+  padding: 1.230769rem;
+  overflow: auto;
+  background: var(--bg);
+  text-align: center;
+}
+.mermaid-diagram > svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+.markdown .mermaid-status {
+  margin: 0.923077rem 1.230769rem 0;
+  color: var(--muted);
+  font-size: 0.923077rem;
+}
+.mermaid-render-target {
+  position: fixed;
+  top: 0;
+  left: -100000px;
+  width: 100%;
+  pointer-events: none;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal {
+  color: var(--syntax-keyword);
+}
+.hljs-string,
+.hljs-attr {
+  color: var(--syntax-string);
+}
+.hljs-number,
+.hljs-built_in {
+  color: var(--syntax-number);
+}
+.hljs-comment {
+  color: var(--muted);
+}
+.hljs-title {
+  color: var(--syntax-title);
+}
+.hljs-type {
+  color: var(--syntax-type);
+}
+.hljs-meta {
+  color: var(--syntax-keyword);
+}
+.activity {
+  margin: 0.307692rem 0;
+  color: var(--muted);
+}

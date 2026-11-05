@@ -34,37 +34,41 @@
 
 ## 本地扩展：Claude + Codex
 
-本地功能分支增加 Claude CLI 会话：统一侧栏、后端筛选、历史浏览、持续对话、工具授权与停止。原有 Codex 功能继续可用。详见[本机 Claude 会话](docs/deployment.md#本机-claude-会话本地扩展版)。此功能尚未包含在上游 v2.4.0 发行包中，应使用本分支构建安装。
+本地功能分支增加 Claude CLI 会话：统一侧栏、后端筛选、历史浏览、持续对话、工具授权与停止。原有 Codex 功能继续可用。详见[本机 Claude 会话](docs/deployment.md#本机-claude-会话本地扩展版)。此功能尚未包含在上游 v3.1.1 发行包中，应使用本分支构建安装。
 
 ## 快速开始
 
-准备一台 Linux 电脑，安装 Node.js 24+、npm、Git 和 `/usr/bin/zsh`，并完成 Codex CLI 登录。Codex CLI 需支持 `codex app-server`，后台运行使用 systemd 用户服务。
+准备一台 Linux 电脑，安装 Node.js 24+、npm、Git、OpenSSL、Linux PAM、`pamtester` 和 `/usr/bin/zsh`，并完成 Codex CLI 登录。Codex CLI 需支持 `codex app-server`，后台运行使用 systemd 用户服务。
 
 ### 1. 安装并启动
 
 在安装 Codex 的电脑上，以运行 Codex 的普通用户执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
 codex-web service install
 codex-web service status
 ```
 
-npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务会自动启动，已有 Codex 后端配置继续保留。
+npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务会自动启动，已有 Codex 配置继续保留。
 
 ### 2. 打开浏览器
 
-- 本机访问：`http://127.0.0.1:8766`。
-- 同一网络的电脑、手机或平板：`http://电脑IP:8766`，将“电脑IP”替换为服务所在电脑的实际 IP，并允许防火墙访问 `8766` 端口。
+- 本机访问：`https://127.0.0.1:8766`。
+- 同一网络的电脑、手机或平板：`https://电脑IP:8766`，将“电脑IP”替换为服务所在电脑的实际 IP，并允许防火墙访问 `8766` 端口。
 
-网页沿用该电脑的 Codex 登录，任务以服务用户的完全访问权限执行。默认使用 HTTP，适合在可信网络中访问。
+网页登录使用运行服务的系统用户名与密码，登录成功后沿用该电脑的 Codex 授权，任务以服务用户的完全访问权限执行。登录状态默认保留 30 天，刷新或重新打开浏览器会恢复有效登录。
+
+首次访问时，浏览器可能提示证书不受信任。请按[证书安装指引](docs/deployment.md#证书配置)完成配置；登录页的“浏览器证书安装”提供证书下载和各设备的安装步骤。
 
 输入消息后，按 **Ctrl+Enter** 发送，**Enter** 换行。
 
-<details>
-<summary>开机启动与退出登录后继续运行</summary>
+对话完成通知默认开启，首次使用时在“设置 → 通知”点击“允许系统通知”并完成浏览器授权。本轮任务成功完成时，通知显示对话标题；点击可返回对应对话。提醒开关保存在当前浏览器中，手动关闭后刷新仍保持关闭，同一浏览器打开多个页面时每轮提醒一次。接收提醒时需保持至少一个已登录的 Codex Web 页面与服务连接；通知展示还需在系统设置中允许浏览器通知。权限被阻止或环境不支持时，设置页会显示对应状态。
 
-需要开机自动启动、退出登录后继续运行时，执行：
+<details>
+<summary>开机启动与退出系统登录后继续运行</summary>
+
+需要开机自动启动、退出系统登录后继续运行时，执行：
 
 ```bash
 loginctl enable-linger "$USER"
@@ -92,14 +96,14 @@ codex-web config init
 - `PORT`：网页端口，初始为 `8766`。
 - `DEFAULT_CWD`：首次使用时的默认工作目录，未设置时使用当前用户的主目录。
 
-修改配置前先结束当前任务和网页终端，保存后执行 `codex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置和后端设置见[部署与维护](docs/deployment.md#配置)。
+修改配置前先结束当前任务和网页终端，保存后执行 `codex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置见[部署与维护](docs/deployment.md#配置)。
 
 ## 升级
 
 升级时，从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v2.4.1/codex-web-2.4.1.tgz
+npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
 codex-web service install
 codex-web service restart-when-idle
 ```
@@ -111,6 +115,7 @@ codex-web service restart-when-idle
 - [部署与维护](docs/deployment.md)：完整配置、服务管理、回退和故障排查。
 - [数据保存与迁移](docs/deployment.md#数据保存与迁移)：数据位置、摘要翻译与模型用量说明。
 - [开发者指南](docs/development.md)：从源码运行、参与开发和验证修改。
+- [架构设计](docs/architecture.md)：模块边界、状态与请求流程、代码规模约束和扩展方式。
 - [变更日志](CHANGELOG.md)：各版本的新增功能、改进与修复。
 
 ## 许可证

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import http from "node:http";
+import https from "node:https";
+import { authenticationFixture } from "../../tests/helpers/auth.mjs";
 import { once } from "node:events";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
@@ -21,6 +22,7 @@ async function waitFor(read) {
 
 async function watcher(t, state, fail = false) {
   const directory = await mkdtemp(join(tmpdir(), "codex-web-idle-restart-"));
+  const auth = await authenticationFixture(directory);
   const record = join(directory, "restart.json");
   await writeFile(
     join(directory, "systemctl"),
@@ -28,21 +30,24 @@ async function watcher(t, state, fail = false) {
     { mode: 0o755 },
   );
   let healthChecks = 0;
-  let claudeBusy = false;
-  const server = http.createServer((request, response) => {
+  const server = https.createServer(auth.tls, (request, response) => {
     assert.equal(request.url, "/healthz");
     healthChecks++;
     response.writeHead(200, { "Content-Type": "application/json" }).end(
       JSON.stringify({
         ready: healthChecks > 1,
-        claude: { busy: claudeBusy },
         version: { displayVersion: "fixture-updated" },
       }),
     );
   });
   const sockets = new WebSocketServer({ server });
   const requests = [];
-  sockets.on("connection", (socket) => {
+  sockets.on("connection", (socket, request) => {
+    assert.equal(request.url, "/maintenance");
+    assert.equal(
+      request.headers.authorization,
+      "Bearer fixture-maintenance-token",
+    );
     socket.on("message", (bytes) => requests.push(JSON.parse(bytes)));
     socket.send(JSON.stringify({ method: "lan/state", params: state }));
   });
@@ -59,6 +64,7 @@ async function watcher(t, state, fail = false) {
       env: {
         ...process.env,
         PORT: String(server.address().port),
+        CODEX_HOME: directory,
         PATH: directory + ":" + process.env.PATH,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -81,9 +87,6 @@ async function watcher(t, state, fail = false) {
     requests,
     log: () => log,
     healthChecks: () => healthChecks,
-    setClaudeBusy: (value) => {
-      claudeBusy = value;
-    },
     restarted: () =>
       readFile(record, "utf8")
         .then(JSON.parse)
@@ -169,20 +172,6 @@ test("重启失败时返回失败状态并保留错误日志", async (t) => {
   const app = await watcher(t, idle, true);
   assert.deepEqual(await app.exited, [1, null]);
   assert.match(app.log(), /Command failed/);
-  assert.equal(
-    app.healthChecks(),
-    1,
-    "重启前检查 Claude 状态，失败后不再报告成功",
-  );
+  assert.equal(app.healthChecks(), 1);
   assert(!app.log().includes("通过健康检查"));
-});
-
-test("Claude 运行期间等待，任务完成后才重启", async (t) => {
-  const app = await watcher(t, idle);
-  app.setClaudeBusy(true);
-  await waitFor(() => app.log().includes("等待 Claude"));
-  assert.equal(await app.restarted(), null);
-  app.setClaudeBusy(false);
-  await waitFor(app.restarted);
-  assert.deepEqual(await app.exited, [0, null]);
 });
