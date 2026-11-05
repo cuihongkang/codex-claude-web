@@ -49,13 +49,10 @@ export function Composer() {
     shortcuts.close();
     return submitComposer();
   }
-  async function add(files) {
-    for (const file of files)
-      try {
-        await attachFile(file);
-      } catch (e) {
-        report(e);
-      }
+  function add(files) {
+    return Promise.all(
+      Array.from(files, (file) => attachFile(file).catch(report)),
+    );
   }
   const token = s.tokenUsage[s.current?.id];
   const usage = token?.last?.totalTokens;

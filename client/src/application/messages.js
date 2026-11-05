@@ -100,6 +100,7 @@ export function createMessages({
     )
       return false;
     const epoch = navigation.opening;
+    const attachmentDraft = navigation.getAttachmentDraft();
     set({ busy: true, error: "" });
     let thread;
     try {
@@ -177,10 +178,10 @@ export function createMessages({
         if (get().current?.id === thread.id)
           set({
             ...(get().draft === text ? { draft: "" } : {}),
-            attachments: get().attachments.filter(
-              (entry) => !attachments.includes(entry),
-            ),
           });
+        navigation.updateAttachmentDraft(attachmentDraft, (entries) =>
+          entries.filter((entry) => !attachments.includes(entry)),
+        );
       }
       if (annotations.length && !replace) {
         removeSentAnnotations(thread.id, annotations);
@@ -237,6 +238,12 @@ export function createMessages({
     set({ attachments: [...get().attachments, a] });
   }
   async function attachFile(file) {
+    const draft = navigation.getAttachmentDraft();
+    const add = (attachment) =>
+      navigation.updateAttachmentDraft(draft, (entries) => [
+        ...entries,
+        attachment,
+      ]);
     if (file.type.startsWith("image/")) {
       const url = await new Promise((resolve, reject) => {
         const r = new FileReader();
@@ -244,7 +251,7 @@ export function createMessages({
         r.onerror = reject;
         r.readAsDataURL(file);
       });
-      addAttachment({
+      add({
         id: uid(),
         name: file.name,
         preview: url,
@@ -252,7 +259,7 @@ export function createMessages({
       });
     } else {
       const text = await file.text();
-      addAttachment({
+      add({
         id: uid(),
         name: file.name,
         input: {

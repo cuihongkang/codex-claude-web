@@ -17,6 +17,20 @@ export function createThreadNavigation({
 }) {
   let opening = 0;
   let historyRevision = 0;
+  const attachmentDrafts = new Map();
+  function getAttachmentDraft(id = get().current?.id ?? null) {
+    if (!attachmentDrafts.has(id))
+      attachmentDrafts.set(id, { attachments: [] });
+    const draft = attachmentDrafts.get(id);
+    if (id === (get().current?.id ?? null))
+      draft.attachments = get().attachments;
+    return draft;
+  }
+  function updateAttachmentDraft(draft, update) {
+    const current = getAttachmentDraft();
+    draft.attachments = update(draft.attachments);
+    if (current === draft) set({ attachments: draft.attachments });
+  }
   function setProjectDirectory(cwd) {
     if (!get().loading) models.rememberModelSelection();
     set({
@@ -49,6 +63,7 @@ export function createThreadNavigation({
         ? get().cwd
         : null;
     opening++;
+    getAttachmentDraft();
     localStorage.removeItem("cx-current");
     set({
       current: null,
@@ -60,7 +75,7 @@ export function createThreadNavigation({
         ? selection
         : models.projectModelSelection(cwd, !cwd, models.defaults)),
       draft: localStorage.getItem("cx-draft-new") || "",
-      attachments: [],
+      attachments: getAttachmentDraft(null).attachments,
       error: "",
       loading: false,
       threadAccess: null,
@@ -79,7 +94,6 @@ export function createThreadNavigation({
       threadAccess: { threadId: id, status: "loading" },
       sidebar: false,
       ...(get().current?.id !== id && {
-        attachments: [],
         contextOpen: false,
         panelFile: null,
       }),
@@ -107,6 +121,7 @@ export function createThreadNavigation({
         get().projectlessDirectories,
         get().projectlessRoot,
       );
+      getAttachmentDraft();
       set({
         threads: get().threads.some((t) => t.id === id)
           ? get().threads.map((t) =>
@@ -114,6 +129,7 @@ export function createThreadNavigation({
             )
           : sortThreads([thread, ...get().threads]),
         current: thread,
+        attachments: getAttachmentDraft(id).attachments,
         cwd: r.cwd || r.thread.cwd,
         projectless,
         projectlessCwd: null,
@@ -337,6 +353,8 @@ export function createThreadNavigation({
       throw new Error("对话已切换，请在当前对话重新发送消息。");
     localStorage.setItem("cx-draft-" + r.thread.id, get().draft);
     localStorage.removeItem("cx-draft-new");
+    attachmentDrafts.set(r.thread.id, getAttachmentDraft());
+    attachmentDrafts.delete(null);
     set({ current: r.thread });
     localStorage.setItem("cx-current", r.thread.id);
     return r.thread;
@@ -349,6 +367,8 @@ export function createThreadNavigation({
     refreshThreadAccess,
     loadHistory,
     ensureThread,
+    getAttachmentDraft,
+    updateAttachmentDraft,
     get opening() {
       return opening;
     },
