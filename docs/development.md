@@ -98,6 +98,8 @@ npm run check
 
 `format` 使用 Prettier 格式化项目。`architecture:check` 检查生产源码单文件 500 行上限、导入完整性、循环和分层依赖；`test` 包含单元测试、隔离的桥接协议测试和 React 组件测试；`check` 依次执行版本一致性、架构检查、格式检查、全部测试、生产构建和发行包安装测试。提交修改前执行 `npm run check`。
 
+供应商空对话回归使用 `node --test server/tests/provider-empty-thread.test.mjs`，验证首轮发送、后续历史检查、供应商切换与失败重试。浏览器回归使用 `CHROME_PATH=/path/to/chromium node --test tests/browser/provider-empty-thread.mjs`，以现有生产构建、临时数据目录、模拟后端和真实 HTTPS/WSS 桥接实际键入消息并按 Ctrl+Enter 发送。修改前增加 `BROWSER_BEFORE=1` 记录首轮被历史检查拦截的状态；修改后验证请求实际转发及草稿清理。桌面、手机截图与构建来源保存在 `.cache/provider-empty-thread/before` 和 `after`。此修复保持页面布局，README 的已有任务截图继续适用。
+
 `.github/workflows/check.yml` 对分支推送和 PR 执行同一完整检查，使用只读仓库权限；同一引用有新检查时取消旧运行。发布工作流在版本标签上独立重复完整检查。
 
 状态容器和 RPC 客户端的单元回归分别位于 `client/tests/application-state.test.js` 和 `client/tests/rpc-client.test.js`。服务应用生命周期回归位于 `server/tests/application.test.mjs`，使用临时 HTTPS 服务验证实例缓存隔离、监听失败和关闭后连接清理。组件总入口 `tests/components/client.mjs` 只组织夹具和场景，新增场景放入对应模块；桥接订阅、写入与整理分别维护测试文件并复用 `tests/helpers/bridge.mjs`。

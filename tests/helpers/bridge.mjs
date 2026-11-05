@@ -103,6 +103,8 @@ export async function bridge(t, handle = () => undefined) {
     });
   });
   return {
+    origin: new URL(url).origin.replace("wss:", "https:"),
+    cookie: auth.cookie,
     requests,
     nativeConfig,
     respond,

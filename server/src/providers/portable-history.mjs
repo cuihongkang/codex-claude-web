@@ -25,13 +25,25 @@ export function createPortableHistory({
       needsSummary = false,
       summarized = false;
     do {
-      const page = await transport.call("thread/turns/list", {
-        threadId,
-        limit: 100,
-        itemsView: "full",
-        sortDirection: "desc",
-        ...(cursor && { cursor }),
-      });
+      let page;
+      try {
+        page = await transport.call("thread/turns/list", {
+          threadId,
+          limit: 100,
+          itemsView: "full",
+          sortDirection: "desc",
+          ...(cursor && { cursor }),
+        });
+      } catch (error) {
+        // 首条用户消息前尚无持久历史，可直接使用所选供应商开始轮次。
+        if (
+          !cursor &&
+          error.message ===
+            `thread ${threadId} is not materialized yet; thread/turns/list is unavailable before first user message`
+        )
+          return;
+        throw error;
+      }
       for (const turn of page.data || []) {
         for (const item of (turn.items || []).toReversed()) {
           if (item.type === "contextCompaction") {
