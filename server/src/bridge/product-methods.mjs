@@ -1,25 +1,30 @@
-import {
-  prepareProjectlessDirectory,
-  readProjectlessDirectories,
-} from "../thread-projects.mjs";
-import { readAgentMessages } from "../agent-messages.mjs";
+import { createProjectModels } from "../project-models.mjs";
+import { createFileOperations } from "./file-operations.mjs";
+import { prepareProjectlessDirectory } from "../thread-projects.mjs";
 
-// 不依赖后端连接的设置读取先执行，其余本地方法沿用后端就绪检查。
-export function createLocalMethods({
+// 网页操作在所属后端的执行边界内组合；运行状态与原生历史由调用方提供。
+export function createProductMethods({
   config,
-  projectModels,
+  projectModelsDirectory,
+  legacyProjectModelsDirectory,
   call,
+  activeTurns,
+  activeThreads,
   checkCompaction,
-  files,
+  readAgentMessages,
   broadcast,
 }) {
+  const projectModels = createProjectModels(
+    projectModelsDirectory,
+    legacyProjectModelsDirectory,
+  );
+  const files = createFileOperations({
+    call,
+    activeTurns,
+    activeThreads,
+    broadcast,
+  });
   const offline = new Map([
-    [
-      "lan/projectless/read",
-      async () => ({
-        directories: await readProjectlessDirectories(config.codexHome),
-      }),
-    ],
     [
       "lan/projectModels/read",
       async () => ({ projects: await projectModels.read() }),
@@ -37,10 +42,7 @@ export function createLocalMethods({
     ],
   ]);
   const online = new Map([
-    [
-      "lan/agents/messages",
-      ({ threadId }) => readAgentMessages(call, threadId),
-    ],
+    ["lan/agents/messages", ({ threadId }) => readAgentMessages(threadId)],
     [
       "lan/compaction/check",
       async ({ threadId }) => ({ compaction: await checkCompaction(threadId) }),
@@ -60,5 +62,5 @@ export function createLocalMethods({
     ],
     ["lan/files/undo", files.undo],
   ]);
-  return { offline, online };
+  return { offline, online, files };
 }

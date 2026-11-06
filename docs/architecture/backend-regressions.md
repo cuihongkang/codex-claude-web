@@ -32,6 +32,9 @@
 
 ## 验证入口
 
+- `server/tests/backend-product-contract.test.mjs`：两端实际适配器执行同一套网页操作，覆盖离线偏好、旧目录继承、保存成功通知、验证和写入失败后的重试、目录创建、整理占用及历史读取。传输为模拟 app-server，Claude 仅检查版本，原生模型执行单独验证。
+- `server/tests/codex-close-lifecycle.test.mjs` 与 `subscriptions.test.mjs`：取消订阅确认和实际关闭分别到达、顺序交换、断线清理及关闭后重新恢复。`tests/integration/codex-subscription-release.mjs` 通过真实 CLI 和适配器执行八组立即重新打开，使用人工历史，模型轮次数为零。原生响应语义见 [app-server 协议](https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md)。
+- `server/tests/backend-routing.test.mjs`：工作区根据适配器所有者声明路由，浏览器关闭只通过 `releaseClient` 释放所属代理；管理器保持与原生订阅集合隔离。`tests/architecture.test.mjs` 同时核对公共桥接、原生适配器和 HTTP 的依赖边界。
 - `client/tests/backend-connection-recovery.test.js` 与组件输入队列回归：单后端恢复、另一后端状态隔离、草稿保留及队列迟到隔离。
 - `client/tests/thread-order.test.js`：新旧目录、来源判定、明确归属、完整分页、活动排序及迟到事件。
 - `client/tests/backend-project-models.test.js`：激活后项目同步、原生默认强度、跨后端在途写入与缓存隔离。

@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { claudeCapabilities } from "../../../../shared/backend-capabilities.mjs";
+import { hasBackendWork } from "../../../../shared/backend-activity.mjs";
 import { launchWorker, workerLocation } from "./worker-launcher.mjs";
 import { workerRevision } from "./worker-revision.mjs";
 import {
@@ -20,7 +21,6 @@ export function createClaudeWorkerAdapter({
   config,
   send,
   broadcast,
-  workspace,
 }) {
   const location = workerLocation(backend);
   const options = {
@@ -96,17 +96,7 @@ export function createClaudeWorkerAdapter({
     broadcast(snapshot);
   }
   function busy() {
-    const p = snapshot.params;
-    return (
-      Object.keys(p.activeTurns || {}).length ||
-      Object.keys(p.backgroundTasks || {}).length ||
-      Object.keys(p.queuedInputs || {}).length ||
-      p.internalCommands?.length ||
-      p.questions?.length ||
-      Object.values(p.compactions || {}).some((entry) =>
-        ["starting", "running", "reconnecting"].includes(entry.status),
-      )
-    );
+    return hasBackendWork(snapshot.params);
   }
   function upgradeWhenIdle() {
     if (!outdated || !mayUpgrade || upgrading || busy() || closed) return;
@@ -312,7 +302,8 @@ export function createClaudeWorkerAdapter({
   }
   return {
     capabilities: claudeCapabilities,
-    subscriptions: new Map(),
+    workspaceOwner: "bridge",
+    releaseClient() {},
     state: () => snapshot,
     get ready() {
       return Boolean(socket && !socket.destroyed && snapshot.params.ready);
@@ -323,14 +314,6 @@ export function createClaudeWorkerAdapter({
     connect,
     async receive(client, message) {
       try {
-        if (message.method && workspace?.handles(message.method))
-          return send(client, {
-            id: message.id,
-            result: await workspace.request(
-              message.method,
-              message.params || {},
-            ),
-          });
         const response = await request("rpc", { message });
         if (response) send(client, response);
       } catch (error) {

@@ -33,6 +33,22 @@ test("架构检查识别文件膨胀、逆向依赖、跨端耦合和循环，�
   await file("client/src/application/react.js", "import 'react';\n");
   await file("server/src/http/router.mjs", "export const router = {};\n");
   await file("server/src/bridge/a.mjs", "import '../http/router.mjs';\n");
+  await file(
+    "server/src/backends/codex/adapter.mjs",
+    "export const adapter = {};\n",
+  );
+  await file(
+    "server/src/backends/claude/adapter.mjs",
+    "import '../codex/adapter.mjs';\n",
+  );
+  await file(
+    "server/src/bridge/product.mjs",
+    "import '../backends/claude/adapter.mjs';\n",
+  );
+  await file(
+    "server/src/http/backend.mjs",
+    "import '../backends/codex/adapter.mjs';\n",
+  );
   const { errors } = await inspectArchitecture(root);
   assert(errors.some((error) => error.includes("超过 500 行")));
   assert(errors.some((error) => error.includes("domain 层")));
@@ -42,4 +58,7 @@ test("架构检查识别文件膨胀、逆向依赖、跨端耦合和循环，�
   assert(errors.some((error) => error.includes("找不到依赖 ./missing.css")));
   assert(errors.some((error) => error.includes("核心逻辑通过参数和订阅")));
   assert(errors.some((error) => error.includes("桥接业务不能依赖 HTTP")));
+  assert(errors.some((error) => error.includes("公共桥接规则通过参数")));
+  assert(errors.some((error) => error.includes("原生适配器只能依赖所属后端")));
+  assert(errors.some((error) => error.includes("HTTP 处理器通过参数")));
 });

@@ -186,6 +186,7 @@ native.on("connection", (socket) =>
 );
 const config = readConfig({
   CODEX_HOME: directory,
+  CLAUDE_CONFIG_DIR: join(directory, "claude"),
   CLAUDEX_WEB_CONFIG_DIR: directory,
   HOST: "127.0.0.1",
   PORT: "0",

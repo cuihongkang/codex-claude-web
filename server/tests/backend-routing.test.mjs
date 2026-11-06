@@ -27,7 +27,10 @@ test("相同原生会话 ID 按实例路由，单实例故障保留另一实例�
     const adapter = {
       ready: true,
       capabilities: {},
-      subscriptions: new Map(),
+      workspaceOwner: "backend",
+      releaseClient(client) {
+        seen.push([backend.id, { released: client }]);
+      },
       state: () => ({
         params: { activeTurns: { same: "turn" }, questions: [] },
       }),
@@ -119,6 +122,48 @@ test("相同原生会话 ID 按实例路由，单实例故障保留另一实例�
     resourceId("claude", "same"),
   );
   assert.equal(notifications.at(-1).params.item.arguments.threadId, "literal");
+  adapters.get("claude").ready = true;
+  for (const backendId of ["codex", "claude"]) {
+    const adapter = adapters.get(backendId);
+    adapter.workspaceOwner = "bridge";
+    const before = seen.length;
+    const local = await call("fs/readDirectory", {
+      backendId,
+      path: directory,
+    });
+    assert.ok(
+      local.entries.some((entry) => entry.fileName === "backends.json"),
+    );
+    assert.equal(seen.length, before, "桥接拥有的工作区操作不发送到原生后端");
+    adapter.workspaceOwner = "backend";
+    await call("fs/readDirectory", { backendId, path: directory });
+    assert.equal(seen.at(-1)[0], backendId);
+    assert.equal(seen.at(-1)[1].method, "fs/readDirectory");
+  }
+  const browser = { readyState: 1, deliver() {} };
+  for (const backendId of ["codex", "claude"])
+    await manager.receive(browser, {
+      id: `release-${backendId}`,
+      method: "thread/read",
+      params: { threadId: resourceId(backendId, "same") },
+    });
+  const beforeRelease = seen.length;
+  manager.releaseClient(browser);
+  assert.deepEqual(
+    seen.slice(beforeRelease).map(([id]) => id),
+    ["codex", "claude"],
+  );
+  assert.ok(
+    seen
+      .slice(beforeRelease)
+      .every(([, message]) => message.released !== browser),
+  );
+  manager.releaseClient(browser);
+  assert.equal(
+    seen.length,
+    beforeRelease + 2,
+    "每个适配器只释放所属浏览器代理一次",
+  );
 });
 
 test("启用后端构造失败仍返回列表错误，未分类索引独立于当前后端", async (t) => {

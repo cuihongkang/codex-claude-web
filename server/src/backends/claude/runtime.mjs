@@ -10,6 +10,7 @@ import { createGoals } from "./goals.mjs";
 import { modelOptions } from "./model-options.mjs";
 import { providerModelEnvironment } from "./provider-environment.mjs";
 import { recoverClaudeSessions } from "./recovery.mjs";
+import { assertConversationOperation } from "../../bridge/conversation-policy.mjs";
 
 export function createClaudeRuntime({
   backend,
@@ -66,10 +67,14 @@ export function createClaudeRuntime({
     };
     await save(threadId, (session) => {
       if (!session) throw new Error("对话不存在");
-      if (compactions.busy(threadId))
-        throw new Error("正在整理上下文，请稍后发送");
-      if (compact && (running.has(threadId) || session.queue?.length))
-        throw new Error("请等待任务结束后整理上下文");
+      assertConversationOperation(
+        compact ? "thread/compact/start" : "turn/start",
+        {
+          compacting: compactions.busy(threadId),
+          active: running.has(threadId),
+          pending: session.queue?.length,
+        },
+      );
       return { ...session, queue: [...(session.queue || []), turn] };
     });
     if (compact) compactions.start(threadId, turn.id);
@@ -344,8 +349,9 @@ export function createClaudeRuntime({
       throw new Error("当前轮次已结束，请重新发送");
     if (params.expectedTurnId && params.expectedTurnId !== active.turn.id)
       throw new Error("当前轮次已变化，请重新发送");
-    if (compactions.busy(threadId))
-      throw new Error("正在整理上下文，请稍后发送");
+    assertConversationOperation("turn/steer", {
+      compacting: compactions.busy(threadId),
+    });
     inputMessage(params.input);
     const session = (await storage.read()).sessions[threadId];
     const queued = { id: randomUUID(), input: params.input };

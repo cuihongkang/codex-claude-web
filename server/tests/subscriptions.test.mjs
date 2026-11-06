@@ -179,7 +179,7 @@ test(
 );
 
 test(
-  "取消订阅期间重新打开对话，等待释放响应后恢复",
+  "取消订阅期间重新打开对话，确认响应后继续等待原生关闭再恢复",
   { timeout: 10000 },
   async (t) => {
     const app = await bridge(
@@ -198,7 +198,15 @@ test(
         .length,
       1,
     );
-    app.respond(request, { status: "unsubscribed" });
+    app.respond(request, { status: "unsubscribed" }, { closed: false });
+    await app.rpc(second, "test/barrier");
+    assert.equal(
+      app.requests.filter((request) => request.method === "thread/resume")
+        .length,
+      1,
+      "取消订阅响应尚未确认原生会话结束",
+    );
+    app.notify("thread/closed", { threadId: "reopen" });
     await reopened;
     await close(second);
     await waitFor(() => app.unsubscribed().length === 2);

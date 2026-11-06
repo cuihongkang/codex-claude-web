@@ -1,16 +1,23 @@
 import { join } from "node:path";
-import { createProjectModels } from "../project-models.mjs";
-import { createCompactions } from "../compaction.mjs";
-import { createThreadNaming, generateThreadName } from "../thread-names.mjs";
+import { codexCapabilities } from "../../../../shared/backend-capabilities.mjs";
+import { readAgentMessages } from "../../agent-messages.mjs";
+import { createCompactions } from "../../compaction.mjs";
+import { createThreadNaming, generateThreadName } from "../../thread-names.mjs";
 import { createUpstream } from "./upstream.mjs";
 import { createSubscriptions } from "./subscriptions.mjs";
 import { createCompactionRecovery } from "./compaction-recovery.mjs";
 import { createBridgeEvents } from "./events.mjs";
 import { createRequestHandler } from "./requests.mjs";
-import { createFileOperations } from "./file-operations.mjs";
-import { createLocalMethods } from "./local-methods.mjs";
+import { createProductMethods } from "../../bridge/product-methods.mjs";
 
-export function createBridge({ config, version, send, broadcast }) {
+export function createCodexAdapter({
+  backend,
+  config,
+  version,
+  send,
+  broadcast,
+}) {
+  config = { ...config, upstreamUrl: backend.url, codexHome: backend.dataDir };
   const questions = new Map();
   const activeTurns = new Map();
   const activeThreads = new Set();
@@ -61,23 +68,19 @@ export function createBridge({ config, version, send, broadcast }) {
     compactions,
     ...subscriptions,
   });
-  const files = createFileOperations({
+  const methods = createProductMethods({
+    config,
+    projectModelsDirectory: config.configDir,
+    legacyProjectModelsDirectory: join(config.codexHome, "codex-web"),
     call: transport.call,
     activeTurns,
     activeThreads,
-    broadcast,
-  });
-  const methods = createLocalMethods({
-    config,
-    projectModels: createProjectModels(
-      config.configDir,
-      join(config.codexHome, "codex-web"),
-    ),
-    call: transport.call,
     checkCompaction,
-    files,
+    readAgentMessages: (threadId) =>
+      readAgentMessages(transport.call, threadId),
     broadcast,
   });
+  const { files } = methods;
   const events = createBridgeEvents({
     questions,
     activeTurns,
@@ -110,10 +113,6 @@ export function createBridge({ config, version, send, broadcast }) {
       method: "lan/state",
       params: {
         ready: transport.ready,
-        version,
-        defaultCwd: config.defaultCwd,
-        projectlessRoot: config.projectlessRoot,
-        projectModels: true,
         questions: [...questions.values()],
         activeTurns: Object.fromEntries(activeTurns),
         compactions: Object.fromEntries(compactions.entries),
@@ -122,28 +121,19 @@ export function createBridge({ config, version, send, broadcast }) {
       },
     };
   }
-  function maintenanceState() {
-    return {
-      method: "lan/state",
-      params: {
-        ready: transport.ready,
-        activeTurns: Object.fromEntries(activeTurns),
-        compactions: Object.fromEntries(
-          [...compactions.entries].map(([id, entry]) => [
-            id,
-            { status: entry.status },
-          ]),
-        ),
-      },
-    };
-  }
   return {
+    capabilities: codexCapabilities,
+    workspaceOwner: "backend",
     state,
-    maintenanceState,
-    receive,
+    receive(client, message) {
+      if (!message.method) return receive(client, message);
+      const { providerId, ...params } = message.params || {};
+      if (providerId) throw new Error("Codex 使用现有账户与模型配置");
+      return receive(client, { ...message, params });
+    },
     connect: transport.connect,
     releaseUnusedThreads: subscriptions.releaseUnusedThreads,
-    subscriptions: subscriptions.subscriptions,
+    releaseClient: subscriptions.releaseClient,
     close() {
       threadNaming.clear();
       transport.close();

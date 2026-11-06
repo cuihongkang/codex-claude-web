@@ -1,5 +1,6 @@
-import { MAX_RPC_MESSAGE_BYTES } from "../rpc-transport.mjs";
+import { MAX_RPC_MESSAGE_BYTES } from "../../rpc-transport.mjs";
 import { threadMethods, loadedThreadMethods } from "./methods.mjs";
+import { assertConversationOperation } from "../../bridge/conversation-policy.mjs";
 export function createRequestHandler({
   transport,
   compactions,
@@ -47,39 +48,21 @@ export function createRequestHandler({
     }
     if (await dispatchLocal(online, client, message)) return;
     if (message.method) {
-      if (
-        [
-          "thread/revert",
-          "thread/rollback",
-          "turn/start",
-          "turn/steer",
-          "thread/compact/start",
-          "review/start",
-        ].includes(message.method) &&
-        compactions.busy(threadId)
-      ) {
-        send(client, {
-          id: message.id,
-          error: {
-            code: -32000,
-            message: "正在整理上下文，完成后可继续发送。",
-          },
-        });
-        return;
-      }
-      if (
-        message.method === "thread/compact/start" &&
-        (activeTurns.has(threadId) ||
-          activeThreads.has(threadId) ||
-          [...transport.pending.values()].some(
+      try {
+        assertConversationOperation(message.method, {
+          compacting: compactions.busy(threadId),
+          undoing: undoing.has(threadId),
+          active: activeTurns.has(threadId) || activeThreads.has(threadId),
+          pending: [...transport.pending.values()].some(
             (request) =>
               request.threadId === threadId &&
               ["turn/start", "review/start"].includes(request.method),
-          ))
-      ) {
+          ),
+        });
+      } catch (error) {
         send(client, {
           id: message.id,
-          error: { code: -32000, message: "请等待当前任务结束后整理上下文。" },
+          error: { code: -32000, message: error.message },
         });
         return;
       }
@@ -97,16 +80,6 @@ export function createRequestHandler({
         send(client, {
           id: message.id,
           result: result || { status: "unsubscribed" },
-        });
-        return;
-      }
-      if (undoing.has(threadId) && loadedThreadMethods.has(message.method)) {
-        send(client, {
-          id: message.id,
-          error: {
-            code: -32000,
-            message: "正在撤销文件修改，完成后可继续发送。",
-          },
         });
         return;
       }

@@ -13,6 +13,7 @@ import { createClaudeAdapter } from "./adapter.mjs";
 import { createBackendConfiguration } from "../configuration.mjs";
 import { createProviders } from "../providers.mjs";
 import { workerRevision } from "./worker-revision.mjs";
+import { hasBackendWork } from "../../../../shared/backend-activity.mjs";
 import {
   prepareWorkerDirectory,
   verifyWorkerSocket,
@@ -67,17 +68,7 @@ async function currentState() {
 }
 async function isBusy() {
   const { params } = await currentState();
-  return Boolean(
-    inflight ||
-    Object.keys(params.activeTurns || {}).length ||
-    Object.keys(params.backgroundTasks).length ||
-    Object.keys(params.queuedInputs).length ||
-    params.internalCommands?.length ||
-    params.questions?.length ||
-    Object.values(params.compactions || {}).some((item) =>
-      ["starting", "running", "reconnecting"].includes(item.status),
-    ),
-  );
+  return Boolean(inflight || hasBackendWork(params));
 }
 function send(socket, value) {
   if (!socket.destroyed) socket.write(JSON.stringify(value) + "\n");

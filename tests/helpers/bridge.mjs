@@ -26,8 +26,20 @@ export async function bridge(t, handle = () => undefined) {
     sockets = [];
   let upstream,
     sequence = 1;
-  const respond = (request, result) =>
+  const respond = (request, result, { closed = true } = {}) => {
     upstream.send(JSON.stringify({ id: request.id, result }));
+    if (
+      request.method === "thread/unsubscribe" &&
+      result.status === "unsubscribed" &&
+      closed
+    )
+      upstream.send(
+        JSON.stringify({
+          method: "thread/closed",
+          params: { threadId: request.params.threadId },
+        }),
+      );
+  };
   backend.on("connection", (socket) => {
     upstream = socket;
     socket.on("message", (bytes) => {

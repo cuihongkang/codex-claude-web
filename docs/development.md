@@ -89,6 +89,8 @@ package-lock.json      全项目依赖锁文件
 
 双后端的统一范围由[产品契约](architecture/backends.md)定义；`shared/product-contract.mjs` 只注册工作区和对话方法的路由分组。原生能力分别接入统一用例，文件与网页终端由共用工作区服务提供。文件模糊查询按所属后端路由，Codex 保留原生 app-server 调用，Claude Code 使用原生 `file_suggestions` 控制请求及 CLI 文件索引；两端共用输入建议，回归同时核对原有 Codex 路径和 Claude 新增实现。CLI/SDK 生命周期、原生历史及参数发生变化时，同时检查首次请求、流式展示、轮次完成、刷新恢复和错误重试。Claude 执行服务通过受限本机 IPC 独立于网页桥接运行，网页关闭仅释放连接；源码与安装来源的代码身份按实际发行文件计算。
 
+公共网页操作在 `server/src/bridge` 维护，原生适配分别位于 `server/src/backends/codex` 和 `server/src/backends/claude`。调整适配器接口时执行 `node --test server/tests/backend-product-contract.test.mjs server/tests/backend-routing.test.mjs`，核对两端的离线偏好、保存通知、失败重试、目录创建、整理写入限制、工作区所有者声明和浏览器代理释放。产品契约夹具使用真实适配器与模拟 app-server，Claude 只执行进程版本检查；真实 CLI/SDK 的执行与恢复由下述验收覆盖。架构检查同时禁止公共桥接依赖具体后端和原生适配器之间的交叉依赖。
+
 真实 Claude Code 回归使用临时配置、原生会话和隔离 Messages 服务。执行持久化场景需要可访问的 systemd 用户管理器，以实际独立 service 和 cgroup 验证生产部署；指定本机已安装的可执行文件：
 
 ```bash
@@ -112,6 +114,8 @@ CODEX_VALIDATION_HOME=/absolute/path/to/configured-codex-home CODEX_EXECUTABLE=/
 ```
 
 `CODEX_MODEL` 可选，用于指定验收模型。`codex-native-lifecycle.mjs` 通过真实 app-server 与配置的模型执行文件写入和读取、原生文件建议、服务重启后继续同一对话、分支及原生历史读取；2026-11-06 已验证 `codex-cli 0.162.1` 的三个真实轮次。具体结果保存在 `.cache/backend-acceptance/codex-live.json`，与浏览器中的 Codex 协议夹具分别记录。
+
+`CODEX_EXECUTABLE=/absolute/path/to/codex node tests/integration/codex-subscription-release.mjs` 使用真实 app-server、人工持久历史及实际 Codex 适配器，连续执行八组立即重新打开的操作，验证取消订阅确认与 `thread/closed` 之间的等待。此测试使用临时原生目录，模型轮次数为零；`server/tests/codex-close-lifecycle.test.mjs` 另覆盖关闭早于确认、无需关闭的状态和断线失败，HTTPS/WSS 订阅回归覆盖确认后关闭延迟到达。
 
 完整 Codex 网页操作使用相同的隔离配置和真实 app-server：
 

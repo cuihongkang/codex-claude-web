@@ -2,7 +2,7 @@ import { createCliInstallation } from "./cli-installation.mjs";
 import { join } from "node:path";
 import { readProjectlessDirectories } from "../thread-projects.mjs";
 import { createWorkspace } from "../workspace/service.mjs";
-import { isCompacting } from "../../../shared/compaction-state.mjs";
+import { hasBackendWork } from "../../../shared/backend-activity.mjs";
 import {
   resourceTarget,
   resourceId,
@@ -12,9 +12,14 @@ import {
   validateBackend,
 } from "./configuration.mjs";
 import { createProviders } from "./providers.mjs";
-import { createCodexAdapter } from "./codex-adapter.mjs";
+import { createCodexAdapter } from "./codex/adapter.mjs";
 import { createClaudeWorkerAdapter } from "./claude/worker-client.mjs";
 import { mapResult, mapState, nativeParams } from "./identity-mapping.mjs";
+
+const adapterFactories = {
+  codex: createCodexAdapter,
+  claude: createClaudeWorkerAdapter,
+};
 
 export function createBackendManager({
   config,
@@ -101,17 +106,12 @@ export function createBackendManager({
     instances.set(backend.id, entry);
     if (!backend.enabled) return;
     try {
-      const factory =
-        factories[backend.type] ||
-        (backend.type === "codex"
-          ? createCodexAdapter
-          : createClaudeWorkerAdapter);
+      const factory = factories[backend.type] || adapterFactories[backend.type];
       entry.adapter = factory({
         backend,
         config,
         version,
         providers,
-        workspace,
         send(client, message) {
           client.deliver(message);
         },
@@ -228,14 +228,7 @@ export function createBackendManager({
     validateBackend(params, config);
     const old = instances.get(params.id);
     const snapshot = old?.adapter?.state().params;
-    if (
-      Object.keys(snapshot?.activeTurns || {}).length ||
-      snapshot?.internalCommands?.length ||
-      snapshot?.questions?.length ||
-      Object.keys(snapshot?.backgroundTasks || {}).length ||
-      Object.keys(snapshot?.queuedInputs || {}).length ||
-      Object.values(snapshot?.compactions || {}).some(isCompacting)
-    )
+    if (hasBackendWork(snapshot))
       throw new Error("请等待此后端的任务结束后修改配置。");
     if (old) old.changing = true;
     try {
@@ -269,8 +262,6 @@ export function createBackendManager({
       params.threadId ?? params.processId ?? (!method ? message.id : null),
       fallback,
     );
-    if (workspace.handles(method) && target.backendId !== "codex")
-      return reply(await workspace.request(method, params));
     if (method === "lan/projectless/read")
       return reply({
         directories: await readProjectlessDirectories(
@@ -336,6 +327,8 @@ export function createBackendManager({
     if (method === "thread/list" && !params.backendId)
       return reply(await listThreads(params));
     const entry = instance(target.backendId);
+    if (workspace.handles(method) && entry.adapter.workspaceOwner === "bridge")
+      return reply(await workspace.request(method, params));
     const recipient = proxy(entry, client);
     recipient.methods.set(message.id, method);
     await entry.adapter.receive(recipient, {
@@ -347,10 +340,8 @@ export function createBackendManager({
   function releaseClient(client) {
     for (const entry of instances.values()) {
       const recipient = entry.proxies.get(client);
-      for (const owners of entry.adapter?.subscriptions?.values() || [])
-        owners.delete(recipient);
       entry.proxies.delete(client);
-      entry.adapter?.releaseUnusedThreads();
+      if (recipient) entry.adapter?.releaseClient(recipient);
     }
   }
   return {

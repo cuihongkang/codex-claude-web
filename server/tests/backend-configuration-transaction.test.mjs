@@ -50,7 +50,7 @@ async function fixture(t, shutdown = async () => {}, installation) {
     const adapter = {
       ready: false,
       capabilities: {},
-      subscriptions: new Map(),
+      releaseClient() {},
       snapshot: { activeTurns: {}, compactions: {}, questions: [] },
       state: () => ({ params: adapter.snapshot }),
       connect() {

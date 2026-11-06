@@ -2,18 +2,14 @@ import { createClaudeAccount } from "./account.mjs";
 import { configuredTokenUsage } from "./token-usage.mjs";
 import { createClaudeCatalogue } from "./catalogue.mjs";
 import { createClaudeSessions } from "./sessions.mjs";
-import { createFileOperations } from "../../bridge/file-operations.mjs";
+import { createProductMethods } from "../../bridge/product-methods.mjs";
+import { assertConversationOperation } from "../../bridge/conversation-policy.mjs";
 import { join } from "node:path";
 import { claudeCapabilities } from "../../../../shared/backend-capabilities.mjs";
 import { createStorage } from "../storage.mjs";
 import { createSessionReader, page } from "./history.mjs";
 import { createClaudeRuntime } from "./runtime.mjs";
 import { createCompactions } from "../../compaction.mjs";
-import { createProjectModels } from "../../project-models.mjs";
-import {
-  prepareProjectlessDirectory,
-  readProjectlessDirectories,
-} from "../../thread-projects.mjs";
 import { createWorkspace } from "../../workspace/service.mjs";
 
 export function createClaudeAdapter({
@@ -33,7 +29,6 @@ export function createClaudeAdapter({
   const readSession = createSessionReader(backend);
   const questions = new Map();
   const compactions = createCompactions(broadcast);
-  const projectModels = createProjectModels(backend.stateDir);
   const workspace = sharedWorkspace || createWorkspace({ broadcast });
   const runtime = createClaudeRuntime({
     backend,
@@ -54,12 +49,18 @@ export function createClaudeAdapter({
     catalogue,
     queries: runtime.queries,
   });
-  const files = createFileOperations({
+  const methods = createProductMethods({
+    config,
+    projectModelsDirectory: backend.stateDir,
+    checkCompaction: (threadId) => compactions.entries.get(threadId) || null,
+    readAgentMessages: (threadId) =>
+      sessions.request("lan/agents/messages", { threadId }),
     call: dispatch,
     activeTurns: runtime.running,
     activeThreads: runtime.running,
     broadcast,
   });
+  const { files } = methods;
   let ready = false,
     version = "",
     error = null;
@@ -112,6 +113,18 @@ export function createClaudeAdapter({
   });
   const { session, update } = sessions;
   async function dispatch(method, p) {
+    const offline = methods.offline.get(method);
+    if (offline) return offline(p);
+    const online = methods.online.get(method);
+    if (online) {
+      assertReady();
+      return online(p);
+    }
+    assertConversationOperation(method, {
+      compacting: compactions.busy(p.threadId),
+      undoing: files.undoing.has(p.threadId),
+      active: runtime.running.has(p.threadId),
+    });
     if (sessions.handles(method)) return sessions.request(method, p);
     if (method === "fuzzyFileSearch") {
       const context = p.threadId ? await session(p.threadId) : p;
@@ -146,17 +159,6 @@ export function createClaudeAdapter({
         review: true,
       });
     }
-    if (method === "lan/projectModels/read")
-      return { projects: await projectModels.read() };
-    if (method === "lan/projectModels/set")
-      return { projects: await projectModels.set(p) };
-    if (method === "lan/projectless/read")
-      return { directories: await readProjectlessDirectories(backend.dataDir) };
-    if (method === "lan/projectless/prepare")
-      return {
-        cwd: await prepareProjectlessDirectory(config.projectlessRoot),
-        root: config.projectlessRoot,
-      };
     if (method === "fs/readFile") {
       const context = p.threadId ? await session(p.threadId) : p;
       return catalogue.readFile(
@@ -248,8 +250,6 @@ export function createClaudeAdapter({
       method === "thread/compact/start"
     ) {
       if (!ready) throw new Error(error || "Claude Code 尚未就绪");
-      if (files.undoing.has(p.threadId))
-        throw new Error("正在撤销文件修改，请稍候");
       if (method === "turn/steer") return runtime.steer(p.threadId, p);
       const result = await runtime.enqueue(
         p.threadId,
@@ -259,8 +259,6 @@ export function createClaudeAdapter({
       return method === "turn/start" ? result : {};
     }
     if (method === "turn/interrupt") return runtime.interrupt(p.threadId);
-    if (method === "lan/compaction/check")
-      return { compaction: compactions.entries.get(p.threadId) || null };
     if (method === "lan/inputQueue/list")
       return { entries: (await session(p.threadId)).queue || [] };
     if (method === "lan/inputQueue/retry") {
@@ -289,13 +287,13 @@ export function createClaudeAdapter({
       notify("lan/inputQueue/updated", { threadId: p.threadId });
       return {};
     }
-    if (method === "lan/files/undo") return files.undo(p);
     throw new Error(`Claude Code 暂不支持此操作：${method}`);
   }
   return {
     capabilities: claudeCapabilities,
+    workspaceOwner: "bridge",
     state,
-    subscriptions: new Map(),
+    releaseClient() {},
     releaseUnusedThreads() {
       runtime
         .releaseUnusedThreads()

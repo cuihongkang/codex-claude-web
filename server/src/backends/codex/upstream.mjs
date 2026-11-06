@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { sendRpcText } from "../rpc-transport.mjs";
+import { sendRpcText } from "../../rpc-transport.mjs";
 
 export function createUpstream({
   config,

@@ -1,7 +1,7 @@
 import {
   findCompactionTurn,
   recoverCompaction,
-} from "../../../shared/compaction-state.mjs";
+} from "../../../../shared/compaction-state.mjs";
 export function createCompactionRecovery({
   transport,
   compactions,
