@@ -68,8 +68,8 @@ try {
     .first()
     .click();
   await page.getByRole("button", { name: "设置", exact: true }).click();
-  await page.getByText("模型与服务配置", { exact: true }).click();
-  await page.getByText("供应商与模型", { exact: true }).click();
+  await page.locator(".backend-settings").waitFor();
+  await page.locator(".provider-settings").waitFor();
   await page
     .locator(".backend-heading")
     .filter({ hasText: "示例供应商" })

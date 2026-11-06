@@ -44,6 +44,7 @@ export function backendFixture(data) {
   const backends = ["codex", "claude"].map((id) => ({
     id,
     type: id,
+    name: id === "codex" ? "Codex" : "Claude Code",
     enabled: true,
     ready: true,
   }));

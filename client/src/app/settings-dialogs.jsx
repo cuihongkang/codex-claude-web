@@ -34,21 +34,6 @@ export function SettingsDialog() {
           </button>
         ))}
       </div>
-      <h3>快捷键</h3>
-      <div className="shortcut-list">
-        <span>
-          搜索对话<kbd>Ctrl / ⌘ K</kbd>
-        </span>
-        <span>
-          新对话<kbd>Ctrl / ⌘ Shift O</kbd>
-        </span>
-        <span>
-          显示终端<kbd>Ctrl / ⌘ `</kbd>
-        </span>
-        <span>
-          消息换行<kbd>Enter</kbd>
-        </span>
-      </div>
       <h3>关于</h3>
       <VersionDetails />
     </div>

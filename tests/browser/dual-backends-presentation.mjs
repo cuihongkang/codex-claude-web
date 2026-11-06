@@ -186,7 +186,7 @@ export async function testDualPresentation({
       0,
     );
   await page.getByRole("button", { name: "设置", exact: true }).click();
-  await page.getByText("模型与服务配置", { exact: true }).click();
+  await page.locator(".backend-settings").waitFor();
   assert.equal(
     await page.getByRole("button", { name: "添加后端", exact: true }).count(),
     0,
@@ -199,7 +199,7 @@ export async function testDualPresentation({
     await codexCard.getByText("供应商与模型", { exact: true }).count(),
     0,
   );
-  await page.getByText("供应商与模型", { exact: true }).click();
+  await page.locator(".provider-settings").waitFor();
   await page.getByRole("button", { name: "添加供应商", exact: true }).click();
   await page.getByLabel("名称", { exact: true }).fill("第三供应商");
   await page.getByLabel("API 地址", { exact: true }).fill(modelServer.url);

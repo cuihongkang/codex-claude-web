@@ -93,8 +93,12 @@
   overflow: auto;
   padding: 0 1.846154rem 1.769231rem;
 }
-.settings-body > h3 {
-  font-size: 0.923077rem;
+.modal-settings .modal-heading h2 {
+  font-size: 1.538462rem;
+}
+.settings-body > h3,
+.backend-settings > h3 {
+  font-size: 1.153846rem;
   margin: 1.538462rem 0 1rem;
   font-weight: 600;
 }
@@ -198,19 +202,6 @@
   align-items: baseline;
   gap: 0.307692rem;
   white-space: nowrap;
-}
-.shortcut-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.923077rem;
-}
-.shortcut-list > span {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.923077rem;
-}
-.shortcut-list kbd {
-  font-size: 0.846154rem;
 }
 .connection-banner {
   font-size: 0.846154rem;

@@ -2,6 +2,16 @@
   cursor: pointer;
   padding-block: 0.5em;
 }
+.provider-settings {
+  display: grid;
+  justify-items: start;
+  gap: 0.5em;
+  margin-top: 0.65em;
+  min-width: 0;
+}
+.provider-settings > .backend-form {
+  width: 100%;
+}
 .backend-card {
   border-block-end: 1px solid var(--border);
   padding-block: 0.65em;

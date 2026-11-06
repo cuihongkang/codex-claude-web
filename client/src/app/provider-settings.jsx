@@ -20,8 +20,7 @@ export function ProviderSettings({ backend }) {
     };
   }, [backend.id]);
   return (
-    <details>
-      <summary>供应商与模型</summary>
+    <div className="provider-settings">
       {providers.map((p) => (
         <div className="backend-heading" key={p.id}>
           <span>{p.name}</span>
@@ -230,6 +229,6 @@ export function ProviderSettings({ backend }) {
         </form>
       )}
       {error && <p role="alert">{error}</p>}
-    </details>
+    </div>
   );
 }

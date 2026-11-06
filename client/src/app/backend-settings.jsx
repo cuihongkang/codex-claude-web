@@ -20,8 +20,11 @@ export function BackendSettings() {
     }
   }
   return (
-    <details className="backend-settings">
-      <summary>模型与服务配置</summary>
+    <section
+      className="backend-settings"
+      aria-labelledby="backend-settings-title"
+    >
+      <h3 id="backend-settings-title">模型与服务配置</h3>
       {s.backends.map((backend) => (
         <section className="backend-card" key={backend.id}>
           <div className="backend-heading">
@@ -125,6 +128,6 @@ export function BackendSettings() {
         </form>
       )}
       {error && <p role="alert">{error}</p>}
-    </details>
+    </section>
   );
 }
