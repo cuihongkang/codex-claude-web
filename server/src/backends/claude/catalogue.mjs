@@ -146,7 +146,12 @@ export function createClaudeCatalogue({
                   )
                 : provider.modelCapabilities?.[value];
             return modelRecord(
-              metadata ? { ...metadata, value } : { value },
+              {
+                ...metadata,
+                value,
+                displayName:
+                  provider.modelAliases?.[value] || metadata?.displayName,
+              },
               provider.id,
             );
           })

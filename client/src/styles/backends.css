@@ -115,3 +115,56 @@
   opacity: 0.5;
   cursor: default;
 }
+
+.provider-model-names {
+  display: grid;
+  gap: 0.4em;
+  min-width: 0;
+}
+.provider-model-heading {
+  color: var(--muted);
+  font-size: 0.923077rem;
+}
+.provider-model-name {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.6em;
+  overflow: hidden;
+}
+.backend-settings .provider-model-name > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75em;
+  padding: 0.65em 0.8em;
+  list-style: none;
+}
+.provider-model-name > summary::-webkit-details-marker {
+  display: none;
+}
+.provider-model-name > summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.provider-model-name > summary > svg {
+  color: var(--muted);
+}
+.provider-model-name[open] > summary {
+  background: var(--subtle);
+}
+.provider-model-name-fields {
+  padding: 0.8em;
+  border-top: 1px solid var(--border);
+}
+.provider-model-name-fields p {
+  font-size: 0.846154rem;
+  color: var(--muted);
+  margin: 0.75em 0 0;
+}
+.provider-model-name-fields p span {
+  display: block;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}

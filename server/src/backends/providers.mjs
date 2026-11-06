@@ -50,6 +50,12 @@ export function createProviders(configuration) {
       new Set(models).size !== models.length
     )
       throw new Error("请填写不重复的模型标识");
+    const modelAliases = {};
+    for (const [model, alias] of Object.entries(input.modelAliases || {})) {
+      if (!models.includes(model) || typeof alias !== "string")
+        throw new Error("模型显示别名无效");
+      if (alias.trim()) modelAliases[model] = alias.trim();
+    }
     const modelCapabilities = input.modelCapabilities || {};
     for (const [model, metadata] of Object.entries(modelCapabilities)) {
       if (
@@ -80,6 +86,14 @@ export function createProviders(configuration) {
         protocol,
         baseUrl: url.href.replace(/\/$/, ""),
         models,
+        modelAliases:
+          input.modelAliases === undefined
+            ? Object.fromEntries(
+                Object.entries(previous?.modelAliases || {}).filter(([model]) =>
+                  models.includes(model),
+                ),
+              )
+            : modelAliases,
         modelCapabilities:
           input.modelCapabilities === undefined
             ? Object.fromEntries(

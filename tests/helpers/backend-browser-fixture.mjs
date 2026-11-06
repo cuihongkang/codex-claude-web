@@ -47,6 +47,20 @@ export function backendFixture(data) {
     enabled: true,
     ready: true,
   }));
+  let providers = data.providerModelNames
+    ? [
+        {
+          id: "vendor",
+          backendId: "claude",
+          name: "示例供应商",
+          baseUrl: "https://example.org",
+          models: [
+            "provider/team/very-long-custom-model-identifier-for-alias-testing",
+          ],
+          modelAliases: {},
+        },
+      ]
+    : [];
   window.fixtureRequests = [];
   window.WebSocket = class {
     static OPEN = 1;
@@ -89,7 +103,11 @@ export function backendFixture(data) {
       if (m.method === "thread/list") result = { data: threads };
       if (m.method === "lan/projectless/read")
         result = { directories: { desktop: threads[1].cwd } };
-      if (m.method === "lan/providers/list") result = { providers: [] };
+      if (m.method === "lan/providers/list") result = { providers };
+      if (m.method === "lan/providers/save") {
+        providers = [{ ...p }];
+        result = { providers };
+      }
       if (m.method === "model/list")
         result = {
           data: [
@@ -116,6 +134,19 @@ export function backendFixture(data) {
           ],
           defaultReasoningEffort: "high",
         });
+      if (
+        data.providerModelNames &&
+        m.method === "model/list" &&
+        p.providerId === "vendor"
+      )
+        result = {
+          data: providers[0].models.map((model) => ({
+            id: model,
+            model,
+            displayName: providers[0].modelAliases?.[model] || model,
+            supportedReasoningEfforts: [],
+          })),
+        };
       if (m.method === "fs/readDirectory")
         result = {
           entries: [{ fileName: "notes.md", isFile: true, isDirectory: false }],

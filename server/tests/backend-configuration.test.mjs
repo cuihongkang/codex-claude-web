@@ -48,10 +48,25 @@ test("配置恢复、独立凭据及失败写入保留旧配置", async (t) => {
     baseUrl: "https://example.org",
     models: ["model"],
     apiKey: "test-secret",
+    modelAliases: { model: "  日常模型  " },
     modelCapabilities: {
       model: { supportedEffortLevels: [], contextWindow: 196608 },
     },
   });
+  assert.equal((await providers.list())[0].modelAliases.model, "日常模型");
+  const persisted = createProviders(createBackendConfiguration(config));
+  assert.equal((await persisted.list())[0].modelAliases.model, "日常模型");
+  await assert.rejects(
+    providers.save({
+      id: "vendor",
+      backendId: "claude",
+      name: "供应商",
+      baseUrl: "https://example.org",
+      models: ["model"],
+      modelAliases: { unknown: "别名" },
+    }),
+    /模型显示别名无效/,
+  );
   assert.equal(
     (await providers.list())[0].modelCapabilities.model.contextWindow,
     196608,
@@ -81,6 +96,8 @@ test("配置恢复、独立凭据及失败写入保留旧配置", async (t) => {
     models: ["other"],
   });
   assert.equal((await providers.get("claude", "vendor")).apiKey, "test-secret");
+  assert.deepEqual((await providers.list())[0].modelAliases, {});
+  assert.deepEqual((await providers.list())[0].models, ["other"]);
   assert.equal((await stat(config.backendsFile)).mode & 0o777, 0o600);
   assert.equal(
     (await createBackendConfiguration(config).read()).backends.length,

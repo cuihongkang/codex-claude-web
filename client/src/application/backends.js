@@ -155,11 +155,17 @@ export function createBackends({
       ...provider,
       modelRecords:
         catalogues[index].status === "fulfilled"
-          ? catalogues[index].value.data
+          ? catalogues[index].value.data.map((model) => ({
+              ...model,
+              displayName:
+                provider.modelAliases?.[model.model] ||
+                model.displayName ||
+                model.model,
+            }))
           : provider.models.map((model) => ({
               id: model,
               model,
-              displayName: model,
+              displayName: provider.modelAliases?.[model] || model,
               supportedReasoningEfforts: [],
             })),
     }));
@@ -209,7 +215,7 @@ export function createBackends({
         ? provider.models.map((model) => ({
             id: model,
             model,
-            displayName: model,
+            displayName: provider.modelAliases?.[model] || model,
             supportedReasoningEfforts: [],
           }))
         : id === "claude"
@@ -290,7 +296,7 @@ export function createBackends({
         ? provider.models.map((model) => ({
             id: model,
             model,
-            displayName: model,
+            displayName: provider.modelAliases?.[model] || model,
             supportedReasoningEfforts: [],
           }))
         : get().modelChoices.filter(

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { ProviderModelNames } from "./provider-model-names.jsx";
 import { rpc, saveProvider } from "../store.js";
 export function ProviderSettings({ backend }) {
   const [providers, setProviders] = useState([]),
@@ -24,7 +25,11 @@ export function ProviderSettings({ backend }) {
       {providers.map((p) => (
         <div className="backend-heading" key={p.id}>
           <span>{p.name}</span>
-          <small>{p.models.join("、")}</small>
+          <small>
+            {p.models
+              .map((model) => p.modelAliases?.[model] || model)
+              .join("、")}
+          </small>
           <button onClick={() => setEditing(p)}>编辑</button>
         </div>
       ))}
@@ -48,6 +53,15 @@ export function ProviderSettings({ backend }) {
                 name: values.get("name"),
                 baseUrl: values.get("baseUrl"),
                 protocol: values.get("protocol"),
+                modelAliases: Object.fromEntries(
+                  editing.models
+                    .map((model) => model.trim())
+                    .filter(Boolean)
+                    .map((model) => [
+                      model,
+                      values.get("alias-" + model) || "",
+                    ]),
+                ),
                 modelCapabilities: Object.fromEntries(
                   editing.models
                     .map((model) => model.trim())
@@ -142,6 +156,10 @@ export function ProviderSettings({ backend }) {
               rows={3}
             />
           </label>
+          <ProviderModelNames
+            models={editing.models}
+            aliases={editing.modelAliases}
+          />
           <details>
             <summary>模型参数</summary>
             {editing.models
