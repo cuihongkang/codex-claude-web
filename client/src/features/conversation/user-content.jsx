@@ -3,9 +3,11 @@ import { FileCode, Paperclip, Folder, Sparkles } from "lucide-react";
 import { set } from "../../store.js";
 import { MessageImage } from "../markdown/message-image.jsx";
 import { UserAnnotations } from "../annotations/message-annotations.jsx";
+import { planApprovalLabel } from "../../domain/plans.js";
 import { parseUserMessage } from "../../domain/user-message.js";
 export function Content({ content, cwd }) {
   const parsed = parseUserMessage(content);
+  parsed.text = planApprovalLabel(parsed.text);
   const used = new Set();
   const parts = [];
   let offset = 0;

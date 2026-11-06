@@ -1,3 +1,4 @@
+import { testPlans } from "./plans.mjs";
 import { testServiceTierControls } from "./service-tier-controls.mjs";
 import { testReasoningControls } from "./reasoning-controls.mjs";
 import { testProjectFolders } from "./project-folders.mjs";
@@ -221,6 +222,7 @@ await testMermaid(app);
       (respond) => (fixture.responseFor = respond),
       (method, params) => fixture.socket.emit(method, params),
     );
+    await testPlans(app, fixture);
     await testProcessTiming(
       app,
       requests,

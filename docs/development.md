@@ -93,6 +93,8 @@ package-lock.json      全项目依赖锁文件
 
 项目模型偏好回归执行 `CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，使用生产构建、隔离的 Atlas/Beacon 项目与模拟后端，通过模型选择框和强度滑块的键盘操作验证保留强度、最近档位、项目切换、刷新恢复及实际发送参数，保存桌面深浅主题和手机截图。修改前的构建及来源分别保存在 `.cache/project-model-before/dist` 和 `.cache/project-model-before/build-info.json`，以 `BROWSER_BEFORE=1` 复现切换模型重置强度；执行证据写入 `.cache/project-model-browser/`。组件回归同时覆盖历史及迟到恢复、未分类隔离和选择目录时保留草稿附件。README 图片使用当前生产构建重新生成，并通过 Markdown HTML 浏览器回归检查加载与排版。
 
+已有对话模型隔离回归使用 `EXISTING_MODEL=1 CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，以项目默认模型 C 与已有对话模型 A 的隔离数据验证打开、刷新、实际发送及从新建界面返回已有对话，并保存桌面深浅主题和手机截图。修改前将生产构建和构建来源保存到 `.cache/existing-model-before/dist` 与 `.cache/existing-model-before/build-info.json`，增加 `BROWSER_BEFORE=1` 复现覆盖；证据写入 `.cache/existing-model-browser/`。组件回归另覆盖重连初始化、恢复及迟到响应期间手动调整。README 及其他文档现有截图展示常规对话，模型选择器的外观与布局保持一致，相关图片继续适用。
+
 同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CODEX_HOME` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
 
 ```bash
@@ -254,3 +256,9 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 编辑框尺寸的修改前对照可使用 `EDIT_SIZE_BEFORE=1`，并通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定修改前的生产构建和来源；结果保存在 `.cache/message-edit-size-before/browser/`。README 现有图片展示普通消息与文件预览，原地编辑框的尺寸变化通过专项浏览器截图核对。
 
 编辑框样式的修改前对照使用 `EDIT_STYLE_BEFORE=1` 并指定旧构建及来源，记录实际输入区与消息编辑框的背景、聚焦和失焦边框、阴影及发送按钮配色；结果保存在 `.cache/message-edit-style-before/browser/`。当前构建同时比较浅色、深色及跟随系统深色，确认两处输入区域使用一致的视觉反馈。
+
+### 计划模式回归
+
+执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/plans.mjs`。脚本使用生产构建和隔离历史，验证默认部分预览、点击与键盘展开收起、刷新恢复默认折叠、修改意见使用计划模式、批准以默认模式提交完整方案、失败重试、刷新及草稿保留；深浅主题覆盖 80%、100%、125%、150% 和 200% 缩放，并检查窄屏点击区域和横向溢出。截图、发送参数和构建来源保存在 `.cache/plans-browser`。`BROWSER_BEFORE=1 BROWSER_BUILD_DIR=/path/to/old/dist` 可在同一夹具中核对旧版正文折叠与缺少批准入口，证据保存在 `.cache/plans-before/browser`。领域与组件回归补充流式更新、重复点击、失败轮次、只读展示和切换对话后的迟到结果。
+
+客户端行为核对依据为 Codex VS Code 扩展 `26.1021.22027` 的本机打包资源：`webview/assets/src-622b307a9baf.js` 中的 `item/plan/delta` 分派和计划执行状态，以及 `pending-request-item-panel-d13bffae20bf.js` 中的批准与修改处理。客户端批准选择默认模式并提交完整方案，修改意见继续使用计划模式；网页沿用这一提交语义，并依据 `plan-summary-item-content-27c95dedbba3.js` 的正文预览与展开交互，主对话调用在 `local-conversation-turn-6d79d254d102.js` 显式传入 `defaultCollapsed: true`；预览正文高度为 320 像素，底部渐隐并提供展开按钮。网页以字体相对尺寸实现同一预览高度，并在提交成功后更新模式，使失败请求保留重试状态。README 已有截图使用普通任务与文件预览，当前计划卡片的变化不影响这些图片的内容及说明。

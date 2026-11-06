@@ -1,3 +1,4 @@
+import { planApprovalLabel } from "./plans.js";
 import { parseAnnotations } from "./annotations.js";
 
 export function fileReferenceInput(file) {
@@ -62,7 +63,7 @@ export function parseUserMessage(content = []) {
 export function userMessageText(content) {
   const { text, annotations, references } = parseUserMessage(content);
   return [
-    text,
+    planApprovalLabel(text),
     ...annotations.map(
       (entry, index) => `注释 ${index + 1}：${entry.annotation || entry.text}`,
     ),

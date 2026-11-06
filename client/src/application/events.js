@@ -198,7 +198,12 @@ export function createEvents({
       set({ plans: { ...get().plans, [p.threadId]: p } });
     if (p.threadId !== get().current?.id) return;
     if (method === "thread/settings/updated")
-      set({ serviceTier: p.threadSettings.serviceTier ?? null });
+      set({
+        serviceTier: p.threadSettings.serviceTier ?? null,
+        ...(p.threadSettings.collaborationMode?.mode && {
+          mode: p.threadSettings.collaborationMode.mode,
+        }),
+      });
     if (method === "error") report(p.error || p.message || "任务失败");
     if (method === "item/started" || method === "item/completed") {
       if (p.item.type === "contextCompaction") {
@@ -238,10 +243,10 @@ export function createEvents({
         ...(questionId ? { questionId } : {}),
       });
     }
-    if (method === "item/agentMessage/delta") {
+    if (method === "item/agentMessage/delta" || method === "item/plan/delta") {
       const i = get().items.find((i) => i.id === p.itemId) || {
         id: p.itemId,
-        type: "agentMessage",
+        type: method === "item/plan/delta" ? "plan" : "agentMessage",
         text: "",
         turnId: p.turnId,
       };

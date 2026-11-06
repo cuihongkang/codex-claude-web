@@ -1,3 +1,4 @@
+import { pendingPlan, planImplementationText } from "../domain/plans.js";
 import { createMessageEditing } from "./message-editing.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import { inputRequestItem } from "../domain/question-state.js";
@@ -10,6 +11,7 @@ import {
 
 import { uid } from "../domain/format.js";
 export function createMessages({
+  setThreadMode,
   get,
   set,
   rpc,
@@ -87,6 +89,7 @@ export function createMessages({
       questionAnswers,
       annotations = [],
       replace,
+      implementation,
     } = {},
   ) {
     if (
@@ -106,6 +109,13 @@ export function createMessages({
     try {
       if (replace && get().current?.id !== replace.threadId) return false;
       thread = await navigation.ensureThread();
+      if (
+        implementation &&
+        (epoch !== navigation.opening ||
+          get().current?.id !== implementation.threadId ||
+          currentPlan()?.id !== implementation.itemId)
+      )
+        return false;
       if (replace) await editing.prepare(replace);
       const input = [
         ...(text.trim() || annotations.length
@@ -140,7 +150,7 @@ export function createMessages({
           get().models.find((m) => m.model === get().model),
         ),
         collaborationMode: {
-          mode: get().mode,
+          mode: implementation ? "default" : get().mode,
           settings: {
             model: get().model,
             reasoning_effort: get().effort || null,
@@ -160,6 +170,7 @@ export function createMessages({
           ? { threadId: thread.id, expectedTurnId: running, input }
           : params,
       );
+      if (implementation) setThreadMode(thread.id, "default");
       if (r.turn) {
         const turn = {
           ...r.turn,
@@ -220,6 +231,28 @@ export function createMessages({
       set({ busy: false });
     }
   }
+  function currentPlan() {
+    const s = get();
+    const threadId = s.current?.id;
+    const turns = [
+      ...Object.entries(s.turnTimings[threadId] || {}).map(([id, turn]) => ({
+        id,
+        ...turn,
+      })),
+      ...(s.turns[threadId] || []),
+    ];
+    const plan = pendingPlan(s.items, turns, s.active[threadId]);
+    return plan;
+  }
+  async function approvePlan(itemId) {
+    const plan = currentPlan();
+    const threadId = get().current?.id;
+    if (!get().connected || !plan || plan.id !== itemId) return false;
+    return sendMessage(planImplementationText(plan), [], {
+      clearDraft: false,
+      implementation: { threadId, itemId },
+    });
+  }
   async function stop() {
     const id = get().current?.id;
     if (id && get().active[id])
@@ -276,6 +309,7 @@ export function createMessages({
     respond,
     setDraft,
     sendMessage,
+    approvePlan,
     stop,
     review,
     addAttachment,

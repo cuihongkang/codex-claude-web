@@ -67,6 +67,7 @@ export function createThreadNavigation({
     localStorage.removeItem("cx-current");
     set({
       current: null,
+      mode: "default",
       items: [],
       cwd: cwd || projectlessCwd || get().defaultCwd,
       projectless: !cwd,
@@ -133,10 +134,8 @@ export function createThreadNavigation({
         cwd: r.cwd || r.thread.cwd,
         projectless,
         projectlessCwd: null,
-        ...models.projectModelSelection(r.cwd || thread.cwd, projectless, {
-          model: thread.model || models.defaults.model,
-          effort: thread.reasoningEffort || "",
-        }),
+        model: thread.model || models.defaults.model,
+        effort: thread.reasoningEffort || "",
         items: [],
         draft: localStorage.getItem("cx-draft-" + id) || "",
       });
@@ -204,6 +203,7 @@ export function createThreadNavigation({
       model: get().model,
       effort: get().effort,
       serviceTier: get().serviceTier,
+      mode: get().mode,
     };
     const checking = {
       threadId: id,
@@ -228,16 +228,16 @@ export function createThreadNavigation({
       });
       if (!current()) return false;
       resumed = true;
-      const modelSelection = models.projectModelSelection(
-        get().cwd,
-        get().projectless,
-        {
-          model: settings.model || get().model,
-          effort: settings.reasoningEffort || "",
-        },
-      );
+      const modelSelection = {
+        model: settings.model || get().model,
+        effort: settings.reasoningEffort || "",
+      };
       set({
         threadAccess: { threadId: id, status: "ready" },
+        ...(get().mode === selection.mode &&
+          settings.collaborationMode?.mode && {
+            mode: settings.collaborationMode.mode,
+          }),
         ...(selectionRevision === models.revision &&
           get().model === selection.model &&
           get().effort === selection.effort &&
@@ -355,7 +355,7 @@ export function createThreadNavigation({
     localStorage.removeItem("cx-draft-new");
     attachmentDrafts.set(r.thread.id, getAttachmentDraft());
     attachmentDrafts.delete(null);
-    set({ current: r.thread });
+    set({ current: r.thread, mode: get().mode });
     localStorage.setItem("cx-current", r.thread.id);
     return r.thread;
   }

@@ -1,6 +1,7 @@
 import { saved, persist } from "../infrastructure/storage.js";
 import { isCompacting } from "../domain/compaction.js";
 export function createAppState() {
+  const modes = saved("cx-thread-modes", {});
   let state = {
     auth: null,
     authError: "",
@@ -77,6 +78,25 @@ export function createAppState() {
     const previousThreadId = state.current?.id;
     if (
       Object.hasOwn(patch, "current") &&
+      patch.current?.id !== previousThreadId
+    ) {
+      const id = patch.current?.id;
+      patch = {
+        ...patch,
+        mode: patch.mode ?? modes[id] ?? "default",
+      };
+    }
+    if (Object.hasOwn(patch, "mode")) {
+      const id = Object.hasOwn(patch, "current")
+        ? patch.current?.id
+        : previousThreadId;
+      if (id) {
+        modes[id] = patch.mode;
+        persist("cx-thread-modes", modes);
+      }
+    }
+    if (
+      Object.hasOwn(patch, "current") &&
       patch.current?.id !== previousThreadId &&
       state.compactions[previousThreadId]?.status === "completed"
     ) {
@@ -122,6 +142,13 @@ export function createAppState() {
   return {
     get: () => state,
     set,
+    setThreadMode(id, mode) {
+      if (state.current?.id === id) set({ mode });
+      else {
+        modes[id] = mode;
+        persist("cx-thread-modes", modes);
+      }
+    },
     sharedSnapshot: () => sharedState,
     draftSnapshot: () => state.draft,
     subscribe: (listener) => subscribe(sharedListeners, listener),

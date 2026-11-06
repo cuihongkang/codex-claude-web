@@ -78,16 +78,16 @@ export async function testProjectModels(app, requests, setResponse, emit) {
     assert.equal(app.get().model, models[1].model);
     assert.equal(app.get().effort, "high");
     await app.openThread(thread.id);
-    assert.equal(app.get().model, models[1].model);
-    assert.equal(app.get().effort, "high", "历史和恢复响应保留项目上次选择");
-    app.setDraft("沿用项目设置发送");
+    assert.equal(app.get().model, models[0].model);
+    assert.equal(app.get().effort, "low", "已有对话恢复自身设置");
+    app.setDraft("沿用已有对话设置发送");
     assert.equal(await app.sendMessage(), true);
     const params = requests.findLast(
       (request) => request.method === "turn/start",
     ).params;
-    assert.equal(params.model, models[1].model);
-    assert.equal(params.effort, "high");
-    assert.equal(params.collaborationMode.settings.reasoning_effort, "high");
+    assert.equal(params.model, models[0].model);
+    assert.equal(params.effort, "low");
+    assert.equal(params.collaborationMode.settings.reasoning_effort, "low");
     hold = true;
     const checking = app.refreshThreadAccess();
     app.selectModel(models[0]);

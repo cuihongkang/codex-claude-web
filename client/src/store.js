@@ -33,6 +33,7 @@ export const {
   loadHistory,
   ensureThread,
   sendMessage,
+  approvePlan,
   stop,
   rename,
   archive,
