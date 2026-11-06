@@ -239,6 +239,8 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 
 使用相同环境变量运行 `tests/browser/markdown-typing.mjs`，验证逐字键入、整段插入、粘贴和中文组合输入自动排版。覆盖列表内公式 `- $$x_{t+1}=x_{t}+dx$$`、标题、强调、链接、任务列表、表格分隔行及代码围栏进出，同时核对实际可见排版、表格光标和 Markdown 草稿。证据保存在 `.cache/markdown-typing/after`。
 
+链接续写回归使用相同环境变量运行 `tests/browser/composer-links.mjs`，通过实际键盘及粘贴事件验证网址、Markdown 链接和自动链接末尾的空格及正文留在链接之外，检查链接内部编辑、撤销和实际提交内容，保存深浅主题及窄屏截图。结果及构建来源写入 `.cache/composer-links/after`；修改前使用 `BROWSER_BEFORE=1` 记录格式延续问题，证据写入 `before` 目录。README 和其他文档的现有截图展示普通任务与文件预览，未展示链接末尾续写状态，图片内容继续适用。
+
 附件草稿回归先执行 `npm run build`，再使用相同环境变量运行 `tests/browser/attachment-drafts.mjs`。脚本在独立浏览器上下文中同时上传生成的测试 PNG 和文本文件，通过侧栏切换到已有对话，再通过新建入口返回，检查文字、图片原始尺寸、文件附件、对话隔离和移除后的状态，覆盖桌面、窄屏及深浅主题。截图和结果保存在 `.cache/attachment-drafts/after`；通过 `BROWSER_BEFORE=1` 与 `BROWSER_BUILD_DIR` 指定旧构建，复现文字保留而附件消失，保存至同目录的 `before`。组件回归另覆盖图片及文件读取期间切换、首次创建对话的草稿迁移、发送失败重试、实际发送的文件正文，以及发送成功后保留等待期间新增的附件。README 现有截图展示已发送消息和文件预览，图片内容继续适用。
 
 客户端交互的本机实现参考为 Codex 26.1007.21434，查验来源是 `/usr/lib/chatgpt/resources/app.asar` 的 `package.json`、`webview/assets/app-initial-ed5807835d97.js`、`app-primary-f49030709665.js` 和 `app-shared-2d77298f0100.js`。已核对 ProseMirror 编辑区、Markdown 解析与输入规则，以及 `getPersistedText`、`setPromptText` 的草稿读写流程。当前 UI 工具未提供原生客户端窗口，本次查验采用可取得的打包实现。网页按直接编辑排版正文的产品要求，使用 Milkdown/ProseMirror 提供文档编辑与 Markdown 输入规则，并将输入语法范围明确为 CommonMark、GFM 和公式，Mermaid 与 HTML 保留源码。

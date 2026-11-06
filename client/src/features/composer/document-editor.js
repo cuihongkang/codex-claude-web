@@ -6,6 +6,7 @@ import {
   editorViewOptionsCtx,
 } from "@milkdown/kit/core";
 import { syntaxHighlighting } from "@codemirror/language";
+import { linkSchema } from "@milkdown/kit/preset/commonmark";
 import { codeHighlightStyle } from "../markdown/code-highlight-style.js";
 import { Plugin } from "@milkdown/kit/prose/state";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
@@ -80,6 +81,10 @@ export async function createDocumentEditor(
   });
   crepe.editor
     .config((ctx) => {
+      ctx.update(linkSchema.key, (schema) => (ctx) => ({
+        ...schema(ctx),
+        inclusive: false,
+      }));
       ctx.update(editorViewOptionsCtx, (previous) => ({
         ...previous,
         ...documentMathInput(),
