@@ -22,6 +22,20 @@ const data = {
   markdown: "模型别名测试",
   claudeItems: [],
   providerModelNames: true,
+  backendInstallations: {
+    codex: {
+      installed: true,
+      currentVersion: "0.162.1",
+      latestVersion: "0.167.0",
+      checking: false,
+    },
+    claude: {
+      installed: false,
+      currentVersion: "",
+      latestVersion: "2.1.318",
+      checking: false,
+    },
+  },
 };
 const server = http.createServer(async (req, res) => {
   if (serveDemoSession(req, res)) return;
@@ -82,6 +96,59 @@ try {
     await page
       .getByRole("button", { name: "添加供应商", exact: true })
       .waitFor();
+    const codex = page
+      .locator(".backend-card")
+      .filter({ has: page.locator("strong", { hasText: /^Codex$/ }) });
+    const claude = page
+      .locator(".backend-card")
+      .filter({ has: page.locator("strong", { hasText: /^Claude Code$/ }) });
+    assert.match(
+      await codex.textContent(),
+      /当前版本：0.162.1.*最新版本：0.167.0/,
+    );
+    assert.match(await claude.textContent(), /未安装.*最新版本：2.1.318/s);
+    assert.equal(await page.getByText("执行程序", { exact: true }).count(), 0);
+    assert.equal(
+      await page.getByRole("button", { name: "检查连接", exact: true }).count(),
+      0,
+    );
+    await codex
+      .getByRole("checkbox", { name: "启用 Codex", exact: true })
+      .click();
+    await codex.getByText("已停用", { exact: true }).waitFor();
+    await codex
+      .getByRole("checkbox", { name: "启用 Codex", exact: true })
+      .click();
+    await claude.getByRole("button", { name: "一键安装", exact: true }).click();
+    await claude.getByText(/当前版本：2.1.318/).waitFor();
+    assert.equal(
+      await page.getByRole("button", { name: "重新检测" }).count(),
+      0,
+    );
+    assert.equal(await page.getByText(/已是最新/).count(), 0);
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.fixtureRequests.filter(
+            (r) => r.method === "lan/backends/versions",
+          ).length,
+      ),
+      0,
+    );
+    assert.equal(
+      await claude
+        .getByRole("button", { name: "一键更新", exact: true })
+        .count(),
+      1,
+    );
+    const writes = await page.evaluate(() =>
+      window.fixtureRequests.filter((r) => r.method === "lan/backends/save"),
+    );
+    assert.deepEqual(Object.keys(writes[0].params).sort(), [
+      "enabled",
+      "id",
+      "type",
+    ]);
     const settings = await context.newPage();
     await settings.goto("chrome://settings/appearance");
     const zoom = settings.locator("#zoomLevel");

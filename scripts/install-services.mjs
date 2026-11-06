@@ -91,6 +91,7 @@ ${manageCodex ? "Wants=codex-app-server.service\nAfter=network.target codex-app-
 [Service]
 Type=simple
 WorkingDirectory=${unitPath(configDir)}
+Environment=${quote("PATH=" + dirname(process.execPath) + ":" + process.env.PATH)}
 ${cli ? `Environment=${quote("CLAUDEX_WEB_CONFIG_DIR=" + configDir)}\n` : ""}EnvironmentFile=-${unitPath(join(configDir, ".env"))}
 ExecStart=${quote(process.execPath)} ${quote(join(root, cli ? "bin/claudex-web.mjs" : "server/src/server.mjs"))}${cli ? " start" : ""}
 Restart=on-failure

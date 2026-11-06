@@ -57,6 +57,7 @@ test("相同原生会话 ID 按实例路由，单实例故障保留另一实例�
   const manager = createBackendManager({
     config: {
       configDir: directory,
+      upstreamUrl: "ws://127.0.0.1:8765",
       claudeHome: join(directory, ".claude"),
       codexHome: directory,
       backendsFile: path,
@@ -137,6 +138,7 @@ test("启用后端构造失败仍返回列表错误，未分类索引独立于�
   const manager = createBackendManager({
     config: {
       configDir: directory,
+      upstreamUrl: "ws://127.0.0.1:8765",
       codexHome: directory,
       claudeHome: directory,
       backendsFile: path,

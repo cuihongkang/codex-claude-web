@@ -10,24 +10,16 @@ export function validateBackend(input, config) {
     type: input.type,
     enabled: input.enabled !== false,
     dataDir: resolve(
-      input.dataDir ||
-        (input.type === "codex" ? config.codexHome : config.claudeHome),
+      input.type === "codex" ? config.codexHome : config.claudeHome,
     ),
     ...(input.type === "claude" && {
       stateDir: join(config.configDir, "backends", "claude"),
     }),
-    executable:
-      input.executable?.trim() ||
-      (input.type === "claude" ? "claude" : "codex"),
-    args: input.args || [],
+    executable: input.type === "claude" ? "claude" : "codex",
+    args: [],
   };
-  if (
-    !Array.isArray(backend.args) ||
-    backend.args.some((arg) => typeof arg !== "string")
-  )
-    throw new Error("启动参数必须是字符串数组");
   if (input.type === "codex") {
-    const url = new URL(input.url || config.upstreamUrl);
+    const url = new URL(config.upstreamUrl);
     if (!["ws:", "wss:"].includes(url.protocol) || url.username || url.password)
       throw new Error("请填写 WebSocket 服务地址");
     if (
@@ -92,21 +84,24 @@ export function createBackendConfiguration(config) {
     }
     return {
       ...data,
-      backends: ["codex", "claude"].map((id) => ({
-        id,
-        type: id,
-        enabled: false,
-        executable: id,
-        args: [],
-        dataDir: id === "codex" ? config.codexHome : config.claudeHome,
-        ...(id === "codex" && { url: config.upstreamUrl }),
-        ...data.backends.find((b) => b.id === id),
-        ...(id === "claude" && {
-          stateDir: join(config.configDir, "backends", "claude"),
-        }),
-        name: id === "codex" ? "Codex" : "Claude Code",
-      })),
+      backends: ["codex", "claude"].map((id) =>
+        validateBackend(
+          {
+            id,
+            type: id,
+            enabled: data.backends.find((b) => b.id === id)?.enabled ?? false,
+          },
+          config,
+        ),
+      ),
     };
   }
-  return { ...storage, read, save };
+  return {
+    ...storage,
+    read,
+    save,
+    async readProviders() {
+      return (await storage.read()).providers;
+    },
+  };
 }

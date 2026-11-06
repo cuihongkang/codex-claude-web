@@ -7,8 +7,8 @@ export function createProviders(configuration) {
     hasApiKey: Boolean(apiKey),
   });
   async function list(backendId, { includeDisabled = false } = {}) {
-    const data = await configuration.read();
-    return configuredProviders(data.providers)
+    const providers = await configuration.readProviders();
+    return configuredProviders(providers)
       .filter(
         (p) =>
           p.backendId === "claude" &&
@@ -19,7 +19,7 @@ export function createProviders(configuration) {
   }
   async function get(backendId, providerId) {
     const providers = configuredProviders(
-      (await configuration.read()).providers,
+      await configuration.readProviders(),
     ).filter((p) => p.backendId === backendId);
     if (providerId == null || providerId === "") return null;
     const provider = providers.find((p) => p.id === providerId);

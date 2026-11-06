@@ -1,3 +1,4 @@
+import { createCliInstallation } from "./cli-installation.mjs";
 import { join } from "node:path";
 import { readProjectlessDirectories } from "../thread-projects.mjs";
 import { createWorkspace } from "../workspace/service.mjs";
@@ -26,6 +27,15 @@ export function createBackendManager({
   const configuration = createBackendConfiguration(config);
   const providers = createProviders(configuration);
   const instances = new Map();
+  const installationJobs = new Map();
+  const installationErrors = new Map();
+  const cli =
+    factories.installation ||
+    createCliInstallation({
+      changed: () => {
+        if (initialized) emitState();
+      },
+    });
   let initialized = false,
     closed = false,
     sequence = 0;
@@ -33,6 +43,13 @@ export function createBackendManager({
   const publicBackends = () =>
     [...instances.values()].map(({ backend, adapter, error }) => ({
       ...backend,
+      installation: {
+        ...cli.state(backend.id),
+        installing: installationJobs.has(backend.id),
+        installError:
+          installationErrors.get(backend.id) ||
+          cli.state(backend.id).installError,
+      },
       ready: Boolean(adapter?.ready),
       capabilities: adapter?.capabilities || {},
       error: error || adapter?.state().params.error || null,
@@ -120,6 +137,7 @@ export function createBackendManager({
     const data = await configuration.read();
     await Promise.all(data.backends.map(install));
     initialized = true;
+    cli.start?.();
     emitState();
   }
   function instance(id) {
@@ -206,19 +224,23 @@ export function createBackendManager({
     }
     return { data: [], nextCursor: null, backendErrors: errors };
   }
-  async function saveBackend(params) {
+  async function saveBackend(params, prepare) {
     validateBackend(params, config);
     const old = instances.get(params.id);
     const snapshot = old?.adapter?.state().params;
     if (
       Object.keys(snapshot?.activeTurns || {}).length ||
       snapshot?.internalCommands?.length ||
+      snapshot?.questions?.length ||
+      Object.keys(snapshot?.backgroundTasks || {}).length ||
+      Object.keys(snapshot?.queuedInputs || {}).length ||
       Object.values(snapshot?.compactions || {}).some(isCompacting)
     )
       throw new Error("请等待此后端的任务结束后修改配置。");
     if (old) old.changing = true;
     try {
       await old?.adapter?.shutdown?.();
+      if (prepare) await prepare();
       const backend = await configuration.save(params);
       old?.adapter?.close();
       await install(backend);
@@ -255,6 +277,32 @@ export function createBackendManager({
           instances.get("codex")?.backend.dataDir || config.codexHome,
         ),
       });
+    if (method === "lan/backends/versions") {
+      if (!instances.has(params.id)) throw new Error("未知后端");
+      return reply({ backends: publicBackends() });
+    }
+    if (method === "lan/backends/install") {
+      const entry = instances.get(params.id);
+      if (!entry) throw new Error("未知后端");
+      if (!installationJobs.has(params.id)) {
+        installationErrors.delete(params.id);
+        const operation = changing.then(() =>
+          saveBackend(instances.get(params.id).backend, () =>
+            cli.install(params.id),
+          ),
+        );
+        installationJobs.set(params.id, operation);
+        changing = operation.catch(() => {});
+        operation
+          .catch((error) => installationErrors.set(params.id, error.message))
+          .finally(() => {
+            installationJobs.delete(params.id);
+            emitState();
+          });
+        emitState();
+      }
+      return reply({ backends: publicBackends() });
+    }
     if (method === "lan/backends/list")
       return reply({ backends: publicBackends() });
     if (
@@ -326,6 +374,7 @@ export function createBackendManager({
     },
     close() {
       closed = true;
+      cli.close?.();
       workspace.close();
       for (const i of instances.values()) i.adapter?.close();
     },

@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createBackendManager } from "../src/backends/manager.mjs";
 
-async function fixture(t, shutdown = async () => {}) {
+async function fixture(t, shutdown = async () => {}, installation) {
   const directory = await mkdtemp(join(tmpdir(), "backend-transaction-"));
   const settingsDirectory = join(directory, "settings");
   await mkdir(settingsDirectory);
@@ -22,7 +22,7 @@ async function fixture(t, shutdown = async () => {}) {
     id: "claude",
     type: "claude",
     enabled: true,
-    executable: "old-claude",
+    executable: "claude",
     dataDir: join(directory, "claude"),
     args: [],
   };
@@ -88,7 +88,7 @@ async function fixture(t, shutdown = async () => {}) {
     version: {},
     send: (client, message) => client.deliver(message),
     broadcast() {},
-    factories: { claude: factory },
+    factories: { claude: factory, ...(installation && { installation }) },
   });
   t.after(async () => {
     manager.close();
@@ -130,7 +130,7 @@ test("starting整理任务拒绝修改配置，持久文件和运行实例保持
   const f = await fixture(t);
   f.adapters[0].snapshot.compactions.thread = { status: "starting" };
   await assert.rejects(
-    f.call("lan/backends/save", { ...f.initial, executable: "new-claude" }),
+    f.call("lan/backends/save", { ...f.initial, executable: "claude" }),
     /任务结束/,
   );
   assert.equal(await readFile(f.path, "utf8"), f.originalBytes);
@@ -147,7 +147,7 @@ test("worker拒绝忙时shutdown，配置和原实例继续可用", async (t) =>
     throw new Error("原生后台任务仍在运行");
   });
   await assert.rejects(
-    f.call("lan/backends/save", { ...f.initial, executable: "new-claude" }),
+    f.call("lan/backends/save", { ...f.initial, executable: "claude" }),
     /后台任务仍在运行/,
   );
   assert.equal(await readFile(f.path, "utf8"), f.originalBytes);
@@ -168,7 +168,7 @@ for (const enabled of [true, false])
     });
     const result = await f.call(
       enabled ? "lan/backends/save" : "lan/backends/disable",
-      enabled ? { ...f.initial, executable: "new-claude" } : { id: "claude" },
+      enabled ? { ...f.initial, executable: "claude" } : { id: "claude" },
     );
     const persisted = JSON.parse(await readFile(f.path, "utf8")).backends.find(
       (backend) => backend.id === "claude",
@@ -187,7 +187,7 @@ for (const enabled of [true, false])
     if (enabled)
       assert.equal(
         (await f.call("model/list", { backendId: "claude" })).executable,
-        "new-claude",
+        "claude",
       );
     else
       await assert.rejects(
@@ -214,7 +214,7 @@ test("等待shutdown时新轮次被拒绝，尚未保存的新配置保持隔离
   });
   const saving = f.call("lan/backends/save", {
     ...f.initial,
-    executable: "new-claude",
+    executable: "claude",
   });
   await entered;
   try {
@@ -249,20 +249,100 @@ test("配置文件写入失败后恢复旧配置实例，并允许再次保存",
     if (failWrite) await chmod(f.settingsDirectory, 0o500);
   });
   await assert.rejects(
-    f.call("lan/backends/save", { ...f.initial, executable: "new-claude" }),
+    f.call("lan/backends/save", { ...f.initial, executable: "claude" }),
     /EACCES/,
   );
   assert.equal(await readFile(f.path, "utf8"), f.originalBytes);
   assert.equal(f.adapters.length, 2);
   assert.equal(
     (await f.call("model/list", { backendId: "claude" })).executable,
-    "old-claude",
+    "claude",
   );
   failWrite = false;
   await chmod(f.settingsDirectory, 0o700);
-  await f.call("lan/backends/save", { ...f.initial, executable: "new-claude" });
+  await f.call("lan/backends/save", { ...f.initial, executable: "claude" });
   assert.equal(
     (await f.call("model/list", { backendId: "claude" })).executable,
-    "new-claude",
+    "claude",
   );
+});
+
+test("安装任务跨请求持有、重复点击合并，完成后恢复后端", async (t) => {
+  let finish, started;
+  const entered = new Promise((r) => {
+    started = r;
+  });
+  const gate = new Promise((r) => {
+    finish = r;
+  });
+  let installations = 0;
+  const installation = {
+    state: () => ({ installed: true, currentVersion: "1.0.0" }),
+    refresh: async () => {},
+    install: async () => {
+      installations++;
+      started();
+      await gate;
+    },
+  };
+  const f = await fixture(t, async () => {}, installation);
+  const first = await f.call("lan/backends/install", { id: "claude" });
+  assert.equal(
+    first.backends.find((b) => b.id === "claude").installation.installing,
+    true,
+  );
+  await entered;
+  await f.call("lan/backends/install", { id: "claude" });
+  assert.equal(installations, 1);
+  await assert.rejects(
+    f.call("turn/start", { backendId: "claude" }),
+    /配置正在更新/,
+  );
+  finish();
+  for (let i = 0; i < 100; i++) {
+    if (
+      !f.manager.state().params.backends.find((b) => b.id === "claude")
+        .installation.installing
+    )
+      break;
+    await new Promise((r) => setImmediate(r));
+  }
+  const final = f.manager
+    .state()
+    .params.backends.find((b) => b.id === "claude");
+  assert.equal(final.installation.installing, false);
+  assert.equal(final.ready, true);
+  assert.equal(f.adapters.length, 2);
+});
+
+test("原生任务占用阻止 npm 更新并显示可重试错误", async (t) => {
+  let installations = 0;
+  const f = await fixture(
+    t,
+    async () => {
+      throw new Error("原生后台任务仍在运行");
+    },
+    {
+      state: () => ({}),
+      refresh: async () => {},
+      install: async () => {
+        installations++;
+      },
+    },
+  );
+  await f.call("lan/backends/install", { id: "claude" });
+  for (let i = 0; i < 100; i++) {
+    if (
+      !f.manager.state().params.backends.find((b) => b.id === "claude")
+        .installation.installing
+    )
+      break;
+    await new Promise((r) => setImmediate(r));
+  }
+  const final = f.manager
+    .state()
+    .params.backends.find((b) => b.id === "claude");
+  assert.equal(installations, 0);
+  assert.match(final.installation.installError, /后台任务仍在运行/);
+  assert.equal(final.ready, true);
 });

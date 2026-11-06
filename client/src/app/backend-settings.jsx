@@ -1,18 +1,16 @@
 import React, { useState } from "react";
-import { useStore, saveBackend, rpc, refreshBackends } from "../store.js";
+import { useStore, saveBackend, rpc } from "../store.js";
 import { ProviderSettings } from "./provider-settings.jsx";
 
 export function BackendSettings() {
   const s = useStore();
-  const [editing, setEditing] = useState(null),
-    [error, setError] = useState(""),
+  const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   async function action(run) {
     setBusy(true);
     setError("");
     try {
       await run();
-      setEditing(null);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -25,108 +23,81 @@ export function BackendSettings() {
       aria-labelledby="backend-settings-title"
     >
       <h3 id="backend-settings-title">模型与服务配置</h3>
-      {s.backends.map((backend) => (
-        <section className="backend-card" key={backend.id}>
-          <div className="backend-heading">
-            <strong>{backend.name}</strong>
-            <span>
-              {backend.enabled
-                ? backend.ready
-                  ? "已连接"
-                  : "连接失败"
-                : "已停用"}
-            </span>
-            <button disabled={busy} onClick={() => setEditing(backend)}>
-              编辑
-            </button>
-            <button
-              disabled={busy}
-              onClick={() =>
-                action(async () => {
-                  await rpc("lan/backends/check", { id: backend.id });
-                  await refreshBackends();
-                })
-              }
-            >
-              检查连接
-            </button>
-          </div>
-          {backend.error && <p role="status">{backend.error}</p>}
-          {backend.type === "claude" && <ProviderSettings backend={backend} />}
-        </section>
-      ))}
-      {editing && (
-        <form
-          className="backend-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const values = new FormData(event.currentTarget);
-            action(() =>
-              saveBackend({
-                ...editing,
-                dataDir: values.get("dataDir"),
-                executable: values.get("executable"),
-                url: values.get("url"),
-                args: JSON.parse(values.get("args") || "[]"),
-                enabled: values.has("enabled"),
-              }),
-            );
-          }}
-          key={editing.id || "new"}
-        >
-          <strong>{editing.name}</strong>
-          {editing.type === "codex" && (
-            <label>
-              服务地址
+      {s.backends.map((backend) => {
+        const cli = backend.installation || {};
+        const working = busy || cli.installing;
+        return (
+          <section className="backend-card" key={backend.id}>
+            <div className="backend-heading">
               <input
-                name="url"
-                required
-                defaultValue={editing.url}
-                placeholder="wss://host:port"
+                type="checkbox"
+                aria-label={"启用 " + backend.name}
+                checked={backend.enabled}
+                disabled={working}
+                onChange={(event) => {
+                  const enabled = event.target.checked;
+                  action(() =>
+                    saveBackend({
+                      id: backend.id,
+                      type: backend.type,
+                      enabled,
+                    }),
+                  );
+                }}
               />
-            </label>
-          )}
-          <label>
-            执行程序
-            <input
-              name="executable"
-              required
-              defaultValue={editing.executable}
-            />
-          </label>
-          <label>
-            原生配置目录
-            <input
-              name="dataDir"
-              defaultValue={editing.dataDir}
-              placeholder="留空沿用原生默认目录"
-            />
-          </label>
-          <label>
-            启动参数（JSON 数组）
-            <input
-              name="args"
-              defaultValue={JSON.stringify(editing.args || [])}
-            />
-          </label>
-          <label className="backend-checkbox">
-            <input
-              type="checkbox"
-              name="enabled"
-              defaultChecked={editing.enabled}
-            />
-            启用
-          </label>
-          <div>
-            <button type="submit" disabled={busy}>
-              保存后端
-            </button>
-            <button type="button" onClick={() => setEditing(null)}>
-              取消
-            </button>
-          </div>
-        </form>
-      )}
+              <strong>{backend.name}</strong>
+              <span>
+                {cli.installed === false
+                  ? "未安装"
+                  : backend.enabled
+                    ? backend.ready
+                      ? "已连接"
+                      : "连接失败"
+                    : "已停用"}
+              </span>
+              <button
+                disabled={working}
+                onClick={() =>
+                  action(async () => {
+                    await rpc("lan/backends/install", { id: backend.id });
+                  })
+                }
+              >
+                {cli.installing
+                  ? "正在安装…"
+                  : cli.installed
+                    ? "一键更新"
+                    : "一键安装"}
+              </button>
+            </div>
+            <p className="backend-version" role="status">
+              当前版本：
+              {cli.currentVersion ||
+                (cli.checking
+                  ? "检测中…"
+                  : cli.installed === false
+                    ? "未安装"
+                    : "暂未取得")}
+              {" · 最新版本："}
+              {cli.latestVersion || (cli.checking ? "查询中…" : "暂未取得")}
+            </p>
+            {(cli.installError ||
+              cli.latestError ||
+              cli.error ||
+              backend.error) && (
+              <p role="status">
+                {cli.installError ||
+                  cli.latestError ||
+                  cli.error ||
+                  backend.error}
+              </p>
+            )}
+            {backend.type === "claude" && (
+              <ProviderSettings backend={backend} />
+            )}
+          </section>
+        );
+      })}
       {error && <p role="alert">{error}</p>}
     </section>
   );

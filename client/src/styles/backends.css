@@ -189,3 +189,17 @@
   font-family: var(--mono);
   overflow-wrap: anywhere;
 }
+
+.backend-version {
+  color: var(--muted);
+  font-size: 0.923077rem;
+  margin-block: 0.5em;
+  overflow-wrap: anywhere;
+}
+.backend-heading > input[type="checkbox"] {
+  margin: 0;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  cursor: pointer;
+}

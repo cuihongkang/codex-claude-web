@@ -47,6 +47,7 @@ export function backendFixture(data) {
     name: id === "codex" ? "Codex" : "Claude Code",
     enabled: true,
     ready: true,
+    installation: data.backendInstallations?.[id],
   }));
   let providers =
     data.providers ||
@@ -103,6 +104,53 @@ export function backendFixture(data) {
       window.fixtureRequests.push(m);
       const thread = threads.find((t) => t.id === p.threadId);
       let result = { data: [] };
+      if (m.method === "lan/backends/list") result = { backends };
+      if (m.method === "lan/backends/save") {
+        Object.assign(
+          backends.find((b) => b.id === p.id),
+          p,
+        );
+        result = { backends };
+      }
+      if (m.method === "lan/backends/versions") {
+        this.onmessage({
+          data: JSON.stringify({
+            method: "lan/state",
+            params: {
+              ready: true,
+              bridgeReady: true,
+              backends,
+              activeTurns: {},
+              compactions: {},
+              questions: [],
+            },
+          }),
+        });
+        result = { backends };
+      }
+      if (m.method === "lan/backends/install") {
+        const backend = backends.find((b) => b.id === p.id);
+        backend.installation = {
+          installed: true,
+          currentVersion: "2.1.318",
+          latestVersion: "2.1.318",
+          installing: false,
+        };
+        this.onmessage({
+          data: JSON.stringify({
+            method: "lan/state",
+            params: {
+              ready: true,
+              bridgeReady: true,
+              backends,
+              activeTurns: {},
+              compactions: {},
+              questions: [],
+            },
+          }),
+        });
+        result = { backends };
+      }
       if (m.method === "thread/list") result = { data: threads };
       if (m.method === "lan/projectless/read")
         result = { directories: { desktop: threads[1].cwd } };

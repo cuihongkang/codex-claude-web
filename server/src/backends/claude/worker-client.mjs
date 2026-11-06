@@ -1,3 +1,4 @@
+import { findCli } from "../cli-installation.mjs";
 import net from "node:net";
 import { isDeepStrictEqual } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -229,6 +230,13 @@ export function createClaudeWorkerAdapter({
     }
   }
   async function connect() {
+    options.backend = {
+      ...backend,
+      executable:
+        backend.executable === "claude"
+          ? await findCli("claude")
+          : backend.executable,
+    };
     if (closed) return;
     if (connecting) return connecting;
     if (socket && !socket.destroyed) return;

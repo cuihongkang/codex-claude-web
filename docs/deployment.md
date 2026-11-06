@@ -101,7 +101,16 @@ AUTH_SESSION_DAYS=30
 
 ## Claude Code 与模型配置
 
-除默认 Codex 外，可在设置的“模型与服务配置”中启用 Claude Code。选择本机已安装的 Claude Code 可执行文件，沿用其现有原生配置目录；默认使用 `CLAUDE_CONFIG_DIR`，未设置时为 `~/.claude`。网页服务使用其系统账户启动程序，复用已有认证、技能、插件和历史。Codex 同样沿用现有 `CODEX_HOME`（默认 `~/.codex`）。
+在设置的“模型与服务配置”中，点击 Codex 或 Claude Code 标题前的复选框即可启用或停用。程序自动检测当前服务账户的 CLI 安装，显示安装状态、当前 CLI 版本和 npm 官方包的最新版本；打开设置时自动检测，设置保持打开时每五分钟刷新，也可点击“重新检测”。
+
+未安装时点击“一键安装”，已安装时点击“一键更新”。安装任务由服务器执行，使用当前服务账户的 npm 全局安装 `@openai/codex@latest` 或 `@anthropic-ai/claude-code@latest`，关闭设置后继续执行，完成后自动刷新安装和版本状态。安装或更新前需等待所属后端任务结束；安装失败会显示错误，可重试。npm 全局目录需允许当前账户写入。也可在服务电脑执行：
+
+```bash
+npm install -g @openai/codex
+npm install -g @anthropic-ai/claude-code
+```
+
+CLI 自动从当前 Node.js 的安装目录、服务 PATH 和用户 `~/.local/bin` 查找。systemd 服务安装时记录当前 Node.js 和 PATH；更换 Node.js 安装后重新执行 `claudex-web service install` 并在空闲时重启网页服务。Claude Code 复用 `CLAUDE_CONFIG_DIR`（默认 `~/.claude`）中的认证、技能、插件和历史；Codex 沿用 `CODEX_HOME`（默认 `~/.codex`）及既有 app-server 连接。使用原生账户时，先在服务电脑以同一账户完成 CLI 登录。
 
 在设置页 Claude Code 的供应商列表中添加服务名称、API 地址、凭据和模型标识。多个供应商共用此 Claude Code 后端。在输入框的模型菜单选择“供应商 · 模型”，新对话会使用对应后端；已有 Claude 对话可在任务结束后更换供应商或模型并继续。
 
@@ -119,7 +128,7 @@ Claude Code 的对话、配置和原生账户状态继续保存在本机 CLI 原
 
 `/init` 检查并保留当前目录已有的 `AGENTS.md`，缺少时生成项目指令。Claude Code 每次提交读取当前目录及祖先目录的 `AGENTS.override.md` 或 `AGENTS.md`，同目录优先 override，更具体目录的规则优先；文件修改和删除从下一轮生效。已有的 `CLAUDE.md` 继续生效。
 
-后端和供应商配置默认保存至 `CLAUDEX_WEB_CONFIG_DIR/backends.json`，可通过 `CLAUDEX_WEB_BACKENDS_FILE` 指定文件位置。配置包含固定的 `codex`、`claude` 两项，各自支持启停，并指向本机 CLI 的实际程序和原生配置目录。保存配置前等待所属后端的任务结束。
+后端和供应商配置默认保存至 `CLAUDEX_WEB_CONFIG_DIR/backends.json`，可通过 `CLAUDEX_WEB_BACKENDS_FILE` 指定文件位置。配置包含固定的 `codex`、`claude` 两项，网页只保存启停选择。CLI 程序自动检测，原生配置目录和 Codex 连接地址由服务环境统一取得，旧网页记录中的程序路径、参数及目录覆盖会自动归一化。供应商配置独立保留。变更启停前等待所属后端的任务结束。
 
 ## 配置
 
