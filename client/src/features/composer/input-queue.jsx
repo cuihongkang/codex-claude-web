@@ -1,23 +1,27 @@
 import React, { useEffect, useState } from "react";
 import { useStore, rpc, onEvent, report } from "../../store.js";
-import { backendCapability } from "../../domain/backends.js";
+import { backendCapability, backendReady } from "../../domain/backends.js";
 export function InputQueue() {
   const s = useStore(),
     id = s.current?.id;
   const [entries, setEntries] = useState([]);
   const enabled = backendCapability(s, "inputRecovery") === true;
+  const ready = s.connected && backendReady(s);
+  useEffect(() => setEntries([]), [enabled, id]);
   useEffect(() => {
-    let current = true;
-    setEntries([]);
-    if (!enabled || !id) return;
-    const refresh = () =>
-      rpc("lan/inputQueue/list", { threadId: id })
+    let current = true,
+      revision = 0;
+    if (!enabled || !id || !ready) return;
+    const refresh = () => {
+      const request = ++revision;
+      return rpc("lan/inputQueue/list", { threadId: id })
         .then((r) => {
-          if (current) setEntries(r.entries);
+          if (current && request === revision) setEntries(r.entries);
         })
         .catch((e) => {
-          if (current) report(e);
+          if (current && request === revision) report(e);
         });
+    };
     refresh();
     const stop = onEvent((m) => {
       if (m.method === "lan/inputQueue/updated" && m.params.threadId === id)
@@ -27,7 +31,7 @@ export function InputQueue() {
       current = false;
       stop();
     };
-  }, [enabled, id]);
+  }, [enabled, id, ready]);
   return entries.length ? (
     <div className="input-queue" aria-label="待处理输入">
       {entries.map((entry) => (
@@ -41,6 +45,7 @@ export function InputQueue() {
           </span>
           {entry.status === "uncertain" && (
             <button
+              disabled={!ready}
               onClick={() =>
                 rpc("lan/inputQueue/retry", {
                   threadId: id,
@@ -52,6 +57,7 @@ export function InputQueue() {
             </button>
           )}
           <button
+            disabled={!ready}
             onClick={() =>
               rpc("lan/inputQueue/cancel", {
                 threadId: id,

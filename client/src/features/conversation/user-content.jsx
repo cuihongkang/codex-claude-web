@@ -1,4 +1,5 @@
 import React from "react";
+import { RichText } from "../markdown/rich-text.jsx";
 import { FileCode, Paperclip, Folder, Sparkles } from "lucide-react";
 import { set } from "../../store.js";
 import { MessageImage } from "../markdown/message-image.jsx";
@@ -8,37 +9,16 @@ import { parseUserMessage } from "../../domain/user-message.js";
 export function Content({ content, cwd }) {
   const parsed = parseUserMessage(content);
   parsed.text = planApprovalLabel(parsed.text);
-  const used = new Set();
-  const parts = [];
-  let offset = 0;
-  const references = [...parsed.references].sort(
-    (a, b) => b.name.length - a.name.length,
-  );
-  for (let index = 0; (index = parsed.text.indexOf("@", index)) !== -1;) {
-    const file = references.find((file) =>
-      parsed.text.startsWith("@" + file.name, index),
-    );
-    if (!file) {
-      index++;
-      continue;
-    }
-    parts.push(parsed.text.slice(offset, index));
-    parts.push(<FileReference key={index} file={file} />);
-    used.add(file.path);
-    offset = index + file.name.length + 1;
-    index = offset;
-  }
-  parts.push(parsed.text.slice(offset));
   return (
     <>
-      {parsed.text && <div className="user-text">{parts}</div>}
-      {parsed.references.some((file) => !used.has(file.path)) && (
-        <div className="user-reference-list">
-          {parsed.references
-            .filter((file) => !used.has(file.path))
-            .map((file, index) => (
-              <FileReference key={index} file={file} />
-            ))}
+      {(parsed.text || parsed.references.length > 0) && (
+        <div className="user-text">
+          <RichText
+            text={parsed.text}
+            cwd={cwd}
+            references={parsed.references}
+            renderReference={FileReference}
+          />
         </div>
       )}
       <UserAnnotations annotations={parsed.annotations} />

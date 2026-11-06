@@ -1,3 +1,4 @@
+import { migrateWebDirectory } from "./web-config-migration.mjs";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
@@ -36,6 +37,10 @@ async function credentials(request) {
   }
 }
 export async function createAuthentication(config) {
+  await migrateWebDirectory(config, "auth", [
+    "sessions.json",
+    "maintenance-token",
+  ]);
   const directory = join(config.configDir, "auth");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const path = join(directory, "sessions.json");

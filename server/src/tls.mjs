@@ -1,3 +1,4 @@
+import { migrateWebDirectory } from "./web-config-migration.mjs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, readFile, rename, rm, mkdtemp } from "node:fs/promises";
@@ -24,6 +25,10 @@ export async function readTls(config) {
       key: await readFile(config.tlsKey),
       minVersion: "TLSv1.2",
     };
+  await migrateWebDirectory(config, "tls", [
+    "certificate.pem",
+    "private-key.pem",
+  ]);
   const parent = config.configDir;
   const directory = join(parent, "tls");
   const certificate = join(directory, "certificate.pem");

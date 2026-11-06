@@ -8,7 +8,7 @@
   line-height: var(--chat-line-height);
 }
 .user-text {
-  white-space: pre-wrap;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 .user-text + .user-text {

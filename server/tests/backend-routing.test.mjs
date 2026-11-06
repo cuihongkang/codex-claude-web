@@ -119,3 +119,66 @@ test("相同原生会话 ID 按实例路由，单实例故障保留另一实例�
   );
   assert.equal(notifications.at(-1).params.item.arguments.threadId, "literal");
 });
+
+test("启用后端构造失败仍返回列表错误，未分类索引独立于当前后端", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "backend-unavailable-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const path = join(directory, "backends.json");
+  await writeFile(
+    path,
+    JSON.stringify({
+      backends: [
+        { id: "codex", type: "codex", enabled: false },
+        { id: "claude", type: "claude", enabled: true },
+      ],
+      providers: [],
+    }),
+  );
+  const manager = createBackendManager({
+    config: {
+      configDir: directory,
+      codexHome: directory,
+      claudeHome: directory,
+      backendsFile: path,
+    },
+    version: {},
+    broadcast() {},
+    send: (client, message) => client.deliver(message),
+    factories: {
+      claude() {
+        throw new Error("初始化失败");
+      },
+    },
+  });
+  t.after(() => manager.close());
+  await manager.connect();
+  const call = async (method, params = {}) => {
+    let reply;
+    await manager.receive(
+      {
+        deliver: (message) => {
+          reply = message.result;
+        },
+      },
+      { id: "fixture", method, params },
+    );
+    return reply;
+  };
+  assert.deepEqual((await call("thread/list")).backendErrors, [
+    { backendId: "claude", message: "初始化失败" },
+  ]);
+  await writeFile(
+    join(directory, ".codex-global-state.json"),
+    JSON.stringify({
+      "projectless-thread-ids": ["desktop"],
+      "thread-projectless-output-directories": {
+        desktop: "/documents/Codex/2026-11-06/notes/outputs",
+      },
+      "thread-workspace-root-hints": { desktop: "/documents/Codex" },
+    }),
+  );
+  for (const backendId of ["codex", "claude"])
+    assert.deepEqual(await call("lan/projectless/read", { backendId }), {
+      directories: { desktop: "/documents/Codex/2026-11-06/notes" },
+    });
+});

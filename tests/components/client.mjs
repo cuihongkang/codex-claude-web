@@ -1,3 +1,4 @@
+import { testInputQueue } from "./input-queue.mjs";
 import { testPlans } from "./plans.mjs";
 import { testServiceTierControls } from "./service-tier-controls.mjs";
 import { testReasoningControls } from "./reasoning-controls.mjs";
@@ -107,6 +108,7 @@ app.applySession({
 });
 assert.equal(storage.has("cx-summary-zh-v1"), false);
 await testMermaid(app);
+await testInputQueue(app, fixture);
 {
   const previousResponse = fixture.responseFor;
   try {

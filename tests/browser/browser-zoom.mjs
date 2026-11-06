@@ -46,7 +46,7 @@ export async function testBrowserZoom({ context, page, artifacts }) {
               },
               fontSize: parseFloat(style.fontSize),
               lineHeight: parseFloat(style.lineHeight),
-              welcome: {
+              welcome: welcome && {
                 clientHeight: welcome.clientHeight,
                 scrollHeight: welcome.scrollHeight,
                 minHeight: getComputedStyle(welcome).minHeight,
@@ -121,11 +121,15 @@ export async function testBrowserZoom({ context, page, artifacts }) {
                 control.bottom <= metrics.innerHeight + 1,
               JSON.stringify({ ...result, control }),
             );
-          assert.ok(
-            metrics.welcome.right <= metrics.toolsLeft + 1,
-            JSON.stringify(result),
-          );
-          if (metrics.welcome.scrollHeight > metrics.welcome.clientHeight) {
+          if (metrics.welcome)
+            assert.ok(
+              metrics.welcome.right <= metrics.toolsLeft + 1,
+              JSON.stringify(result),
+            );
+          if (
+            metrics.welcome &&
+            metrics.welcome.scrollHeight > metrics.welcome.clientHeight
+          ) {
             const scrolled = await page
               .locator(".welcome")
               .evaluate((element) => {

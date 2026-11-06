@@ -70,6 +70,9 @@
   margin: 0.384615rem 0;
   min-width: 0;
 }
+.user-text .markdown > :has(+ .user-reference-list) {
+  margin-bottom: 0;
+}
 .user-reference-list {
   display: flex;
   flex-wrap: wrap;

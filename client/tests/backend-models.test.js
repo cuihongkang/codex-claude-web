@@ -388,3 +388,44 @@ test("供应商模型目录刷新按实际档位校准强度与速度，移除�
   assert.equal(state.model, "model");
   assert.equal(state.providerId, "vendor");
 });
+
+test("同供应商切换模型保留技能目录，运行时模型选择应用于下一轮", async () => {
+  const first = { backendId: "claude", providerId: "vendor", model: "first" };
+  const second = { ...first, model: "second" };
+  let state = {
+    backendId: "claude",
+    providerId: "vendor",
+    current: { id: "backend:claude:thread" },
+    active: { "backend:claude:thread": "running" },
+    model: "first",
+    skills: [{ name: "skill" }],
+    nativeCommands: [{ name: "command" }],
+    nativeAgents: [{ name: "agent" }],
+    models: [first, second],
+    providers: [],
+    backends: [],
+    modelChoices: [first, second],
+  };
+  const skills = state.skills,
+    commands = state.nativeCommands;
+  const controller = createBackends({
+    get: () => state,
+    set: (patch) => {
+      state = { ...state, ...patch };
+    },
+    rpc() {
+      throw new Error("不应重新读取");
+    },
+    models: {
+      selectModel: (model) => {
+        state.model = model.model;
+      },
+    },
+  });
+  await controller.selectModelChoice(second);
+  assert.equal(state.model, "second");
+  assert.equal(state.skills, skills);
+  assert.equal(state.nativeCommands, commands);
+  await controller.selectModelChoice({ ...second, providerId: "other" });
+  assert.equal(state.providerId, "vendor");
+});

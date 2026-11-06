@@ -127,7 +127,9 @@ export function createThreadNavigation({
         thread,
         get().projects,
         get().projectlessDirectories,
-        get().projectlessRoot,
+        get().projectlessRoots?.length
+          ? get().projectlessRoots
+          : get().projectlessRoot,
       );
       getAttachmentDraft();
       if (backendId === "claude") selectProvider(thread.providerId);

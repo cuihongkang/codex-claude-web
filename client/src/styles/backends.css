@@ -86,12 +86,6 @@
   mask-repeat: no-repeat;
   mask-position: center;
 }
-@media (max-width: 600px) {
-  .topbar:has(> .backend-badge) .breadcrumb > button,
-  .topbar:has(> .backend-badge) .breadcrumb > svg {
-    display: none;
-  }
-}
 .input-queue {
   font-size: 0.85em;
   margin-block-end: 0.5em;

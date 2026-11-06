@@ -38,6 +38,7 @@ export function createAppState() {
     projectless: saved("cx-projectless", false),
     projectlessCwd: null,
     projectlessRoot: "",
+    projectlessRoots: [],
     projects: saved("cx-projects", []),
     projectOrder: null,
     projectlessDirectories: {},

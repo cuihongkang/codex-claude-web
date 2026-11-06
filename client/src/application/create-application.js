@@ -122,6 +122,7 @@ export function createApplication() {
   };
   const models = createModelPreferences({ get, set, rpc, transport, report });
   const backends = createBackends({
+    transport,
     get,
     set,
     rpc,

@@ -90,10 +90,16 @@ export function AccountFooter() {
   }, [expanded]);
   useEffect(
     () => setExpanded(false),
-    [s.account?.email, s.account?.type, backendId, s.providerId, s.cwd],
+    [
+      s.account?.email,
+      s.account?.type,
+      backendId,
+      s.providerId,
+      !codex && s.cwd,
+    ],
   );
   useEffect(() => {
-    if (!s.connected || !quotaEnabled) return;
+    if (!connected || !quotaEnabled) return;
     const refresh = () => {
       if (document.visibilityState !== "hidden") refreshUsage();
     };
@@ -106,10 +112,10 @@ export function AccountFooter() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [s.connected, quotaEnabled, backendId, s.providerId, s.cwd]);
+  }, [connected, quotaEnabled, backendId, s.providerId, s.cwd]);
 
   useEffect(() => {
-    if (!s.connected || !codex) return;
+    if (!connected || !quotaEnabled) return;
     const resets = quotaWindows(s.usage)
       .map((window) => window.resetsAt * 1000 + 1000)
       .filter((reset) => reset > Date.now());
@@ -121,7 +127,7 @@ export function AccountFooter() {
       Math.min(Math.min(...resets) - Date.now(), 2147483647),
     );
     return () => clearTimeout(timer);
-  }, [s.connected, s.usage, quotaEnabled, backendId, s.providerId, s.cwd]);
+  }, [connected, s.usage, quotaEnabled, backendId, s.providerId, s.cwd]);
 
   const windows = quotaWindows(s.usage);
   const hasWindows = windows.length > 0;

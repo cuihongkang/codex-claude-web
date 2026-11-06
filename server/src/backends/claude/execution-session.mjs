@@ -185,6 +185,7 @@ export async function createExecutionSession({
         if (process.ownerError) throw process.ownerError;
         observeMessage?.(threadId, message);
         process.lastActivityAt = Date.now();
+        if (message.isReplay || message.parent_tool_use_id) continue;
         if (commands.accept(message)) continue;
         if (
           message.type === "system" &&
@@ -229,7 +230,6 @@ export async function createExecutionSession({
           await beginActivity(message);
         await goals.observe(threadId, message, process);
         await usage(message, process);
-        if (message.isReplay || message.parent_tool_use_id) continue;
         if (message.type === "system" && message.subtype === "init") {
           process.terminalCommands = message.terminal_slash_commands || [];
           await save(threadId, (s) => ({

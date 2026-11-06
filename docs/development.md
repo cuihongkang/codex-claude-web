@@ -347,3 +347,5 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 ### 后端归属图标
 
 对话顶部和侧栏通过后端资源标识选择图标，保持纯图标展示。Codex 使用 `client/src/assets/openai.svg`，取自 [OpenAI 官方品牌资源](https://cdn.openai.com/brand/OpenAI-Logos-2025.zip)的黑色 Blossom SVG；标识归 OpenAI 所有，使用说明见[品牌指南](https://openai.com/brand/)。CSS 蒙版保持原有形状，以主题正文颜色显示。Claude Code 使用 `client/src/assets/claude.svg`，提取自 [Claude 官方网站](https://claude.com/)页首 Claude 标志中的独立图形路径，保留原始轮廓；标识归 Anthropic 所有。后端身份图标使用对应产品的官方标识。项目品牌图标仍由 `codex-web.svg` 提供。
+
+双后端回退对照记录见[双后端回归审查](architecture/backend-regressions.md)。`tests/browser/backend-regressions.mjs` 使用生产构建、独立浏览器和隔离传输验证旧未分类目录、用户消息 Markdown、引用键盘打开、Claude 内部消息来源、主题、缩放与窄屏；通过 `CHROME_PATH`、`PLAYWRIGHT_MODULE` 配置浏览器工具。`tests/integration/claude-message-provenance.mjs` 通过真实 SDK 读取临时原生 JSONL，核对来源字段保留与用户轮次归属。

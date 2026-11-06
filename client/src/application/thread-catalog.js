@@ -97,7 +97,9 @@ export function createThreadCatalog({
           get().projects,
           get().pins,
           projectless.directories,
-          get().projectlessRoot,
+          get().projectlessRoots?.length
+            ? get().projectlessRoots
+            : get().projectlessRoot,
         )
           .map(([path]) => path)
           .filter((path) => !get().projectOrder?.includes(path)),

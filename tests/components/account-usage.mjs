@@ -274,12 +274,25 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
       view.root.findAllByProps({ className: "quota-toggle" }).length,
       0,
     );
+    await act(async () =>
+      app.set({
+        current: { id: "backend:claude:native" },
+        backendId: "claude",
+        providerId: "",
+        backends: [{ id: "claude", ready: true }],
+        account: { type: "claude", usageSupported: true },
+        usage: snapshot(),
+      }),
+    );
+    assert.equal(resets.size, 1, "Claude 原生窗口到期时安排自动校准");
+    assert.equal(intervals.size, 1);
     const beforeClaude = count();
     await act(async () =>
       app.set({
         current: { id: "backend:claude:session" },
         backendId: "claude",
         account: null,
+        usage: null,
         providers: [
           { id: "local", name: "LM Studio" },
           { id: "other", name: "Other" },

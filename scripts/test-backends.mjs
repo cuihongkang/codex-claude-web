@@ -11,6 +11,7 @@ const directory = join(process.cwd(), ".cache", "backend-acceptance");
 await mkdir(directory, { recursive: true });
 const scripts = [
   "claude-session-history.mjs",
+  "claude-message-provenance.mjs",
   "claude-native-fork-boundary.mjs",
   "claude-native-checkpoints.mjs",
   "claude-native-subagents.mjs",

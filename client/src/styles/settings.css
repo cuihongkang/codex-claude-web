@@ -246,6 +246,7 @@
   font-size: 0.923077rem;
 }
 .toast {
+  pointer-events: none;
   position: fixed;
   bottom: 25px;
   left: 50%;

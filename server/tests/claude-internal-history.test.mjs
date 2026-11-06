@@ -68,3 +68,34 @@ test("native internal local commands preserve visible history and activity time"
     "a user's matching command stays visible without an internal UUID registration",
   );
 });
+
+test("原生后台通知和中断记录保持内部归属，正文相同的人类输入仍展示", () => {
+  const user = (uuid, text, extra = {}) => ({
+    type: "user",
+    uuid,
+    timestamp: "2026-11-06T00:00:00Z",
+    message: { content: [{ type: "text", text }] },
+    ...extra,
+  });
+  const notification =
+    "<task-notification><task-id>fixture</task-id></task-notification>";
+  const records = [
+    user("human", "执行检查", { origin: { kind: "human" } }),
+    user("task", notification, {
+      origin: { kind: "task-notification" },
+      timestamp: "2026-11-06T01:00:00Z",
+    }),
+    user("interrupt", "[Request interrupted by user]", {
+      isVisibleInTranscriptOnly: true,
+    }),
+    user("synthetic", "内部状态", { isSynthetic: true }),
+    user("quoted", notification, { origin: { kind: "human" } }),
+  ];
+  const turns = historyTurns(records);
+  assert.equal(turns.length, 2);
+  assert.deepEqual(
+    turns.flatMap((t) => t.items).map((i) => i.id),
+    ["human", "quoted"],
+  );
+  assert.equal(turns[0].completedAt, Date.parse(records[0].timestamp) / 1000);
+});

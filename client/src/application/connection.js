@@ -45,8 +45,14 @@ export function createConnection({
     if (m.method === "lan/state") {
       projectModelsSupported = m.params.projectModels === true;
       const was = get().connected;
+      const selectedWasReady = get().backends.find(
+        (backend) => backend.id === get().backendId,
+      )?.ready;
+      const selectedNowReady = m.params.backends?.find(
+        (backend) => backend.id === get().backendId,
+      )?.ready;
       const ready = m.params.bridgeReady ?? m.params.ready;
-      if (!m.params.ready || !was) {
+      if (!m.params.ready || !was || selectedNowReady === false) {
         account.reset();
       }
       compactionTracking = Object.hasOwn(m.params, "compactions");
@@ -69,6 +75,9 @@ export function createConnection({
           : {}),
         defaultCwd: m.params.defaultCwd,
         projectlessRoot: m.params.projectlessRoot || "",
+        projectlessRoots:
+          m.params.projectlessRoots ||
+          [m.params.projectlessRoot].filter(Boolean),
         connected: ready,
         ...(m.params.backends && {
           backends: m.params.backends,
@@ -94,7 +103,11 @@ export function createConnection({
         for (const [threadId, entry] of Object.entries(get().compactions))
           if (isCompacting(entry))
             compaction.refreshCompaction(threadId).catch(() => {});
-      if (ready && !was) boot();
+      if (
+        ready &&
+        (!was || (selectedWasReady === false && selectedNowReady === true))
+      )
+        boot();
       return;
     }
     events.handle(m);
@@ -166,56 +179,55 @@ export function createConnection({
   async function boot() {
     const revision = ++bootRevision;
     const accountEpoch = account.revision;
+    const backendId = get().backendId;
     const epoch = navigation.opening;
     const id = get().current?.id || localStorage.getItem("cx-current");
     const current = () => revision === bootRevision && get().connected;
     try {
-      const [modelList, accountResult, config] = await Promise.all([
-        rpc("model/list").catch((error) => {
-          if (!get().backends.length) throw error;
-          return { data: [] };
-        }),
-        rpc("account/read", { refreshToken: false }).catch((error) => {
-          if (!get().backends.length) throw error;
-          return { account: null };
-        }),
-        rpc("config/read", { includeLayers: false }).catch((error) => {
-          if (!get().backends.length) throw error;
-          return { config: {} };
-        }),
-        projectModelsSupported
-          ? models.syncProjectModels().catch(report)
-          : Promise.resolve(),
-      ]);
-      if (!current()) return;
-      const cfg = config.config || {};
-      models.configure({
-        model:
-          cfg.model || modelList.data.find((m) => m.isDefault)?.model || "",
-        effort: cfg.model_reasoning_effort || "",
-      });
-      set({
-        models: modelList.data,
-        ...(accountEpoch === account.revision && {
-          account: accountResult.account,
-        }),
-        ...(!get().current &&
-          models.projectModelSelection(
-            get().cwd,
-            get().projectless,
-            {
-              model: get().model || models.defaults.model,
-              effort: get().effort || models.defaults.effort,
-            },
-            modelList.data,
-          )),
-        serviceTier:
-          get().serviceTier === undefined
-            ? (cfg.service_tier ?? null)
-            : get().serviceTier,
-        booting: false,
-      });
-      if (get().backends.length) await activateBackend(get().backendId);
+      if (get().backends.length) {
+        await activateBackend(backendId);
+        if (!current()) return;
+        set({ booting: false });
+      } else {
+        const [modelList, accountResult, config] = await Promise.all([
+          rpc("model/list"),
+          rpc("account/read", { refreshToken: false }),
+          rpc("config/read", { includeLayers: false }),
+          projectModelsSupported
+            ? models.syncProjectModels().catch(report)
+            : Promise.resolve(),
+        ]);
+        if (!current()) return;
+        if (backendId === get().backendId && epoch === navigation.opening) {
+          const cfg = config.config || {};
+          models.configure({
+            model:
+              cfg.model || modelList.data.find((m) => m.isDefault)?.model || "",
+            effort: cfg.model_reasoning_effort || "",
+          });
+          set({
+            models: modelList.data,
+            ...(accountEpoch === account.revision && {
+              account: accountResult.account,
+            }),
+            ...(!get().current &&
+              models.projectModelSelection(
+                get().cwd,
+                get().projectless,
+                {
+                  model: get().model || models.defaults.model,
+                  effort: get().effort || models.defaults.effort,
+                },
+                modelList.data,
+              )),
+            serviceTier:
+              get().serviceTier === undefined
+                ? (cfg.service_tier ?? null)
+                : get().serviceTier,
+            booting: false,
+          });
+        } else set({ booting: false });
+      }
       await catalog.loadThreads();
       if (!current()) return;
       // 初始化只恢复启动时的选择，保留期间新建、发送和切换的对话。

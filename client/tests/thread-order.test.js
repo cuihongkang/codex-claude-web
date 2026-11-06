@@ -441,3 +441,24 @@ test("读取期间的新轮次开始、迟到完成及旧历史响应保持最�
   ordering.forget(thread.id);
   assert.equal(threadTime(ordering.apply(thread)), 1);
 });
+
+test("升级后的分组同时识别新旧自动目录，固定目录和其他创建者继续独立分组", () => {
+  const roots = ["/web/workspaces", "/native/codex-web/workspaces"];
+  for (const root of roots) {
+    const thread = {
+      id: root,
+      cwd: root + "/chat-ABC123",
+      originator: "codex_lan_web",
+    };
+    assert.equal(threadGroupPath(thread, [], {}, roots), "");
+    assert.equal(threadGroupPath(thread, [thread.cwd], {}, roots), thread.cwd);
+    assert.equal(
+      threadGroupPath({ ...thread, originator: "codex_cli_rs" }, [], {}, roots),
+      thread.cwd,
+    );
+    assert.equal(
+      threadGroupPath({ ...thread, cwd: thread.cwd + "/repo" }, [], {}, roots),
+      thread.cwd + "/repo",
+    );
+  }
+});

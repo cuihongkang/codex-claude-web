@@ -152,7 +152,7 @@ try {
       window.historyFixture.hold = true;
     });
     await longThread.click();
-    const composer = page.getByRole("textbox", { name: "消息", exact: true });
+    const composer = page.locator(".composer .ProseMirror");
     await composer.waitFor();
     await composer.fill("后台读取期间保留草稿");
     assert.equal(await page.locator(".assistant-message").count(), 1);
@@ -177,7 +177,7 @@ try {
       Math.abs(position - after) < 3,
       `补齐早期历史保留阅读位置：${position} → ${after}`,
     );
-    assert.equal(await composer.inputValue(), "后台读取期间保留草稿");
+    assert.equal(await composer.innerText(), "后台读取期间保留草稿");
     await page.getByRole("button", { name: "对话目录", exact: true }).click();
     await page
       .locator(".conversation-navigation-entries button")

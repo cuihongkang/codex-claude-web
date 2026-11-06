@@ -42,6 +42,7 @@ export function convertMessage(
     message.isMeta ||
     message.is_meta ||
     message.isCompactSummary ||
+    message.isVisibleInTranscriptOnly ||
     (message.type === "assistant" && message.error)
   )
     return [];
@@ -59,7 +60,7 @@ export function convertMessage(
               url: imageUrl(b),
             },
       );
-    if (content.length)
+    if (content.length && isUserPrompt(message))
       items.push({ id: message.uuid, turnId, type: "userMessage", content });
     for (const block of blocks.filter((b) => b.type === "tool_result")) {
       const prior = tools.get(block.tool_use_id);
@@ -165,6 +166,9 @@ export function isUserPrompt(message) {
     !message.isMeta &&
     !message.is_meta &&
     !message.isCompactSummary &&
+    !message.isVisibleInTranscriptOnly &&
+    !message.isSynthetic &&
+    message.origin?.kind !== "task-notification" &&
     contentBlocks(message).some((block) =>
       ["text", "image"].includes(block.type),
     )
@@ -232,7 +236,15 @@ export function historyTurns(
       turn.status = savedTurns[turn.id]?.status || "completed";
       delete turn.error;
     }
+    const converted = convertMessage(
+      message,
+      turn.id,
+      tools,
+      turn.mode,
+      blockOffsets.get(message.message?.id || message.uuid) || 0,
+    );
     if (
+      (converted.length || message.isApiErrorMessage || message.error) &&
       message.timestamp &&
       ["completed", "failed", "interrupted"].includes(turn.status) &&
       !Number.isFinite(savedTurns[turn.id]?.completedAt)
@@ -242,13 +254,7 @@ export function historyTurns(
     const blockOffset = blockOffsets.get(messageId) || 0;
     if (message.type === "assistant")
       blockOffsets.set(messageId, blockOffset + contentBlocks(message).length);
-    for (const item of convertMessage(
-      message,
-      turn.id,
-      tools,
-      turn.mode,
-      blockOffset,
-    )) {
+    for (const item of converted) {
       if (["agentMessage", "plan"].includes(item.type)) {
         const saved = savedTurns[turn.id]?.items?.find(
           (entry) => entry.id === item.id,

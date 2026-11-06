@@ -17,10 +17,11 @@ export function sortThreads(threads) {
 export function threadGroupPath(thread, projects, directories, root) {
   if (!thread.cwd) return "";
   if (thread.projectId || projects.includes(thread.cwd)) return thread.cwd;
-  const workspace =
-    root && thread.cwd.startsWith(root + "/")
-      ? thread.cwd.slice(root.length + 1)
-      : "";
+  const roots = Array.isArray(root) ? root : [root];
+  const matchedRoot = roots.find(
+    (entry) => entry && thread.cwd.startsWith(entry + "/"),
+  );
+  const workspace = matchedRoot ? thread.cwd.slice(matchedRoot.length + 1) : "";
   const webProjectless =
     /^chat-[A-Za-z0-9]{6}$/.test(workspace) &&
     (thread.threadSource === PROJECTLESS_SOURCE ||

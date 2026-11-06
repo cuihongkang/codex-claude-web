@@ -59,7 +59,7 @@ export async function runCommandScenarios({
   );
   assert.equal(
     await evaluate(
-      `document.querySelector('textarea[aria-label="消息"]').value`,
+      `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
     ),
     "/resume",
   );
@@ -93,12 +93,15 @@ export async function runCommandScenarios({
   );
   assert.equal(
     await evaluate(
-      `document.querySelector('textarea[aria-label="消息"]').value`,
+      `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
     ),
     "/init",
   );
   await screenshot("init-retry");
   await evaluate(`commandFixture.setFail(false)`);
+  await waitFor(
+    `document.querySelector('button[aria-label="发送消息"]')?.disabled === false`,
+  );
   await click('button[aria-label="发送消息"]');
   await waitFor(`document.body.textContent.includes('已生成 AGENTS.md')`);
   await submit("/goal 完成命令对照与回归验证");
@@ -162,6 +165,12 @@ export async function runCommandScenarios({
     ),
     false,
   );
+  if (
+    await evaluate(
+      `document.querySelector('.context-workspace')?.dataset.open === "true"`,
+    )
+  )
+    await click('.context-tools button[title="折叠对话详情"]');
   const layouts = [];
   for (const theme of ["light", "dark"]) {
     for (const width of [1440, 390]) {
@@ -308,11 +317,11 @@ export async function runCommandScenarios({
   await screenshot("compact-running");
   await page("Page.reload", {});
   await waitFor(
-    `document.querySelector('.compaction-status')?.textContent.includes('正在整理上下文')&&document.querySelector('textarea[aria-label="消息"]')`,
+    `document.querySelector('.compaction-status')?.textContent.includes('正在整理上下文')&&document.querySelector('.composer [aria-label="消息"]')`,
   );
   assert.equal(
     await evaluate(
-      `document.querySelector('textarea[aria-label="消息"]').value`,
+      `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
     ),
     "整理期间保留的草稿",
   );
@@ -346,7 +355,7 @@ export async function runCommandScenarios({
   );
   assert.equal(
     await evaluate(
-      `document.querySelector('textarea[aria-label="消息"]').value`,
+      `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
     ),
     "整理期间保留的草稿",
   );
@@ -360,7 +369,7 @@ export async function runCommandScenarios({
   assert(completedLayout.scrollWidth <= completedLayout.width);
   await click('button[aria-label="发送消息"]');
   await waitFor(
-    `document.querySelector('textarea[aria-label="消息"]').value === ''`,
+    `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})() === ''`,
   );
   await screenshot("compact-after-send-button-dark-390");
   assert.equal(
@@ -397,14 +406,14 @@ export async function runCommandScenarios({
   );
   assert.equal(
     await evaluate(
-      `document.querySelector('textarea[aria-label="消息"]').value`,
+      `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
     ),
     "失败后继续保留的草稿",
   );
   await screenshot("compact-retried-completed");
   await submit("整理完成后通过快捷键继续对话");
   await waitFor(
-    `document.querySelector('textarea[aria-label="消息"]').value === ''`,
+    `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})() === ''`,
   );
   await screenshot("compact-after-send-keyboard-light-1440");
   assert.equal(
@@ -438,7 +447,7 @@ export async function runCommandScenarios({
   );
   assert.equal(
     await evaluate(
-      `document.querySelector('textarea[aria-label="消息"]').value`,
+      `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
     ),
     "后台断线后继续编辑的草稿",
   );

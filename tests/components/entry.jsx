@@ -16,3 +16,5 @@ export { ProjectGroup } from "../../client/src/app/project-group.jsx";
 export * from "../../client/src/store.js";
 
 export { SkillsDialog } from "../../client/src/app/tool-dialogs.jsx";
+
+export { InputQueue } from "../../client/src/features/composer/input-queue.jsx";

@@ -10,6 +10,7 @@ export function createBackends({
   set,
   rpc,
   models,
+  transport,
   report,
   onSelectionChanged = () => {},
 }) {
@@ -19,6 +20,13 @@ export function createBackends({
   async function activateBackend(id, choice) {
     if (!get().backends?.length) return;
     const epoch = ++revision;
+    const connection = transport?.connection;
+    const cwd = get().cwd;
+    const current = () =>
+      epoch === revision &&
+      get().backendId === id &&
+      get().cwd === cwd &&
+      (!transport || (transport.connection === connection && get().connected));
     const previous = get().backendId || "codex";
     const threadId = previous === id ? get().current?.id : null;
     const threadSelection =
@@ -36,6 +44,10 @@ export function createBackends({
             serviceTier: get().serviceTier,
           }
         : null);
+    const initialProvider =
+      threadSelection?.providerId ?? saved("cx-provider-" + id, "");
+    const sameAccount = previous === id && initialProvider === get().providerId;
+    const modelRevision = models.revision;
     if (!get().current) {
       localStorage.setItem(newDraftKey(previous), get().draft);
       attachments.set(previous, get().attachments);
@@ -53,22 +65,28 @@ export function createBackends({
         draft: localStorage.getItem(newDraftKey(id)) || "",
         attachments: attachments.get(id) || [],
       }),
-      providers: [],
-      providerId: "",
+      providers: sameAccount ? get().providers : [],
+      providerId: initialProvider,
       models: choice
         ? get().modelChoices.filter(
             (entry) =>
               entry.backendId === choice.backendId &&
               entry.providerId === choice.providerId,
           )
-        : [],
+        : sameAccount
+          ? get().models
+          : [],
       model: "",
       effort: "",
-      account: null,
-      usage: null,
-      skills: [],
-      nativeCommands: [],
-      nativeAgents: [],
+      ...(!sameAccount && {
+        account: null,
+        usage: null,
+        usageError: "",
+        usageLoading: false,
+      }),
+      skills: sameAccount ? get().skills : [],
+      nativeCommands: sameAccount ? get().nativeCommands : [],
+      nativeAgents: sameAccount ? get().nativeAgents : [],
       serviceTier: null,
       ...threadSelection,
     });
@@ -80,16 +98,17 @@ export function createBackends({
       accountResult,
       codexResult,
       claudeResult,
+      configResult,
     ] = await Promise.allSettled([
       rpc("model/list", {
         backendId: id,
-        cwd: get().cwd,
+        cwd,
         providerId: get().providerId,
       }),
       rpc("lan/providers/list", { backendId: "claude" }),
       rpc("account/read", {
         backendId: id,
-        cwd: get().cwd,
+        cwd,
         providerId: get().providerId,
         refreshToken: false,
       }),
@@ -97,18 +116,24 @@ export function createBackends({
         ? get().backends.some(
             (backend) => backend.id === "claude" && backend.enabled,
           )
-          ? rpc("model/list", { backendId: "claude", cwd: get().cwd })
+          ? rpc("model/list", { backendId: "claude", cwd })
           : Promise.resolve(null)
-        : rpc("model/list", { backendId: "codex", cwd: get().cwd }),
+        : rpc("model/list", { backendId: "codex", cwd }),
       id === "claude"
         ? rpc("model/list", {
             backendId: "claude",
             providerId: "",
-            cwd: get().cwd,
+            cwd,
           })
         : Promise.resolve(null),
+      rpc("config/read", {
+        backendId: id,
+        cwd,
+        providerId: get().providerId,
+        includeLayers: false,
+      }),
     ]);
-    if (epoch !== revision || get().backendId !== id) return;
+    if (!current()) return;
     if (modelResult.status === "rejected") report(modelResult.reason);
     const nativeModels =
       modelResult.status === "fulfilled" ? modelResult.value.data : [];
@@ -121,11 +146,11 @@ export function createBackends({
         rpc("model/list", {
           backendId: "claude",
           providerId: provider.id,
-          cwd: get().cwd,
+          cwd,
         }),
       ),
     );
-    if (epoch !== revision || get().backendId !== id) return;
+    if (!current()) return;
     const allProviders = configured.map((provider, index) => ({
       ...provider,
       modelRecords:
@@ -196,7 +221,14 @@ export function createBackends({
     const selectedModel = list.find((entry) => entry.model === get().model);
     const tier =
       selectedModel && resolveServiceTier(get().serviceTier, selectedModel);
-    models.configure({ model, effort: "" });
+    const config =
+      configResult.status === "fulfilled"
+        ? configResult.value.config || {}
+        : {};
+    models.configure({
+      model: config.model || model,
+      effort: config.model_reasoning_effort || "",
+    });
     set({
       providers,
       modelChoices,
@@ -205,6 +237,7 @@ export function createBackends({
         providerId: provider?.id || "",
         model,
         effort: "",
+        serviceTier: config.service_tier ?? null,
       }),
       ...(preserveSelection &&
         selectedModel && {
@@ -219,9 +252,32 @@ export function createBackends({
         account:
           accountResult.status === "fulfilled"
             ? accountResult.value.account
-            : null,
+            : sameAccount
+              ? get().account
+              : null,
       }),
     });
+    try {
+      await models.syncProjectModels?.();
+    } catch (error) {
+      if (current()) report(error);
+    }
+    if (
+      current() &&
+      !choice &&
+      !get().current &&
+      models.revision === modelRevision &&
+      models.projectModelSelection
+    ) {
+      set(
+        models.projectModelSelection(
+          cwd,
+          get().projectless,
+          models.defaults,
+          get().models,
+        ),
+      );
+    }
   }
   function selectProvider(id, choice) {
     id ??= "";
@@ -261,7 +317,12 @@ export function createBackends({
   }
   async function selectModelChoice(choice) {
     if (!choice) return;
-    if (get().busy || get().loading || get().active[get().current?.id]) return;
+    if (get().busy || get().loading) return;
+    if (
+      get().active[get().current?.id] &&
+      choice.providerId !== get().providerId
+    )
+      return;
     if (get().current && choice.backendId !== get().backendId) return;
     const selection = ++selectionRevision;
     const threadId = get().current?.id;
@@ -282,7 +343,7 @@ export function createBackends({
       choice.backendId !== get().backendId
     )
       return;
-    if (choice.backendId === "claude")
+    if (choice.backendId === "claude" && choice.providerId !== get().providerId)
       selectProvider(choice.providerId, choice);
     models.selectModel(choice);
   }

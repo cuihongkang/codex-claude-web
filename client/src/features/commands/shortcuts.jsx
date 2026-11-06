@@ -20,6 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import * as store from "../../store.js";
+import { backendReady } from "../../domain/backends.js";
 
 import {
   composerCommands,
@@ -56,6 +57,7 @@ const commands = composerCommands.map((command) => ({
 export function useComposerShortcuts(area) {
   const s = store.useStore();
   const draft = store.useDraft();
+  const ready = s.connected && backendReady(s);
   const [trigger, setTrigger] = useState(null),
     [files, setFiles] = useState([]),
     [index, setIndex] = useState(0),
@@ -79,8 +81,8 @@ export function useComposerShortcuts(area) {
     setIndex(0);
   }
   useEffect(() => {
-    if (s.connected) store.loadSkills().catch(() => {});
-  }, [s.cwd, s.connected, s.backendId, s.providerId, s.current?.id]);
+    if (ready) store.loadSkills().catch(() => {});
+  }, [s.cwd, ready, s.backendId, s.providerId, s.current?.id]);
   useEffect(() => {
     const n = ++generation.current;
     setFiles([]);

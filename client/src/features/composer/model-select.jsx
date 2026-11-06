@@ -20,7 +20,7 @@ export function ModelSelect() {
       choice.providerId === s.providerId &&
       choice.model === s.model,
   );
-  const locked = s.busy || s.loading || Boolean(s.active[s.current?.id]);
+  const locked = s.busy || s.loading;
   return (
     <label className="select-control model-select">
       <select
@@ -44,7 +44,14 @@ export function ModelSelect() {
           <>
             {!current && s.model && <option value={s.model}>{s.model}</option>}
             {choices.map((choice) => (
-              <option key={key(choice)} value={key(choice)}>
+              <option
+                key={key(choice)}
+                value={key(choice)}
+                disabled={
+                  Boolean(s.active[s.current?.id]) &&
+                  choice.providerId !== s.providerId
+                }
+              >
                 {choice.providerName} · {choice.displayName || choice.model}
               </option>
             ))}

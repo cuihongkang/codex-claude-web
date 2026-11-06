@@ -26,7 +26,7 @@ export function Sidebar() {
     s.projects,
     s.pins,
     s.projectlessDirectories,
-    s.projectlessRoot,
+    s.projectlessRoots.length ? s.projectlessRoots : s.projectlessRoot,
     s.projectOrder || [],
   );
   return (

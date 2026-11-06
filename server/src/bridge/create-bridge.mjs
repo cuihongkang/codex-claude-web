@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { createProjectModels } from "../project-models.mjs";
 import { createCompactions } from "../compaction.mjs";
 import { createThreadNaming, generateThreadName } from "../thread-names.mjs";
@@ -68,7 +69,10 @@ export function createBridge({ config, version, send, broadcast }) {
   });
   const methods = createLocalMethods({
     config,
-    projectModels: createProjectModels(config.configDir),
+    projectModels: createProjectModels(
+      config.configDir,
+      join(config.codexHome, "codex-web"),
+    ),
     call: transport.call,
     checkCompaction,
     files,

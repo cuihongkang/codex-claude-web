@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import { readProjectlessDirectories } from "../thread-projects.mjs";
 import { createWorkspace } from "../workspace/service.mjs";
 import { isCompacting } from "../../../shared/compaction-state.mjs";
 import {
@@ -53,6 +55,14 @@ export function createBackendManager({
         version,
         defaultCwd: config.defaultCwd,
         projectlessRoot: config.projectlessRoot,
+        projectlessRoots: [
+          config.projectlessRoot,
+          join(
+            instances.get("codex")?.backend.dataDir || config.codexHome,
+            "codex-web",
+            "workspaces",
+          ),
+        ],
         projectModels: true,
         questions: states.flatMap((s) => s.questions),
         activeTurns: merge("activeTurns"),
@@ -160,15 +170,16 @@ export function createBackendManager({
   }
   async function listThreads(params) {
     const ids = [...instances.values()]
-      .filter((i) => i.adapter)
+      .filter((i) => i.backend.enabled)
       .map((i) => i.backend.id);
     const position = params.cursor
       ? JSON.parse(decodeURIComponent(params.cursor))
       : { index: 0 };
     const errors = [];
     while (position.index < ids.length) {
-      const entry = instance(ids[position.index]);
+      const backendId = ids[position.index];
       try {
+        const entry = instance(backendId);
         const page = await call(entry, "thread/list", {
           ...params,
           cursor: position.cursor,
@@ -185,7 +196,7 @@ export function createBackendManager({
               : null,
         };
       } catch (error) {
-        errors.push({ backendId: entry.backend.id, message: error.message });
+        errors.push({ backendId, message: error.message });
         position.index++;
         delete position.cursor;
       }
@@ -235,6 +246,12 @@ export function createBackendManager({
     );
     if (workspace.handles(method) && target.backendId !== "codex")
       return reply(await workspace.request(method, params));
+    if (method === "lan/projectless/read")
+      return reply({
+        directories: await readProjectlessDirectories(
+          instances.get("codex")?.backend.dataDir || config.codexHome,
+        ),
+      });
     if (method === "lan/backends/list")
       return reply({ backends: publicBackends() });
     if (

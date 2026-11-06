@@ -16,7 +16,7 @@ export async function testCompactionReload({
     await page("Page.reload", {});
     // 等待新文档的模拟后端和输入框，避免读取刷新前仍存在的 DOM。
     await waitFor(
-      `window.commandFixture && !commandFixture.reloading && document.querySelector('textarea[aria-label="消息"]') && document.querySelector('.breadcrumb > span')?.textContent === '核对快捷命令'`,
+      `window.commandFixture && !commandFixture.reloading && document.querySelector('.composer [aria-label="消息"]') && document.querySelector('.breadcrumb > span')?.textContent === '核对快捷命令'`,
     );
   };
   const status = () =>
@@ -66,7 +66,7 @@ export async function testCompactionReload({
   );
   assert.equal(
     await evaluate(
-      `document.querySelector('textarea[aria-label="消息"]').value`,
+      `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
     ),
     "立即刷新后保留的草稿",
   );
@@ -138,7 +138,7 @@ export async function testCompactionReload({
   await click('.project-heading > button[title="/fixture/project"]');
   await click(".thread-link");
   await waitFor(
-    `document.querySelector('.breadcrumb > span')?.textContent === '核对快捷命令' && document.querySelector('textarea[aria-label="消息"]')`,
+    `document.querySelector('.breadcrumb > span')?.textContent === '核对快捷命令' && document.querySelector('.composer [aria-label="消息"]')`,
   );
   assert.equal(await status(), "", "切换对话再返回保持提示关闭");
   await reload();

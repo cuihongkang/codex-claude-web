@@ -11,7 +11,7 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
   let defaultModelSelection = { model: "", effort: "" };
   let modelSelectionRevision = 0;
   let projectModelsRemote = false;
-  let projectModelsWriting = null;
+  const projectModelsWriting = new Map();
   function selectModel(model) {
     const tier = resolveServiceTier(get().serviceTier, model);
     const previous = get().models.find((entry) => entry.model === get().model);
@@ -61,10 +61,16 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
   }
   function flushProjectModels() {
     if (!projectModelsRemote || !get().connected) return Promise.resolve();
-    if (projectModelsWriting) return projectModelsWriting;
     const backendId = get().backendId;
-    projectModelsWriting = (async () => {
-      while (get().connected && get().backendId === backendId) {
+    if (projectModelsWriting.has(backendId))
+      return projectModelsWriting.get(backendId);
+    const connection = transport.connection;
+    const writing = (async () => {
+      while (
+        get().connected &&
+        get().backendId === backendId &&
+        transport.connection === connection
+      ) {
         const [entry] = Object.entries(
           saved(storageKey("cx-project-models-pending"), {}),
         );
@@ -76,7 +82,11 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
           ...pending.selection,
           ifAbsent: pending.ifAbsent || false,
         });
-        if (get().backendId !== backendId) return;
+        if (
+          get().backendId !== backendId ||
+          transport.connection !== connection
+        )
+          return;
         const remaining = saved(storageKey("cx-project-models-pending"), {});
         if (remaining[cwd]?.id === pending.id) delete remaining[cwd];
         persist(storageKey("cx-project-models-pending"), remaining);
@@ -87,14 +97,16 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
         throw new Error("项目模型设置保存失败：" + error.message);
       })
       .finally(() => {
-        projectModelsWriting = null;
+        if (projectModelsWriting.get(backendId) === writing)
+          projectModelsWriting.delete(backendId);
       });
-    return projectModelsWriting;
+    projectModelsWriting.set(backendId, writing);
+    return writing;
   }
   async function syncProjectModels() {
     const connection = transport.connection;
     const backendId = get().backendId;
-    const result = await rpc("lan/projectModels/read");
+    const result = await rpc("lan/projectModels/read", { backendId });
     if (connection !== transport.connection || backendId !== get().backendId)
       return;
     projectModelsRemote = Boolean(result.projects);

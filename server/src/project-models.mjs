@@ -1,15 +1,27 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 
-export function createProjectModels(directory) {
+export function createProjectModels(directory, legacyDirectory) {
   const path = join(directory, "project-models.json");
   let writing = Promise.resolve();
   async function read() {
     try {
       return JSON.parse(await readFile(path, "utf8"));
     } catch (error) {
-      if (error.code === "ENOENT") return {};
-      throw error;
+      if (error.code !== "ENOENT") throw error;
+      if (legacyDirectory && legacyDirectory !== directory) {
+        try {
+          return JSON.parse(
+            await readFile(
+              join(legacyDirectory, "project-models.json"),
+              "utf8",
+            ),
+          );
+        } catch (legacyError) {
+          if (legacyError.code !== "ENOENT") throw legacyError;
+        }
+      }
+      return {};
     }
   }
   function set({ cwd, model, effort, ifAbsent = false }) {
