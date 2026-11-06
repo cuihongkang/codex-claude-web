@@ -276,7 +276,11 @@ export function createBackendManager({
       return reply(await operation);
     }
     if (method === "lan/providers/list")
-      return reply({ providers: await providers.list(params.backendId) });
+      return reply({
+        providers: await providers.list(params.backendId, {
+          includeDisabled: params.includeDisabled === true,
+        }),
+      });
     if (method === "lan/providers/save")
       return reply({ providers: await providers.save(params) });
     if (method === "lan/providers/remove")

@@ -103,9 +103,11 @@ AUTH_SESSION_DAYS=30
 
 除默认 Codex 外，可在设置的“模型与服务配置”中启用 Claude Code。选择本机已安装的 Claude Code 可执行文件，沿用其现有原生配置目录；默认使用 `CLAUDE_CONFIG_DIR`，未设置时为 `~/.claude`。网页服务使用其系统账户启动程序，复用已有认证、技能、插件和历史。Codex 同样沿用现有 `CODEX_HOME`（默认 `~/.codex`）。
 
-在 Claude Code 的“供应商与模型”中添加服务名称、API 地址、凭据和模型标识。多个供应商共用此 Claude Code 后端。在输入框的模型菜单选择“供应商 · 模型”，新对话会使用对应后端；已有 Claude 对话可在任务结束后更换供应商或模型并继续。
+在设置页 Claude Code 的供应商列表中添加服务名称、API 地址、凭据和模型标识。多个供应商共用此 Claude Code 后端。在输入框的模型菜单选择“供应商 · 模型”，新对话会使用对应后端；已有 Claude 对话可在任务结束后更换供应商或模型并继续。
 
 API 地址需支持 Messages 请求及工具调用，填写服务基地址，例如 `https://model.example`，请求路径会追加 `/v1/messages`；服务有统一路径前缀时将其保留在基地址中。按服务提供的接口选择标准 Messages 或 Anthropic 协议。模型标识和支持的思考强度、速度档位以服务实际配置为准。API Key 保存在服务器，编辑时留空保留原凭据，勾选清除会移除已保存凭据。
+
+默认供应商 DeepSeek 仅提供 API Key 输入，接口、模型与能力参数由程序按官方文档配置，API Key 初始为空。点击“编辑”，填写 Key 并保存即可启用；编辑后保存空 Key 会清除已保存凭据并停用，模型菜单同步移除该供应商。DeepSeek 使用 `https://api.deepseek.com/anthropic`，预置 `deepseek-flash` 和 `deepseek-v4-pro`，上下文容量为 1,048,576 tokens，思考强度提供 low、high、max，支持思考开关，服务端默认强度为 high；接口与模型依据 [DeepSeek 官方文档](https://api-docs.deepseek.com/guides/anthropic_api/)。自行添加的供应商继续使用上述留空保留及勾选清除规则。
 
 自定义模型可填写可选的显示别名，留空沿用原名称。别名随供应商配置保存在服务器，其他浏览器连接同一服务后使用相同名称，实际调用使用原始模型标识。
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ProviderModelNames } from "./provider-model-names.jsx";
+import { PresetProviderForm } from "./preset-provider-form.jsx";
 import { rpc, saveProvider } from "../store.js";
 export function ProviderSettings({ backend }) {
   const [providers, setProviders] = useState([]),
@@ -8,7 +9,7 @@ export function ProviderSettings({ backend }) {
     [busy, setBusy] = useState(false);
   useEffect(() => {
     let current = true;
-    rpc("lan/providers/list", { backendId: backend.id })
+    rpc("lan/providers/list", { backendId: backend.id, includeDisabled: true })
       .then((r) => {
         if (current) setProviders(r.providers);
       })
@@ -23,19 +24,43 @@ export function ProviderSettings({ backend }) {
     <div className="provider-settings">
       {providers.map((p) => (
         <div className="backend-heading" key={p.id}>
-          <span>{p.name}</span>
-          <small>
-            {p.models
-              .map((model) => p.modelAliases?.[model] || model)
-              .join("、")}
-          </small>
+          <span className="provider-identity">
+            {p.preset && (
+              <>
+                <img
+                  className="provider-brand-symbol"
+                  src={
+                    new URL(
+                      `../assets/providers/${p.icon}.svg`,
+                      import.meta.url,
+                    ).href
+                  }
+                  alt={`${p.name} 标识`}
+                />
+              </>
+            )}
+            <span>{p.name}</span>
+          </span>
+          {p.preset && <span>{p.hasApiKey ? "已启用" : "待填写 API Key"}</span>}
           <button onClick={() => setEditing(p)}>编辑</button>
         </div>
       ))}
       <button onClick={() => setEditing({ name: "", baseUrl: "", models: [] })}>
         添加供应商
       </button>
-      {editing && (
+      {editing?.preset && (
+        <PresetProviderForm
+          key={editing.id}
+          provider={editing}
+          backendId={backend.id}
+          onSaved={(providers) => {
+            setProviders(providers);
+            setEditing(null);
+          }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+      {editing && !editing.preset && (
         <form
           className="backend-form"
           key={editing.id || "new"}
@@ -91,8 +116,12 @@ export function ProviderSettings({ backend }) {
                     : {}),
               });
               setProviders(
-                (await rpc("lan/providers/list", { backendId: backend.id }))
-                  .providers,
+                (
+                  await rpc("lan/providers/list", {
+                    backendId: backend.id,
+                    includeDisabled: true,
+                  })
+                ).providers,
               );
               setEditing(null);
             } catch (e) {

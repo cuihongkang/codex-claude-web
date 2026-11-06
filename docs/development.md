@@ -353,3 +353,11 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 ### 自定义模型显示别名回归
 
 执行 `npm run build` 后运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROME_PATH=/path/to/chromium node tests/browser/provider-model-aliases.mjs`。回归使用隔离供应商与长模型 ID，验证模型行展开、别名保存、重新编辑恢复、清空回退、原始请求标识及深浅主题、80% 至 200% 缩放和窄屏。截图保存在 `.cache/provider-model-aliases/dual`。服务端配置回归验证别名持久恢复、无效模型拒绝及移除模型后清理别名。
+
+### 默认供应商回归
+
+默认供应商统一在 `server/src/backends/provider-presets.mjs` 登记稳定标识、协议、地址与模型，凭据沿用受限的供应商配置存储。`server/tests/provider-presets.test.mjs` 使用临时配置验证空凭据停用、填写启用、持久恢复、运行时环境、清空撤销及公开响应隐藏凭据。
+
+构建后执行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROME_PATH=/path/to/chromium node tests/browser/provider-presets.mjs`，通过隔离传输验证默认项展示、仅提供 Key 编辑、Key 保存与清空、模型菜单同步、深浅主题、80%、100%、125%、150% 与 200% 实际浏览器页面缩放及窄屏。截图保存在 `.cache/provider-presets/dual`。缩放通过隔离扩展调用浏览器页面缩放接口，并核对实际缩放值、DPR 与视口。真实 DeepSeek 推理调用需使用显式提供的有效凭据。
+
+默认供应商品牌图标必须在统一定义中提供 `icon` 标识，对应 SVG 位于 `client/src/assets/providers`，配置测试核对每个默认供应商的图标存在及默认项置顶顺序。DeepSeek 图标原样取自 [DeepSeek 官方品牌素材 ICON.svg](https://github.com/deepseek-ai/awesome-deepseek-integration/blob/main/docs/_logo%20svg/ICON.svg)，标识归 DeepSeek 所有，使用遵循该目录的品牌素材规范。浏览器回归核对实际品牌图标加载与列表顺序。

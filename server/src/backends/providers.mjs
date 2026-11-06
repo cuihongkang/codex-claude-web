@@ -1,31 +1,38 @@
 import { randomUUID } from "node:crypto";
+import { configuredProviders, providerPresets } from "./provider-presets.mjs";
 
 export function createProviders(configuration) {
   const publicProvider = ({ apiKey, ...provider }) => ({
     ...provider,
     hasApiKey: Boolean(apiKey),
   });
-  async function list(backendId) {
+  async function list(backendId, { includeDisabled = false } = {}) {
     const data = await configuration.read();
-    return data.providers
+    return configuredProviders(data.providers)
       .filter(
         (p) =>
-          p.backendId === "claude" && (!backendId || p.backendId === backendId),
+          p.backendId === "claude" &&
+          (!backendId || p.backendId === backendId) &&
+          (includeDisabled || p.enabled !== false),
       )
       .map(publicProvider);
   }
   async function get(backendId, providerId) {
-    const providers = (await configuration.read()).providers.filter(
-      (p) => p.backendId === backendId,
-    );
+    const providers = configuredProviders(
+      (await configuration.read()).providers,
+    ).filter((p) => p.backendId === backendId);
     if (providerId == null || providerId === "") return null;
     const provider = providers.find((p) => p.id === providerId);
     if (!provider) throw new Error("供应商已移除，请重新选择");
+    if (provider.enabled === false)
+      throw new Error("供应商已停用，请填写 API Key 后重试");
     return provider;
   }
   async function save(input) {
+    const preset = providerPresets.find((p) => p.id === input.id);
     if (input.backendId !== "claude")
       throw new Error("供应商配置仅用于 Claude Code");
+    if (preset) input = { ...preset, apiKey: input.apiKey };
     const id = input.id || randomUUID();
     if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id)) throw new Error("供应商标识无效");
     const url = new URL(input.baseUrl);
@@ -105,7 +112,7 @@ export function createProviders(configuration) {
         apiKey:
           input.apiKey === undefined
             ? previous?.apiKey || ""
-            : String(input.apiKey),
+            : String(input.apiKey).trim(),
       };
       return {
         ...data,
