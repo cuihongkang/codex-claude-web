@@ -1,4 +1,5 @@
 import test from "node:test";
+import { EventEmitter, once } from "node:events";
 import assert from "node:assert/strict";
 import {
   mkdtemp,
@@ -34,6 +35,7 @@ async function fixture(t, shutdown = async () => {}, installation) {
       providers: [],
     }),
   );
+  const updates = new EventEmitter();
   const events = [],
     adapters = [];
   const factory = ({ backend, send }) => {
@@ -87,7 +89,9 @@ async function fixture(t, shutdown = async () => {}, installation) {
     },
     version: {},
     send: (client, message) => client.deliver(message),
-    broadcast() {},
+    broadcast(message) {
+      updates.emit("state", message);
+    },
     factories: { claude: factory, ...(installation && { installation }) },
   });
   t.after(async () => {
@@ -116,6 +120,14 @@ async function fixture(t, shutdown = async () => {}, installation) {
   events.length = 0;
   return {
     manager,
+    async waitForInstallation(id) {
+      while (
+        manager.state().params.backends.find((b) => b.id === id).installation
+          .installing
+      )
+        await once(updates, "state");
+      return manager.state().params.backends.find((b) => b.id === id);
+    },
     call,
     initial,
     path,
@@ -267,82 +279,71 @@ test("配置文件写入失败后恢复旧配置实例，并允许再次保存",
   );
 });
 
-test("安装任务跨请求持有、重复点击合并，完成后恢复后端", async (t) => {
-  let finish, started;
-  const entered = new Promise((r) => {
-    started = r;
-  });
-  const gate = new Promise((r) => {
-    finish = r;
-  });
-  let installations = 0;
-  const installation = {
-    state: () => ({ installed: true, currentVersion: "1.0.0" }),
-    refresh: async () => {},
-    install: async () => {
-      installations++;
-      started();
-      await gate;
-    },
-  };
-  const f = await fixture(t, async () => {}, installation);
-  const first = await f.call("lan/backends/install", { id: "claude" });
-  assert.equal(
-    first.backends.find((b) => b.id === "claude").installation.installing,
-    true,
-  );
-  await entered;
-  await f.call("lan/backends/install", { id: "claude" });
-  assert.equal(installations, 1);
-  await assert.rejects(
-    f.call("turn/start", { backendId: "claude" }),
-    /配置正在更新/,
-  );
-  finish();
-  for (let i = 0; i < 100; i++) {
-    if (
-      !f.manager.state().params.backends.find((b) => b.id === "claude")
-        .installation.installing
-    )
-      break;
-    await new Promise((r) => setImmediate(r));
-  }
-  const final = f.manager
-    .state()
-    .params.backends.find((b) => b.id === "claude");
-  assert.equal(final.installation.installing, false);
-  assert.equal(final.ready, true);
-  assert.equal(f.adapters.length, 2);
-});
-
-test("原生任务占用阻止 npm 更新并显示可重试错误", async (t) => {
-  let installations = 0;
-  const f = await fixture(
-    t,
-    async () => {
-      throw new Error("原生后台任务仍在运行");
-    },
-    {
-      state: () => ({}),
+test(
+  "安装任务跨请求持有、重复点击合并，完成后恢复后端",
+  { timeout: 10000 },
+  async (t) => {
+    let finish, started;
+    const entered = new Promise((r) => {
+      started = r;
+    });
+    const gate = new Promise((r) => {
+      finish = r;
+    });
+    let installations = 0;
+    const installation = {
+      state: () => ({ installed: true, currentVersion: "1.0.0" }),
       refresh: async () => {},
       install: async () => {
         installations++;
+        started();
+        await gate;
       },
-    },
-  );
-  await f.call("lan/backends/install", { id: "claude" });
-  for (let i = 0; i < 100; i++) {
-    if (
-      !f.manager.state().params.backends.find((b) => b.id === "claude")
-        .installation.installing
-    )
-      break;
-    await new Promise((r) => setImmediate(r));
-  }
-  const final = f.manager
-    .state()
-    .params.backends.find((b) => b.id === "claude");
-  assert.equal(installations, 0);
-  assert.match(final.installation.installError, /后台任务仍在运行/);
-  assert.equal(final.ready, true);
-});
+    };
+    const f = await fixture(t, async () => {}, installation);
+    const first = await f.call("lan/backends/install", { id: "claude" });
+    assert.equal(
+      first.backends.find((b) => b.id === "claude").installation.installing,
+      true,
+    );
+    await entered;
+    await f.call("lan/backends/install", { id: "claude" });
+    assert.equal(installations, 1);
+    await assert.rejects(
+      f.call("turn/start", { backendId: "claude" }),
+      /配置正在更新/,
+    );
+    const completed = f.waitForInstallation("claude");
+    finish();
+    const final = await completed;
+    assert.equal(final.installation.installing, false);
+    assert.equal(final.ready, true);
+    assert.equal(f.adapters.length, 2);
+  },
+);
+
+test(
+  "原生任务占用阻止 npm 更新并显示可重试错误",
+  { timeout: 10000 },
+  async (t) => {
+    let installations = 0;
+    const f = await fixture(
+      t,
+      async () => {
+        throw new Error("原生后台任务仍在运行");
+      },
+      {
+        state: () => ({}),
+        refresh: async () => {},
+        install: async () => {
+          installations++;
+        },
+      },
+    );
+    await f.call("lan/backends/install", { id: "claude" });
+    const final = await f.waitForInstallation("claude");
+    assert.equal(installations, 0);
+    assert.match(final.installation.installError, /后台任务仍在运行/);
+    assert.equal(final.ready, true);
+  },
+);
