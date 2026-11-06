@@ -13,6 +13,8 @@ import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkRelease } from "./version.mjs";
 
+import { releaseVersion, releaseFlags } from "./release-version.mjs";
+
 const root = fileURLToPath(new URL("../", import.meta.url));
 const gh = (...args) =>
   execFileSync("gh", args, {
@@ -56,7 +58,7 @@ export function syncReleaseNotes(repo, run = gh, dir = root) {
   try {
     for (const release of releases) {
       const tag = release.tag_name;
-      if (!/^v\d+\.\d+\.\d+$/.test(tag)) continue;
+      if (!releaseVersion.test(tag.slice(1))) continue;
       const source = join(dir, `docs/releases/${tag}.md`);
       if (!existsSync(source)) continue;
       const body = releaseNotesBody(readFileSync(source, "utf8"), tag);
@@ -80,7 +82,7 @@ export function readReleaseSchedule(dir = root) {
     schedule && typeof schedule === "object" && !Array.isArray(schedule),
   );
   for (const [tag, publishAt] of Object.entries(schedule)) {
-    assert.match(tag, /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+    assert.ok(tag.startsWith("v") && releaseVersion.test(tag.slice(1)));
     assert.ok(
       typeof publishAt === "string" &&
         /T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/.test(publishAt) &&
@@ -116,6 +118,7 @@ export function publishRelease(
       repo,
       "--verify-tag",
       "--draft",
+      ...releaseFlags(tag),
       "--title",
       `Claudex Web ${tag}`,
       "--notes-file",
@@ -134,7 +137,7 @@ export function publishRelease(
     "--notes-file",
     notes,
     "--draft=false",
-    "--latest",
+    ...releaseFlags(tag),
   );
   return "published";
 }
@@ -212,7 +215,15 @@ export function publishScheduledRelease(
   checkAssets(release, [filename, `${filename}.sha256`]);
   if (!release.draft) return "published";
   verify(repo, tag, run);
-  run("release", "edit", tag, "--repo", repo, "--draft=false", "--latest");
+  run(
+    "release",
+    "edit",
+    tag,
+    "--repo",
+    repo,
+    "--draft=false",
+    ...releaseFlags(tag),
+  );
   return "published";
 }
 

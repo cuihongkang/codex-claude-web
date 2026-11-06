@@ -15,7 +15,7 @@ Claudex Web 的现有网页交互终端、后端原生后台终端 `/stop` 命�
 克隆仓库后，在项目根目录安装依赖并创建配置：
 
 ```bash
-git clone https://github.com/hjd-hitsz/codex-web.git claudex-web
+git clone https://github.com/hjd-hitsz/claudex-web.git claudex-web
 cd claudex-web
 npm ci
 ```

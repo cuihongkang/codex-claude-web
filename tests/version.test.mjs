@@ -247,3 +247,50 @@ test("同版本重试保持版本、发布说明和待发布变更原样", async
   assert.equal(prepareVersion(dir, "1.2.4"), "1.2.4");
   assert.equal(git(dir, "status", "--porcelain"), "");
 });
+
+test("预发布逐次递增、转候选与正式版，并保留稳定下载入口", async (t) => {
+  const dir = await fixture(t);
+  initialize(dir);
+  for (const path of ["README.md", "docs/deployment.md"])
+    await writeFile(
+      join(dir, path),
+      "## 快速开始\n\n稳定版 https://example.test/releases/download/v1.2.3/claudex-web-1.2.3.tgz\n",
+    );
+  commit(dir);
+  for (const target of [
+    "2.0.0-beta.1",
+    "2.0.0-beta.2",
+    "2.0.0-beta.10",
+    "2.0.0-rc.1",
+    "2.0.0",
+  ]) {
+    await writeFile(
+      join(dir, "CHANGELOG.md"),
+      (await readFile(join(dir, "CHANGELOG.md"), "utf8")).replace(
+        "## 未发布",
+        "## 未发布\n\n- 更新对话体验。",
+      ),
+    );
+    prepareVersion(dir, target);
+    assert.equal(checkVersions(dir), target);
+    if (target.includes("-")) {
+      const readme = await readFile(join(dir, "README.md"), "utf8");
+      assert.ok(
+        readme.includes("releases/download/v1.2.3/claudex-web-1.2.3.tgz"),
+      );
+      assert.ok(
+        readme.includes(
+          `releases/download/v${target}/claudex-web-${target}.tgz`,
+        ),
+      );
+      assert.equal(readme.split("<!-- prerelease:start -->").length, 2);
+    }
+    commit(dir);
+    git(dir, "tag", `v${target}`);
+    assert.equal(checkRelease(dir, `v${target}`), target);
+  }
+  for (const target of ["2.0.0-beta.11", "2.0.0-alpha.1", "2.0.0-rc.2"])
+    assert.throws(() => prepareVersion(dir, target), /大于当前版本/);
+  for (const target of ["2.0.1-beta.01", "2.0.1-preview.1", "2.0.1-beta"])
+    assert.throws(() => prepareVersion(dir, target), /用法/);
+});

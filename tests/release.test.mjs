@@ -308,3 +308,59 @@ test("同步历史 Release 仅更新正文，保留标题、标签和附件，�
   syncReleaseNotes(repo, run, dir);
   assert.equal(writes, 1);
 });
+
+test("beta 发布和同版本重试保持预发布标记及稳定版 Latest", () => {
+  const previewTag = "v4.0.0-beta.1";
+  const previewAssets = assets.map((path) =>
+    path.replaceAll("1.2.3", "4.0.0-beta.1"),
+  );
+  const records = [];
+  const calls = [];
+  let failed = false;
+  const run = (...args) => {
+    if (args[0] === "api") return JSON.stringify([records]);
+    calls.push(args);
+    if (args[1] === "create") {
+      assert.ok(args.includes("--prerelease"));
+      assert.ok(args.includes("--latest=false"));
+      records.push({
+        tag_name: previewTag,
+        draft: true,
+        prerelease: true,
+        assets: [],
+      });
+    }
+    if (args[1] === "upload") {
+      if (!failed) {
+        failed = true;
+        throw new Error("中断");
+      }
+      records[0].assets = previewAssets.map((path) => ({
+        name: basename(path),
+        state: "uploaded",
+        size: 123,
+      }));
+    }
+    if (args[1] === "edit") {
+      assert.ok(args.includes("--prerelease"));
+      assert.ok(args.includes("--latest=false"));
+      records[0].draft = false;
+    }
+    return "";
+  };
+  assert.throws(
+    () => publishRelease(repo, previewTag, previewAssets, notes, run),
+    /中断/,
+  );
+  assert.equal(
+    publishRelease(repo, previewTag, previewAssets, notes, run),
+    "published",
+  );
+  const count = calls.length;
+  assert.equal(
+    publishRelease(repo, previewTag, previewAssets, notes, run),
+    "published",
+  );
+  assert.equal(calls.length, count);
+  assert.equal(records[0].prerelease, true);
+});

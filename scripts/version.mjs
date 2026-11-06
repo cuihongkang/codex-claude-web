@@ -5,8 +5,10 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readVersion } from "../server/src/version.mjs";
 
+import { releaseVersion, compareReleaseVersions } from "./release-version.mjs";
+
 const root = fileURLToPath(new URL("../", import.meta.url));
-const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+
 const emptyChanges = "### 新增\n\n### 改进\n\n### 修复\n\n### 维护\n";
 const read = (dir, path) => readFileSync(join(dir, path), "utf8");
 const json = (dir, path) => JSON.parse(read(dir, path));
@@ -25,7 +27,11 @@ function manifests(dir) {
 export function checkVersions(dir = root) {
   const packages = manifests(dir);
   const version = packages[0].pkg.version;
-  assert.match(version, stableVersion, "正式包版本使用 X.Y.Z 格式");
+  assert.match(
+    version,
+    releaseVersion,
+    "包版本使用 X.Y.Z 或 X.Y.Z-alpha.N、beta.N、rc.N 格式",
+  );
   const lock = json(dir, "package-lock.json");
   assert.equal(lock.version, version, "锁文件顶层版本与根包不一致");
   for (const entry of packages) {
@@ -50,7 +56,7 @@ export function prepareVersion(
   date = new Date().toLocaleDateString("en-CA"),
 ) {
   const previous = checkVersions(dir);
-  const parts = previous.split(".").map(Number);
+  const parts = previous.split("-")[0].split(".").map(Number);
   const index = ["major", "minor", "patch"].indexOf(target);
   if (index >= 0) {
     parts[index]++;
@@ -59,8 +65,8 @@ export function prepareVersion(
   }
   assert.match(
     target || "",
-    stableVersion,
-    "用法：npm run version:prepare -- patch|minor|major|X.Y.Z",
+    releaseVersion,
+    "用法：npm run version:prepare -- patch|minor|major|X.Y.Z[-alpha.N|-beta.N|-rc.N]",
   );
   if (target === previous) {
     assert.ok(
@@ -70,11 +76,8 @@ export function prepareVersion(
     );
     return target;
   }
-  const next = target.split(".").map(Number);
-  const current = previous.split(".").map(Number);
-  const difference = next.findIndex((value, i) => value !== current[i]);
   assert.ok(
-    difference >= 0 && next[difference] > current[difference],
+    compareReleaseVersions(target, previous) > 0,
     "新版本必须大于当前版本",
   );
   if (existsSync(join(dir, ".git"))) {
@@ -119,9 +122,34 @@ export function prepareVersion(
       .replaceAll(`claudex-web-${previous}.tgz`, `claudex-web-${target}.tgz`)
       .replace(
         `npm install -g ./claudex-web-${target}.tgz`,
-        `npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/${tag}/claudex-web-${target}.tgz`,
+        `npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/${tag}/claudex-web-${target}.tgz`,
       ),
   }));
+  if (target.includes("-")) {
+    for (const doc of docs) {
+      const original = previous.includes("-")
+        ? doc.content
+        : read(dir, doc.path);
+      const preview = `<!-- prerelease:start -->\n预发布版 [${tag}](https://github.com/hjd-hitsz/claudex-web/releases/tag/${tag}) 供主动选择测试通道的使用者安装，后续持续迭代。\n\n\`\`\`bash\nnpm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/${tag}/claudex-web-${target}.tgz\n\`\`\`\n<!-- prerelease:end -->`;
+      doc.content = original.includes("<!-- prerelease:start -->")
+        ? original.replace(
+            /<!-- prerelease:start -->[\s\S]*?<!-- prerelease:end -->/,
+            () => preview,
+          )
+        : original.replace(
+            /(## (?:快速开始|安装发行包)\n)/,
+            (heading) => heading + "\n" + preview + "\n",
+          );
+    }
+  }
+  if (!target.includes("-")) {
+    for (const doc of docs)
+      doc.content = doc.content.replace(
+        /<!-- prerelease:start -->[\s\S]*?<!-- prerelease:end -->/,
+        () =>
+          `稳定版 [${tag}](https://github.com/hjd-hitsz/claudex-web/releases/tag/${tag})：\n\n\`\`\`bash\nnpm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/${tag}/claudex-web-${target}.tgz\n\`\`\``,
+      );
+  }
   const packages = manifests(dir);
   const lock = json(dir, "package-lock.json");
   for (const entry of packages) {

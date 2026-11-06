@@ -240,7 +240,7 @@ Claude 网页桥接重启或异常退出时，独立执行服务继续持有模�
 
 主页面先加载聊天所需的代码。文件面板和终端通过 `React.lazy` 首次打开时加载，文件面板完成首次加载后保持编辑缓冲区；Mermaid 按图表需求加载本站模块。终端的基础样式在挂载入口先于项目样式导入，JavaScript 仍按需加载。Vite 保持单一 CSS 产物和根部 JavaScript 分块，保持第三方样式与项目规则的覆盖顺序。
 
-根 `package.json` 与单一锁文件管理 workspaces。发行白名单包含 `client/dist`、`server/src`、`shared`、命令入口、运行脚本、许可证和构建信息。增加共享运行模块或动态分块时，验证实际打包清单、生产响应和临时全局安装。生产版本来源由 `server/src/version.mjs` 统一读取，网页在构建时固定，桥接在启动时固定；流程见[版本管理](versioning.md)。
+根 `package.json` 与单一锁文件管理 workspaces。发行白名单包含 `client/dist`、`server/src`、`shared`、命令入口、运行脚本、许可证和构建信息。增加共享运行模块或动态分块时，验证实际打包清单、生产响应和临时全局安装。生产版本来源由 `server/src/version.mjs` 统一读取，网页在构建时固定，桥接在启动时固定；干净标签构建可交付稳定版本或 alpha、beta、rc 预发布版本；发布工具维护版本顺序和 GitHub 成熟度标记，预发布保留稳定下载入口及 Latest。流程见[版本管理](versioning.md)。
 
 ## 7. 可执行约束与验证
 
