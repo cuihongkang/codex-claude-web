@@ -23,6 +23,7 @@ import * as store from "../../store.js";
 
 import {
   composerCommands,
+  nativeComposerCommands,
   commandAvailable,
   runComposerCommand,
   absolutePath as absolute,
@@ -79,7 +80,7 @@ export function useComposerShortcuts(area) {
   }
   useEffect(() => {
     if (s.connected) store.loadSkills().catch(() => {});
-  }, [s.cwd, s.connected]);
+  }, [s.cwd, s.connected, s.backendId, s.providerId, s.current?.id]);
   useEffect(() => {
     const n = ++generation.current;
     setFiles([]);
@@ -113,6 +114,8 @@ export function useComposerShortcuts(area) {
           const result = await store.rpc("fuzzyFileSearch", {
             query: q,
             roots: [s.cwd],
+            providerId: s.providerId,
+            ...(s.current?.id && { threadId: s.current.id }),
           });
           rows = result.files.map((f) => ({
             path: absolute(f.path, f.root),
@@ -127,8 +130,18 @@ export function useComposerShortcuts(area) {
         if (n === generation.current) setLoading(false);
       }
     }, 120);
-    return () => clearTimeout(timer);
-  }, [trigger?.kind, trigger?.query, s.cwd]);
+    return () => {
+      clearTimeout(timer);
+      generation.current++;
+    };
+  }, [
+    trigger?.kind,
+    trigger?.query,
+    s.cwd,
+    s.backendId,
+    s.providerId,
+    s.current?.id,
+  ]);
   useEffect(() => {
     if (!draft) setTrigger(null);
   }, [draft]);
@@ -141,7 +154,7 @@ export function useComposerShortcuts(area) {
       (skill.name + " " + skill.description).toLowerCase().includes(q),
     )
     .map((skill) => ({
-      id: "skill:" + skill.path,
+      id: "skill:" + (skill.path || skill.name),
       kind: "skill",
       label: skill.name,
       description: skill.shortDescription || skill.description,
@@ -151,7 +164,20 @@ export function useComposerShortcuts(area) {
   const items =
     trigger?.kind === "/"
       ? [
-          ...commands
+          ...[
+            ...commands,
+            ...nativeComposerCommands(s)
+              .filter(
+                (command) =>
+                  !s.skills.some(
+                    (skill) => skill.native && skill.name === command.id,
+                  ),
+              )
+              .map((command) => ({
+                ...command,
+                icon: Sparkles,
+              })),
+          ]
             .filter(
               (c) =>
                 commandAvailable(c, s) &&
@@ -206,7 +232,16 @@ export function useComposerShortcuts(area) {
         input: fileReferenceInput(file),
       });
     }
-    if (item.kind === "skill") {
+    if (item.kind === "skill" && item.skill.native) {
+      store.setDraft(
+        `/${item.skill.name} ${text.slice(0, t.start)}${text.slice(t.end)}`,
+      );
+      setTrigger(null);
+      setIndex(0);
+      area.current?.focus();
+      return;
+    }
+    if (item.kind === "skill" && !item.skill.native) {
       store.addAttachment({
         id: store.uid(),
         name: item.skill.name,

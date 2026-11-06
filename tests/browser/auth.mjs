@@ -173,6 +173,7 @@ const start = async (before = false) => {
         HOST: "127.0.0.1",
         PORT: "0",
         CODEX_HOME: directory,
+        CODEX_WEB_CONFIG_DIR: directory,
         DEFAULT_CWD: "/demo/project",
         STATIC_DIR: join(
           root,

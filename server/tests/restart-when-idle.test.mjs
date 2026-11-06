@@ -65,6 +65,7 @@ async function watcher(t, state, fail = false) {
         ...process.env,
         PORT: String(server.address().port),
         CODEX_HOME: directory,
+        CODEX_WEB_CONFIG_DIR: directory,
         PATH: directory + ":" + process.env.PATH,
       },
       stdio: ["ignore", "pipe", "pipe"],

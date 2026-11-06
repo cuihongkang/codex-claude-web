@@ -68,7 +68,7 @@ export function createBridge({ config, version, send, broadcast }) {
   });
   const methods = createLocalMethods({
     config,
-    projectModels: createProjectModels(config.codexHome),
+    projectModels: createProjectModels(config.configDir),
     call: transport.call,
     checkCompaction,
     files,

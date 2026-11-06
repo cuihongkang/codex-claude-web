@@ -3,6 +3,7 @@ import { Settings } from "lucide-react";
 import { useStore, set, refreshUsage } from "../../store.js";
 import {
   quotaCreditsText,
+  quotaExtraUsageText,
   quotaLabel,
   quotaPlan,
   quotaRemaining,
@@ -10,6 +11,8 @@ import {
   quotaShortLabel,
   quotaWindows,
 } from "../../domain/account-usage.js";
+
+import { currentBackendId, backendReady } from "../../domain/backends.js";
 
 function UsageMeters({ usage }) {
   const [now, setNow] = useState(Date.now);
@@ -27,7 +30,7 @@ function UsageMeters({ usage }) {
   }, []);
   return quotaWindows(usage).map((window, index) => {
     const remaining = quotaRemaining(window);
-    const label = quotaLabel(window.windowDurationMins);
+    const label = quotaLabel(window.windowDurationMins, window.label);
     return (
       <div
         className="usage-meter"
@@ -63,6 +66,15 @@ function UsageMeters({ usage }) {
 
 export function AccountFooter() {
   const s = useStore();
+  const backendId = currentBackendId(s);
+  const codex = backendId === "codex";
+  const connected = s.connected && backendReady(s);
+  const quotaEnabled = codex
+    ? !s.account || s.account.type === "chatgpt"
+    : s.account?.usageSupported === true;
+  const provider = s.providers?.find(
+    (provider) => provider.id === s.providerId,
+  );
   const [expanded, setExpanded] = useState(false);
   const footer = useRef(null);
   const toggle = useRef(null);
@@ -76,9 +88,12 @@ export function AccountFooter() {
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
   }, [expanded]);
-  useEffect(() => setExpanded(false), [s.account?.email, s.account?.type]);
+  useEffect(
+    () => setExpanded(false),
+    [s.account?.email, s.account?.type, backendId, s.providerId, s.cwd],
+  );
   useEffect(() => {
-    if (!s.connected) return;
+    if (!s.connected || !quotaEnabled) return;
     const refresh = () => {
       if (document.visibilityState !== "hidden") refreshUsage();
     };
@@ -91,10 +106,10 @@ export function AccountFooter() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [s.connected]);
+  }, [s.connected, quotaEnabled, backendId, s.providerId, s.cwd]);
 
   useEffect(() => {
-    if (!s.connected) return;
+    if (!s.connected || !codex) return;
     const resets = quotaWindows(s.usage)
       .map((window) => window.resetsAt * 1000 + 1000)
       .filter((reset) => reset > Date.now());
@@ -106,15 +121,20 @@ export function AccountFooter() {
       Math.min(Math.min(...resets) - Date.now(), 2147483647),
     );
     return () => clearTimeout(timer);
-  }, [s.connected, s.usage]);
+  }, [s.connected, s.usage, quotaEnabled, backendId, s.providerId, s.cwd]);
 
   const windows = quotaWindows(s.usage);
   const hasWindows = windows.length > 0;
   const credits = quotaCreditsText(s.usage);
+  const extraUsage = quotaExtraUsageText(s.usage);
   const plan = quotaPlan(s.account, s.usage);
-  const apiAccount = s.account && s.account.type !== "chatgpt";
+  const name = codex
+    ? s.account?.email?.split("@")[0] || plan || "Codex"
+    : provider?.name || s.account?.email?.split("@")[0] || "Claude Code";
+  const apiAccount = s.account && !quotaEnabled;
   const stale =
-    (s.usageError || !s.connected) && (hasWindows || credits !== null);
+    (s.usageError || !connected) &&
+    (hasWindows || credits !== null || extraUsage !== null);
   return (
     <div
       className="account-card"
@@ -128,7 +148,7 @@ export function AccountFooter() {
         }
       }}
     >
-      {expanded && (
+      {expanded && quotaEnabled && (
         <section
           id={detailsId}
           className="account-quota"
@@ -154,7 +174,13 @@ export function AccountFooter() {
               <b>{credits}</b>
             </div>
           )}
-          {!hasWindows && credits === null && (
+          {extraUsage !== null && (
+            <div className="quota-credits">
+              <span>额外用量</span>
+              <b>{extraUsage}</b>
+            </div>
+          )}
+          {!hasWindows && credits === null && extraUsage === null && (
             <p
               className="quota-empty"
               role="status"
@@ -182,18 +208,16 @@ export function AccountFooter() {
           }}
           aria-label="账户与设置"
         >
-          <span className="avatar">
-            {(s.account?.email || "C").slice(0, 1).toUpperCase()}
-          </span>
+          <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>
           <span>
-            <b>{s.account?.email?.split("@")[0] || plan || "Codex"}</b>
+            <b>{name}</b>
             <small>
-              <i className={s.connected ? "online" : ""} />
-              {s.connected ? "已连接" : "正在连接…"}
+              <i className={connected ? "online" : ""} />
+              {connected ? "已连接" : "正在连接…"}
             </small>
           </span>
         </button>
-        {!apiAccount && (
+        {quotaEnabled && !apiAccount && (
           <button
             ref={toggle}
             className="quota-toggle"
@@ -236,7 +260,12 @@ export function AccountFooter() {
                         opacity={remaining === 0 ? 0 : 1}
                       />
                     </svg>
-                    <span>{quotaShortLabel(window.windowDurationMins)}</span>
+                    <span>
+                      {quotaShortLabel(
+                        window.windowDurationMins,
+                        window.shortLabel,
+                      )}
+                    </span>
                   </span>
                   <span className="quota-number">{Math.round(remaining)}%</span>
                 </span>

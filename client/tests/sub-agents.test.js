@@ -8,6 +8,32 @@ import {
   withParentMessages,
 } from "../src/domain/sub-agents.js";
 
+test("子代理思考恢复与流式完整正文合并，保留标题且不重复前缀", () => {
+  const history = [
+    {
+      id: "reason",
+      turnId: "turn",
+      type: "reasoning",
+      summary: [{ title: "思考", text: "已读取" }],
+    },
+  ];
+  const result = mergeAgentHistory(history, [
+    {
+      method: "item/reasoning/summaryTextDelta",
+      params: {
+        itemId: "reason",
+        turnId: "turn",
+        summaryIndex: 0,
+        summaryTitle: "思考",
+        delta: "已读取源码，继续检查。",
+      },
+    },
+  ]);
+  assert.deepEqual(result[0].summary, [
+    { title: "思考", text: "已读取源码，继续检查。" },
+  ]);
+});
+
 test("主代理消息定位到对应轮次和活动前，刷新去重且保留相同正文的后续发送", () => {
   const incoming = (id, turnId, beforeItemId) => ({
     id,

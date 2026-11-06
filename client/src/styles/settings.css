@@ -118,7 +118,14 @@
   margin: 0.384615rem 0 0;
   line-height: var(--ui-line-height);
 }
-.notification-settings .inline-error {
+.notification-settings .error-banner > span {
+  flex: 1 1 16em;
+  min-width: 0;
+}
+.error-banner > button {
+  flex: none;
+}
+.inline-error {
   margin: 0.384615rem 0 0;
 }
 .theme-options {
@@ -217,6 +224,8 @@
 }
 .error-banner {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
   align-items: center;
   justify-content: space-between;
   padding: 0.615385rem 0.923077rem;

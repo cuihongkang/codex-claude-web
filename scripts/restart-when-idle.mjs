@@ -13,7 +13,7 @@ const localTls = localTlsClient(tls.cert);
 const origin = `https://127.0.0.1:${config.port}`;
 const url = origin.replace("https:", "wss:") + "/maintenance";
 const token = await readFile(
-  join(config.codexHome, "codex-web", "auth", "maintenance-token"),
+  join(config.configDir, "auth", "maintenance-token"),
   "utf8",
 );
 function health() {

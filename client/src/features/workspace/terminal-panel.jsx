@@ -1,3 +1,4 @@
+import { resourceId } from "../../../../shared/backend-identity.mjs";
 import React, { useState, useEffect, useRef } from "react";
 
 import { X, Plus, TerminalSquare, Trash2 } from "lucide-react";
@@ -116,17 +117,16 @@ export function TerminalPanel() {
     };
   }, []);
   function spawn(t = term.current, f = fit.current) {
-    pid.current = "terminal-" + uid();
+    pid.current = resourceId(get().backendId || "codex", "terminal-" + uid());
     const sessionId = pid.current;
     localStorage.setItem("cx-terminal", pid.current);
     t.reset();
     f.fit();
     connectedSet(true);
-    setSessionName(basename(get().cwd) + " — zsh");
+    setSessionName(basename(get().cwd) + " — 终端");
     rpc(
       "command/exec",
       {
-        command: ["/usr/bin/zsh", "-l"],
         env: { TERM: "xterm-256color", COLORTERM: "truecolor" },
         cwd: get().cwd,
         processId: pid.current,

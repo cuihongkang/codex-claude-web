@@ -42,6 +42,7 @@ test("应用实例隔离资源缓存，关闭后释放监听与后端连接", as
     await writeFile(join(staticDir, "file-panel.js"), name);
     const config = readConfig({
       CODEX_HOME: directory,
+      CODEX_WEB_CONFIG_DIR: directory,
       HOST: "127.0.0.1",
       PORT: String(port),
       STATIC_DIR: staticDir,

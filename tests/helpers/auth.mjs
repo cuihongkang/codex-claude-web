@@ -7,8 +7,12 @@ import { join } from "node:path";
 import { readTls, localTlsClient } from "../../server/src/tls.mjs";
 
 export async function authenticationFixture(directory) {
-  const tls = await readTls({ codexHome: directory });
-  const authDirectory = join(directory, "codex-web", "auth");
+  const tls = await readTls({
+    configDir: directory,
+    claudeHome: join(directory, ".claude"),
+    codexHome: directory,
+  });
+  const authDirectory = join(directory, "auth");
   await mkdir(authDirectory, { recursive: true, mode: 0o700 });
   const token = randomBytes(32).toString("base64url");
   const id = createHash("sha256").update(token).digest("hex");

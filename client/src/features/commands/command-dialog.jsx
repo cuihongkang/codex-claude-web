@@ -121,7 +121,7 @@ function GoalDialog({ modal }) {
       {resource.data && (
         <>
           <p className="section-description">
-            目标由 Codex 持续跟进，直到完成、暂停、达到预算或遇到阻塞。
+            目标会持续跟进，直到完成、暂停、达到预算或遇到阻塞。
           </p>
           <p role="status">
             {goal

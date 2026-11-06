@@ -1,3 +1,5 @@
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
+import { titleOf } from "./format.js";
 export const threadTime = (thread) =>
   Math.max(
     thread.activityAt ?? 0,
@@ -160,8 +162,9 @@ export function createThreadOrdering(rpc) {
     return sortThreads(result.map(apply));
   }
 
-  async function list(params) {
+  async function list(params, { onBackendErrors } = {}) {
     const threads = new Map();
+    const errors = new Map();
     let cursor;
     do {
       const page = await rpc("thread/list", {
@@ -171,9 +174,12 @@ export function createThreadOrdering(rpc) {
         sortDirection: "desc",
         ...(cursor ? { cursor } : {}),
       });
+      for (const error of page.backendErrors || [])
+        errors.set(error.backendId, error);
       for (const thread of page.data) threads.set(thread.id, thread);
       cursor = page.nextCursor;
     } while (cursor);
+    onBackendErrors?.([...errors.values()]);
     return hydrate([...threads.values()]);
   }
 
@@ -183,4 +189,34 @@ export function createThreadOrdering(rpc) {
   }
 
   return { list, hydrate, observe, apply, forget };
+}
+
+// Failed backends retain the records already visible in the same list scope.
+export function preserveFailedBackendThreads(
+  records,
+  previous,
+  errors,
+  params,
+  previousParams,
+) {
+  const failed = new Set(errors.map((error) => error.backendId));
+  const search = params.searchTerm?.toLocaleLowerCase();
+  const sameSearch =
+    previousParams &&
+    previousParams.searchTerm === params.searchTerm &&
+    Boolean(previousParams.archived) === Boolean(params.archived);
+  const retained = previous.filter(
+    (thread) =>
+      failed.has(resourceTarget(thread.id).backendId) &&
+      Boolean(thread.path?.includes("/archived_sessions/")) ===
+        Boolean(params.archived) &&
+      (!search ||
+        sameSearch ||
+        titleOf(thread).toLocaleLowerCase().includes(search)),
+  );
+  return sortThreads([
+    ...new Map(
+      [...retained, ...records].map((thread) => [thread.id, thread]),
+    ).values(),
+  ]);
 }

@@ -10,8 +10,16 @@ test("证书原子生成、并发启动、重新读取和私钥权限", async (t
   const directory = await mkdtemp(join(tmpdir(), "codex-web-tls-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const [first, second] = await Promise.all([
-    readTls({ codexHome: directory }),
-    readTls({ codexHome: directory }),
+    readTls({
+      configDir: directory,
+      claudeHome: join(directory, ".claude"),
+      codexHome: directory,
+    }),
+    readTls({
+      configDir: directory,
+      claudeHome: join(directory, ".claude"),
+      codexHome: directory,
+    }),
   ]);
   assert.deepEqual(first.cert, second.cert);
   assert.deepEqual(first.key, second.key);
@@ -33,26 +41,23 @@ test("证书原子生成、并发启动、重新读取和私钥权限", async (t
   assert.equal(certificate.checkIP("127.0.0.1"), "127.0.0.1");
   assert.equal(certificate.checkHost("localhost"), "localhost");
   assert.equal(certificate.checkIP("::1"), "::1");
+  assert.equal((await stat(join(directory, "tls"))).mode & 0o777, 0o700);
   assert.equal(
-    (await stat(join(directory, "codex-web/tls"))).mode & 0o777,
-    0o700,
-  );
-  assert.equal(
-    (await stat(join(directory, "codex-web/tls/private-key.pem"))).mode & 0o777,
+    (await stat(join(directory, "tls/private-key.pem"))).mode & 0o777,
     0o600,
   );
-  const again = await readTls({ codexHome: directory });
+  const again = await readTls({
+    configDir: directory,
+    claudeHome: join(directory, ".claude"),
+    codexHome: directory,
+  });
   assert.deepEqual(again, first);
   const custom = await readTls({
-    tlsCert: join(directory, "codex-web/tls/certificate.pem"),
-    tlsKey: join(directory, "codex-web/tls/private-key.pem"),
+    tlsCert: join(directory, "tls/certificate.pem"),
+    tlsKey: join(directory, "tls/private-key.pem"),
   });
   assert.deepEqual(custom, first);
-  assert(
-    !(await readdir(join(directory, "codex-web"))).some((name) =>
-      name.startsWith(".tls-"),
-    ),
-  );
+  assert(!(await readdir(directory)).some((name) => name.startsWith(".tls-")));
   await assert.rejects(
     readTls({
       tlsCert: join(directory, "missing"),
@@ -61,8 +66,8 @@ test("证书原子生成、并发启动、重新读取和私钥权限", async (t
     /ENOENT/,
   );
   assert(
-    (
-      await readFile(join(directory, "codex-web/tls/certificate.pem"), "utf8")
-    ).includes("BEGIN CERTIFICATE"),
+    (await readFile(join(directory, "tls/certificate.pem"), "utf8")).includes(
+      "BEGIN CERTIFICATE",
+    ),
   );
 });

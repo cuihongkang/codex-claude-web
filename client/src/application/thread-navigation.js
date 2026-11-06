@@ -1,3 +1,5 @@
+import { newDraftKey } from "../infrastructure/backend-storage.js";
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
 import { compatibleEffort } from "../domain/model-preferences.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import {
@@ -14,6 +16,8 @@ export function createThreadNavigation({
   models,
   records,
   getConnectionRevision,
+  activateBackend = async () => {},
+  selectProvider = () => {},
 }) {
   let opening = 0;
   let historyRevision = 0;
@@ -75,7 +79,7 @@ export function createThreadNavigation({
       ...(sameProject && selection
         ? selection
         : models.projectModelSelection(cwd, !cwd, models.defaults)),
-      draft: localStorage.getItem("cx-draft-new") || "",
+      draft: localStorage.getItem(newDraftKey(get().backendId)) || "",
       attachments: getAttachmentDraft(null).attachments,
       error: "",
       loading: false,
@@ -100,6 +104,9 @@ export function createThreadNavigation({
       }),
     });
     try {
+      const backendId = resourceTarget(id).backendId;
+      if (get().backendId !== backendId) await activateBackend(backendId);
+      if (epoch !== opening) return;
       const r = await rpc("thread/read", { threadId: id, includeTurns: false });
       if (epoch !== opening || records.deletedThreads.has(id)) return;
       const known = get().threads.find((thread) => thread.id === id);
@@ -123,6 +130,7 @@ export function createThreadNavigation({
         get().projectlessRoot,
       );
       getAttachmentDraft();
+      if (backendId === "claude") selectProvider(thread.providerId);
       set({
         threads: get().threads.some((t) => t.id === id)
           ? get().threads.map((t) =>
@@ -130,6 +138,10 @@ export function createThreadNavigation({
             )
           : sortThreads([thread, ...get().threads]),
         current: thread,
+        ...(thread.tokenUsage && {
+          tokenUsage: { ...get().tokenUsage, [id]: thread.tokenUsage },
+        }),
+        providerId: thread.providerId || "",
         attachments: getAttachmentDraft(id).attachments,
         cwd: r.cwd || r.thread.cwd,
         projectless,
@@ -325,7 +337,7 @@ export function createThreadNavigation({
   async function ensureThread() {
     if (get().current) return get().current;
     const epoch = opening;
-    const { projectless, model, serviceTier } = get();
+    const { projectless, model, serviceTier, providerId } = get();
     let cwd = get().cwd;
     if (projectless) {
       if (!get().projectlessCwd) {
@@ -343,6 +355,7 @@ export function createThreadNavigation({
     const r = await rpc("thread/start", {
       cwd,
       model: model || undefined,
+      providerId,
       serviceTier: resolveServiceTier(
         serviceTier,
         get().models.find((m) => m.model === model),
@@ -352,7 +365,7 @@ export function createThreadNavigation({
     if (epoch !== opening)
       throw new Error("对话已切换，请在当前对话重新发送消息。");
     localStorage.setItem("cx-draft-" + r.thread.id, get().draft);
-    localStorage.removeItem("cx-draft-new");
+    localStorage.removeItem(newDraftKey(get().backendId));
     attachmentDrafts.set(r.thread.id, getAttachmentDraft());
     attachmentDrafts.delete(null);
     set({ current: r.thread, mode: get().mode });

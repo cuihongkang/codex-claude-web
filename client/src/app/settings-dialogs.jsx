@@ -1,3 +1,4 @@
+import { BackendSettings } from "./backend-settings.jsx";
 import React from "react";
 import { Check, Sun, Moon, Monitor } from "lucide-react";
 import { useStore, set, selectModel, setTheme } from "../store.js";
@@ -14,6 +15,7 @@ export function SettingsDialog() {
       <LogoutButton />
       <h3>通知</h3>
       <NotificationSettings />
+      <BackendSettings />
       <h3>外观</h3>
       <div className="theme-options">
         {[

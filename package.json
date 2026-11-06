@@ -49,15 +49,20 @@
     "service:install": "node --env-file-if-exists=.env scripts/install-services.mjs",
     "service:restart": "systemctl --user restart codex-lan-web.service",
     "service:status": "systemctl --user status codex-lan-web.service codex-app-server.service --no-pager",
-    "service:restart-when-idle": "node --env-file-if-exists=.env scripts/restart-when-idle.mjs"
+    "service:restart-when-idle": "node --env-file-if-exists=.env scripts/restart-when-idle.mjs",
+    "test:backends": "node scripts/test-backends.mjs",
+    "test:backends:live": "node tests/integration/dual-backends-live.mjs",
+    "test:codex:live": "node tests/integration/codex-native-lifecycle.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
     "prettier": "3.9.10",
-    "react-test-renderer": "19.3.1",
-    "react": "19.3.1"
+    "react": "19.3.1",
+    "react-test-renderer": "19.3.1"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.318",
+    "node-pty": "1.1.0",
     "ws": "8.22.0"
   }
 }

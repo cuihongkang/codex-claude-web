@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import { PanelLeft, ChevronRight, Plus, MoreHorizontal } from "lucide-react";
 import { useStore, set, newChat, titleOf, basename } from "../store.js";
 import { IconButton } from "../ui/primitives.jsx";
+import { BackendBadge } from "./backend-badge.jsx";
+import { currentBackendId } from "../domain/backends.js";
 import { ThreadMenu } from "./thread-row.jsx";
 export function Header() {
   const s = useStore(),
@@ -17,6 +19,7 @@ export function Header() {
           set({ sidebar: !s.sidebar });
         }}
       />
+      <BackendBadge backendId={currentBackendId(s)} />
       <div className="breadcrumb">
         <button
           title={s.projectless ? "未指定项目；可选择文件夹" : s.cwd}

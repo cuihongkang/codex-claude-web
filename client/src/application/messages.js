@@ -1,4 +1,5 @@
 import { pendingPlan, planImplementationText } from "../domain/plans.js";
+import { newDraftKey } from "../infrastructure/backend-storage.js";
 import { createMessageEditing } from "./message-editing.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import { inputRequestItem } from "../domain/question-state.js";
@@ -78,7 +79,12 @@ export function createMessages({
   }
   function setDraft(draft) {
     set({ draft });
-    localStorage.setItem("cx-draft-" + (get().current?.id || "new"), draft);
+    localStorage.setItem(
+      get().current
+        ? "cx-draft-" + get().current.id
+        : newDraftKey(get().backendId),
+      draft,
+    );
   }
   async function sendMessage(
     text = get().draft,
@@ -144,6 +150,7 @@ export function createMessages({
         threadId: thread.id,
         input,
         model: get().model || undefined,
+        providerId: get().providerId,
         effort: get().effort || undefined,
         serviceTier: resolveServiceTier(
           get().serviceTier,
@@ -171,9 +178,17 @@ export function createMessages({
           : params,
       );
       if (implementation) setThreadMode(thread.id, "default");
+      const observedTurn = r.turn && get().turnTimings[thread.id]?.[r.turn.id];
+      const alreadyFinished =
+        observedTurn &&
+        (observedTurn.completedAt != null ||
+          ["completed", "failed", "interrupted"].includes(observedTurn.status));
+      const alreadyStarted =
+        observedTurn?.status === "inProgress" && r.turn?.status === "queued";
       if (r.turn) {
         const turn = {
           ...r.turn,
+          ...((alreadyFinished || alreadyStarted) && observedTurn),
           startedAt:
             r.turn.startedAt ??
             get().turnTimings[thread.id]?.[r.turn.id]?.startedAt ??
@@ -208,7 +223,11 @@ export function createMessages({
         const question = get().items.find((item) => item.id === questionId);
         if (question) put({ ...question, questionAnswers });
       }
-      if (r.turn?.status === "inProgress")
+      if (
+        ["queued", "inProgress"].includes(r.turn?.status) &&
+        !alreadyFinished &&
+        (!get().active[thread.id] || get().active[thread.id] === r.turn.id)
+      )
         set({ active: { ...get().active, [thread.id]: r.turn.id } });
       if (get().current?.id === thread.id)
         set({ threadAccess: { threadId: thread.id, status: "ready" } });

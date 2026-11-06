@@ -1,3 +1,4 @@
+import { testNativeCommands } from "./native-commands.mjs";
 import assert from "node:assert/strict";
 import React, { act } from "react";
 import { create } from "react-test-renderer";
@@ -333,6 +334,7 @@ export async function testCommands(app, requests, setResponse) {
     assert.equal(app.get().draft, "清理期间的草稿");
     assert.deepEqual(app.get().attachments, [attachment]);
     await close();
+    await testNativeCommands(app, requests, setResponse);
     console.log(
       "PASS 18 个命令与零别名、移除命令拒绝执行、原有入口、init 保护与重试、目标编辑与预算、后台终端分页清理",
     );

@@ -32,6 +32,8 @@
 
 </details>
 
+Codex Web 提供 Codex 与 Claude Code 双后端：现有 ChatGPT 模型继续使用 Codex，其他供应商的模型通过 Claude Code 使用。输入区统一选择模型，Claude 对话可在空闲时切换供应商继续。配置方法见[部署指南](docs/deployment.md#claude-code-与模型配置)。
+
 ## 快速开始
 
 准备一台 Linux 电脑，安装 Node.js 24+、npm、Git、OpenSSL、Linux PAM、`pamtester` 和 `/usr/bin/zsh`，并完成 Codex CLI 登录。Codex CLI 需支持 `codex app-server`，后台运行使用 systemd 用户服务。

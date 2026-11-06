@@ -1,3 +1,5 @@
+import { BackendBadge } from "./backend-badge.jsx";
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
 import React, { useState, useEffect, useId } from "react";
 
 import { createPortal } from "react-dom";
@@ -80,6 +82,7 @@ export function ThreadRow({ thread }) {
     [tooltip, setTooltip] = useState(null);
   const tooltipId = useId();
   const title = titleOf(thread);
+  const backendId = resourceTarget(thread.id).backendId;
   const running = !!s.active[thread.id];
   const unread = !!s.unreadCompletions[thread.id];
   const pinned = s.pins.includes(thread.id);
@@ -156,7 +159,8 @@ export function ThreadRow({ thread }) {
             )}
           </span>
         )}
-        <span>{title}</span>
+        <BackendBadge backendId={backendId} />
+        <span className="thread-title">{title}</span>
         <small
           title={
             threadTime(thread) === thread.createdAt

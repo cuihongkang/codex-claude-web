@@ -1,3 +1,4 @@
+import { newDraftKey } from "../infrastructure/backend-storage.js";
 import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
 export function createConnection({
@@ -16,6 +17,7 @@ export function createConnection({
   emit,
   report,
   loadSkills,
+  activateBackend = async () => {},
   getSession,
 }) {
   let bootRevision = 0,
@@ -23,6 +25,19 @@ export function createConnection({
     projectModelsSupported = false,
     compactionTracking = false;
   function onNotification(m) {
+    if (
+      (m.method.startsWith("account/") ||
+        m.method === "lan/projectModels/updated") &&
+      get().backends.length &&
+      (m.backendId || "codex") !== get().backendId
+    )
+      return;
+    if (
+      m.method.startsWith("account/") &&
+      m.params?.providerId !== undefined &&
+      m.params.providerId !== get().providerId
+    )
+      return;
     if (m.method === "lan/projectModels/updated") {
       models.mergeProjectModels(m.params.projects);
       return;
@@ -30,6 +45,7 @@ export function createConnection({
     if (m.method === "lan/state") {
       projectModelsSupported = m.params.projectModels === true;
       const was = get().connected;
+      const ready = m.params.bridgeReady ?? m.params.ready;
       if (!m.params.ready || !was) {
         account.reset();
       }
@@ -53,10 +69,19 @@ export function createConnection({
           : {}),
         defaultCwd: m.params.defaultCwd,
         projectlessRoot: m.params.projectlessRoot || "",
-        connected: m.params.ready,
+        connected: ready,
+        ...(m.params.backends && {
+          backends: m.params.backends,
+          backendId: m.params.backends.some(
+            (b) => b.id === get().backendId && b.enabled,
+          )
+            ? get().backendId
+            : m.params.defaultBackendId,
+        }),
         ...(!m.params.ready && { usageLoading: false }),
         serverVersion: m.params.version || null,
         active: m.params.activeTurns,
+        executionStatuses: m.params.executionStatuses || {},
         compactions: mergeCompactions(get().compactions, m.params.compactions),
         questions: m.params.questions,
         terminals: m.params.terminals || {},
@@ -69,7 +94,7 @@ export function createConnection({
         for (const [threadId, entry] of Object.entries(get().compactions))
           if (isCompacting(entry))
             compaction.refreshCompaction(threadId).catch(() => {});
-      if (m.params.ready && !was) boot();
+      if (ready && !was) boot();
       return;
     }
     events.handle(m);
@@ -146,9 +171,18 @@ export function createConnection({
     const current = () => revision === bootRevision && get().connected;
     try {
       const [modelList, accountResult, config] = await Promise.all([
-        rpc("model/list"),
-        rpc("account/read", { refreshToken: false }),
-        rpc("config/read", { includeLayers: false }),
+        rpc("model/list").catch((error) => {
+          if (!get().backends.length) throw error;
+          return { data: [] };
+        }),
+        rpc("account/read", { refreshToken: false }).catch((error) => {
+          if (!get().backends.length) throw error;
+          return { account: null };
+        }),
+        rpc("config/read", { includeLayers: false }).catch((error) => {
+          if (!get().backends.length) throw error;
+          return { config: {} };
+        }),
         projectModelsSupported
           ? models.syncProjectModels().catch(report)
           : Promise.resolve(),
@@ -181,6 +215,7 @@ export function createConnection({
             : get().serviceTier,
         booting: false,
       });
+      if (get().backends.length) await activateBackend(get().backendId);
       await catalog.loadThreads();
       if (!current()) return;
       // 初始化只恢复启动时的选择，保留期间新建、发送和切换的对话。
@@ -192,7 +227,9 @@ export function createConnection({
           ]);
         else if (id) await navigation.openThread(id);
         else if (!get().current)
-          set({ draft: localStorage.getItem("cx-draft-new") || "" });
+          set({
+            draft: localStorage.getItem(newDraftKey(get().backendId)) || "",
+          });
       }
       if (!current()) return;
       if (!initialized) {

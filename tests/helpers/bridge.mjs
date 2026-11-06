@@ -66,6 +66,7 @@ export async function bridge(t, handle = () => undefined) {
         ...process.env,
         HOST: "127.0.0.1",
         CODEX_HOME: directory,
+        CODEX_WEB_CONFIG_DIR: directory,
         PORT: "0",
         CODEX_APP_SERVER_URL: `ws://127.0.0.1:${backend.address().port}`,
       },

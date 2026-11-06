@@ -81,6 +81,7 @@ async function appFixture(t) {
           HOST: "127.0.0.1",
           PORT: "0",
           CODEX_HOME: directory,
+          CODEX_WEB_CONFIG_DIR: directory,
           STATIC_DIR: directory,
           AUTH_PAMTESTER: auth.pamtester,
           AUTH_SESSION_DAYS: "30",

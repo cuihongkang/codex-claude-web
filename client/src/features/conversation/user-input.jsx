@@ -163,8 +163,8 @@ export function UserInputForm({
         {isCompleted
           ? "这轮任务已结束，仍可提交补充回答。"
           : isBlocking
-            ? "提交回答后，Codex 将继续处理。"
-            : "Codex 会继续处理，你可以随时补充回答。"}
+            ? "提交回答后将继续处理。"
+            : "任务会继续处理，你可以随时补充回答。"}
       </p>
       {questions.map((question) => {
         const answer = answers[question.id];

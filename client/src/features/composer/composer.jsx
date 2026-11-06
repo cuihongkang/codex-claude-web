@@ -1,3 +1,6 @@
+import { ModelSelect } from "./model-select.jsx";
+import { InputQueue } from "./input-queue.jsx";
+import { backendReady, backendCapability } from "../../domain/backends.js";
 import React, { useRef } from "react";
 
 import {
@@ -17,7 +20,6 @@ import {
   useStore,
   useDraft,
   set,
-  selectModel,
   setDraft,
   refreshThreadAccess,
   stop,
@@ -64,6 +66,7 @@ export function Composer() {
     (access && access.status !== "ready" && !(checking && access.background));
   return (
     <div className="composer-wrap">
+      <InputQueue />
       {compaction && (
         <CompactionStatus
           key={s.current?.id + compaction.id}
@@ -139,7 +142,7 @@ export function Composer() {
             </div>
           )}
           <MarkdownEditor
-            key={s.current?.id || "new"}
+            key={s.current?.id || "new-" + s.backendId}
             inputRef={area}
             theme={s.theme}
             rows={2}
@@ -149,7 +152,9 @@ export function Composer() {
               compacting
                 ? "正在整理上下文…"
                 : active
-                  ? "补充说明，或等待 Codex 完成…"
+                  ? backendCapability(s, "inputMode") === "queue"
+                    ? "输入后排队执行…"
+                    : "补充说明，或等待任务完成…"
                   : "描述任务，@ 引用文件，/ 使用命令…"
             }
             value={draft}
@@ -203,23 +208,7 @@ export function Composer() {
                 title="添加图片或文本附件"
                 onClick={() => files.current.click()}
               />
-              <label className="select-control model-select">
-                <select
-                  aria-label="模型"
-                  value={s.model}
-                  onChange={(e) => {
-                    const m = s.models.find((m) => m.model === e.target.value);
-                    selectModel(m);
-                  }}
-                >
-                  {s.models.map((m) => (
-                    <option key={m.id} value={m.model}>
-                      {m.displayName || m.model}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={12} />
-              </label>
+              <ModelSelect />
               <ReasoningEffortControl />
               <ServiceTierToggle />
               <IconButton
@@ -250,6 +239,7 @@ export function Composer() {
                 title="发送消息"
                 disabled={
                   !s.connected ||
+                  !backendReady(s) ||
                   checking ||
                   compacting ||
                   s.busy ||

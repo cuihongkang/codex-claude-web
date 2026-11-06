@@ -10,7 +10,7 @@ Codex Web 的现有网页交互终端、后端原生后台终端 `/stop` 命令�
 
 ## 本地环境与源码启动
 
-开发环境需要 Linux、Node.js 24+、npm、OpenSSL、Linux PAM、pamtester、已登录的 Codex CLI 和 `/usr/bin/zsh`。本项目使用根目录 npm workspaces 和单一 `package-lock.json` 管理前后端依赖。
+开发环境需要 Linux、Node.js 24+、npm、OpenSSL、Linux PAM、pamtester、已登录的 Codex CLI 和 `/usr/bin/zsh`；开发 Claude Code 适配时另外安装配置中指定的 Claude Code 可执行文件。本项目使用根目录 npm workspaces 和单一 `package-lock.json` 管理前后端依赖。
 
 克隆仓库后，在项目根目录安装依赖并创建配置：
 
@@ -39,7 +39,7 @@ npm start
 npm run dev
 ```
 
-打开 Vite 输出的 HTTPS 地址。Vite 与桥接复用证书，代理验证桥接证书；本地开发同样使用系统账户登录。开发服务器将 `/rpc`、`/healthz` 和 `/api` 代理到网页桥接端口，模型调用和工具执行由 Codex 后端处理，摘要翻译由桥接直接调用远程翻译服务。
+打开 Vite 输出的 HTTPS 地址。Vite 与桥接复用证书，代理验证桥接证书；本地开发同样使用系统账户登录。开发服务器将 `/rpc`、`/healthz` 和 `/api` 代理到网页桥接端口，模型调用和工具执行按对话归属交给 Codex 或 Claude Code，摘要翻译由桥接直接调用远程翻译服务。
 
 验证生产构建时，执行 `npm run build`，再通过网页桥接地址访问，默认 `https://127.0.0.1:8766`。生产服务直接读取 `client/dist`，前端更新后重新构建并刷新网页即可；桥接代码更新后需要重启网页服务。
 
@@ -63,6 +63,8 @@ server/
   src/application.mjs  HTTPS/WSS 应用生命周期
   src/http/            HTTP 路由与静态资源
   src/bridge/          请求、事件、订阅与后端连接
+  src/backends/        双后端配置、供应商、路由及原生适配
+  src/workspace/       共用文件与网页终端
   src/summary-translation.mjs  TranSmart 匿名 HTTP API 与本站翻译接口
   src/version.mjs      正式版本与 Git / 安装包构建来源
   tests/               配置和桥接集成测试
@@ -83,6 +85,85 @@ package-lock.json      全项目依赖锁文件
 
 快捷命令的 CLI 对照、网页复用入口、专用能力边界及浏览器回归方法见[命令覆盖记录](cli-command-coverage.md)。
 
+## 双后端开发与验收
+
+双后端的统一范围由[产品契约](architecture/backends.md)定义；`shared/product-contract.mjs` 只注册工作区和对话方法的路由分组。原生能力分别接入统一用例，文件与网页终端由共用工作区服务提供。文件模糊查询按所属后端路由，Codex 保留原生 app-server 调用，Claude Code 使用原生 `file_suggestions` 控制请求及 CLI 文件索引；两端共用输入建议，回归同时核对原有 Codex 路径和 Claude 新增实现。CLI/SDK 生命周期、原生历史及参数发生变化时，同时检查首次请求、流式展示、轮次完成、刷新恢复和错误重试。Claude 执行服务通过受限本机 IPC 独立于网页桥接运行，网页关闭仅释放连接；源码与安装来源的代码身份按实际发行文件计算。
+
+真实 Claude Code 回归使用临时配置、原生会话和隔离 Messages 服务。执行持久化场景需要可访问的 systemd 用户管理器，以实际独立 service 和 cgroup 验证生产部署；指定本机已安装的可执行文件：
+
+```bash
+CLAUDE_EXECUTABLE=/absolute/path/to/claude npm run test:backends
+```
+
+该入口依次执行原生会话分支与历史、模型/插件/MCP 目录、项目指令、工具和提问、计划批准、整理、中断、持续输入、目标及后台任务等脚本，记录真实 CLI 版本和各脚本结果，日志位于 `.cache/backend-acceptance`。测试不访问用户对话，模型回应由隔离服务提供。图片验证通过真实 CLI 提交临时 PNG，检查首次供应商请求保留 base64 内容、刷新历史恢复图片地址，以及原生 Read 返回图片后在统一工具结果中的显示数据。`server/tests` 另验证身份、额度窗口与额外用量的转换；原生账户授权和在线余额的验证记录需要相应服务环境，按实际完成的项目单独报告。
+
+`claude-runtime-restart.mjs` 使用真实 systemd transient 用户服务、临时模型会话及后台 shell，验证网页代理进程 SIGKILL 后执行服务与原生 PID 保持、后台任务继续、重连快照和忙时停止拒绝。`claude-worker-upgrade.mjs` 通过隔离源码身份与配置验证忙时待更新、空闲替换、旧桥接保留新代际及多连接行为。`server/tests/claude-worker-client.test.mjs` 以 Unix IPC 协议夹具验证多连接、提问和执行状态透传、关闭桥接及在途请求结算；`claude-worker-location.test.mjs` 核对目录、socket 权限及符号链接替代拒绝。协议夹具与真实系统服务的证据分别记录。
+
+`claude-native-configuration.mjs` 通过真实 CLI 核对既有用户设置、多级软链接技能和原生历史读取，网页状态目录单独配置。夹具在原生设置中保留不同的供应商环境，再通过网页显式选择隔离供应商，验证首次请求到达所选服务、原配置文件保持原样。显式供应商覆盖经原生 `applyFlagSettings` 在输入前通过进程通信应用，凭据保持在受限环境和通信中。
+
+`claude-worker-environment.mjs` 使用自签 HTTPS 模型端点，验证 Node 启动时的额外 CA 与代理配置、包含空格的路径、权限 0600 的环境文件，以及进程参数中省去代理凭据。退出后核对环境文件清理；该测试随 `test:backends` 执行。
+
+项目指令回归通过真实运行时捕获 Messages 请求，核对祖先和当前目录的 AGENTS 指令完整送达、原生 CLAUDE 指令持续保留，以及更新、删除、空快照和读取失败后的下一轮行为。标准 Messages 传输将所需系统上下文放在顶层 `system`。原生历史回归使用临时 JSONL 和真实 SDK，核对 UUID 分支、编辑、补充消息、子代理接收记录、后台自动唤醒锚点和完整分页；历史正文与已确认的展示元数据分别验证。
+
+Codex 的真实模型回归显式指定已配置模型和认证的目录，脚本只复制配置及认证到独立的临时 `CODEX_HOME`，项目和对话记录在临时目录中创建：
+
+```bash
+CODEX_VALIDATION_HOME=/absolute/path/to/configured-codex-home CODEX_EXECUTABLE=/absolute/path/to/codex npm run test:codex:live
+```
+
+`CODEX_MODEL` 可选，用于指定验收模型。`codex-native-lifecycle.mjs` 通过真实 app-server 与配置的模型执行文件写入和读取、原生文件建议、服务重启后继续同一对话、分支及原生历史读取；2026-11-06 已验证 `codex-cli 0.162.1` 的三个真实轮次。具体结果保存在 `.cache/backend-acceptance/codex-live.json`，与浏览器中的 Codex 协议夹具分别记录。
+
+完整 Codex 网页操作使用相同的隔离配置和真实 app-server：
+
+```bash
+CODEX_VALIDATION_HOME=/absolute/path/to/configured-codex-home CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/codex-native.mjs
+```
+
+脚本通过登录表单进入临时 HTTPS 网页，实际选择模型并创建文件，验证任务完成、刷新历史、原生文件引用、文件面板，以及编辑重发后的文件和历史内容，保留独立草稿。结果与截图保存在 `.cache/backend-acceptance/codex-browser`；此入口使用真实 Codex 模型，与协议模拟器浏览器回归分别记录。
+
+第三方安装路径的 Claude 验收单独执行：
+
+```bash
+CLAUDE_EXECUTABLE=/absolute/path/to/claude node tests/integration/claude-installed-worker.mjs
+```
+
+脚本构建网页后实际打包并安装到临时 npm prefix，从安装包加载 worker 客户端并启动独立执行服务。验证无 Git、无源码锁文件时的原生文件读取、项目技能、模型配置、真实 Write 工具落盘、历史恢复及空闲停止，模型响应由隔离 Messages 服务提供。安装日志、包文件和结果保存在 `.cache/backend-acceptance/installed-worker`。`tests/package.test.mjs` 的模拟 Codex 验证继续覆盖其已有安装场景。
+
+生产页面的双后端回归在构建后执行：
+
+```bash
+npm run build
+CLAUDE_EXECUTABLE=/absolute/path/to/claude CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/dual-backends.mjs
+```
+
+浏览器脚本使用独立 HTTPS/WSS 桥接、临时系统登录夹具、Codex 协议模拟器与真实 Claude Code 配合隔离 Messages 服务，验证共享界面、模型选择、草稿、文件引用、执行状态、失败恢复、插件连接及两端归属。截图与记录位于 `.cache/dual-backend-browser`。模拟 Codex 传输、真实 Claude CLI、隔离模型响应及真实外部模型验证分别注明来源。
+
+实际页面缩放使用 `CODEX_BROWSER_ZOOM_ONLY=1` 配合上述真实 Codex 浏览器脚本执行。脚本从 Chromium 设置调整页面缩放，核对 DPR 和 CSS 视口，覆盖桌面与 390 像素窄屏、深浅主题及 80%、100%、125%、150%、200%。验证两行输入、工具栏和模型控件位于视口内、欢迎内容可滚动，以及侧栏开关和关闭按钮；该模式断言模型轮次数为零，截图与测量值保存在 Codex 浏览器证据目录的 `browser-zoom` 中。
+
+使用外部真实模型时，显式设置测试服务及模型：
+
+```bash
+CLAUDE_EXECUTABLE=/absolute/path/to/claude MODEL_BASE_URL=https://model.example MODEL_ID=your-model MODEL_API_KEY=your-key npm run test:backends:live
+```
+
+该脚本使用临时 Claude 对话验证实际生成、工具与恢复，保留独立结果；远端服务和 GPU 选择由验证环境配置，产品默认值保持通用。验证来源、请求结果和未执行的认证场景写入执行记录。
+
+已有 Python 模块目录的只读说明验收使用独立入口：
+
+```bash
+CLAUDE_EXECUTABLE=/absolute/path/to/claude MODEL_BASE_URL=https://model.example MODEL_ID=your-model VALIDATION_CWD=/absolute/path/to/project VALIDATION_DIRECTORY=relative/path/to/python-package node tests/integration/claude-readonly-directory.mjs
+```
+
+脚本将“介绍这个文件夹里面各个文件的功能”的请求原文交给真实 Claude Code，以临时配置和原生计划模式读取指定目录。验证成功的工具响应包含实际源码 API、最终正文覆盖目录文件与公开 API、全部模型请求返回 200，以及目标文件 SHA-256 前后相同。`MODEL_API_KEY` 按服务认证要求设置，`VALIDATION_OUTPUT` 可指定证据目录，默认 `.cache/backend-acceptance/original-user-case`。证据包含 `answer.md`、工具事件、原生会话、请求响应和结果报告。该入口读取已有目录，写入仅发生在临时配置及证据目录中。
+
+### 客户端与既有网页行为查验
+
+2026-11-06 查验本机保存的网页客户端 `codex-lan-client 2.0.0`，目录为 `~/.local/share/codex-lan/client-source`。`src/shortcuts.jsx` 的文件建议逻辑在空查询或目录后缀时读取目录，其余查询调用 `fuzzyFileSearch` 并传入当前目录，保留 60 项及请求代次隔离；同文件的命令注册列出原有网页入口。`src/store.js` 的发送流程根据活动轮次选择 `turn/steer` 或 `turn/start`，通知分派处理 `turn/started` 与 `turn/completed`。这些代码作为既有网页交互和用户体验的查验依据，统一 18 项命令以当前仓库注册表为准。
+
+同日查验 Codex VS Code 扩展 `openai.chatgpt 26.908.40401`，版本来自 `~/.local/share/vscode-lan/code-server-extensions/openai.chatgpt-26.908.40401-linux-x64/package.json`。`webview/assets/app-initial-1e5ee25fb4ec.js` 中的文件查询服务调用原生 fuzzy search 会话启动、更新、停止接口，并保留单次查询接口；`Nhr` 注册 `init` 命令，在提交生成前检查已有 `AGENTS.md`。`app-initial-bca4f920746a.js` 的 `P1t` 处理轮次开始并更新对话状态，整理流程调用 `thread/compact/start`；补充输入提交使用 `turn/steer`。这里记录原生客户端的交互及协议事实，Claude Code 的原生附加命令以其自身当前目录返回结果为准。
+
+以上查验使用本机可取得的源码及已安装打包资源。保存的网页客户端、当前网页产品、Codex 客户端和 Claude Code 运行时各自注明版本与来源；提取资源保留在本机忽略目录，仓库只维护行为结论和隔离验证。
+
 ## 格式与验证
 
 长对话切换回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/history-performance.mjs`。脚本使用生产构建、独立浏览器和 15 轮、3,210 条记录、33 页的隔离历史，每页模拟 50 毫秒往返；记录首屏和完整恢复耗时，验证最近消息及输入先可用、自动完整分页、普通状态更新复用 Markdown、读取期间草稿与实时更新保留、历史前插时的阅读位置、目录跳转和快速切换隔离，覆盖深浅主题、80% 至 200% 缩放及窄屏。证据与构建来源保存在 `.cache/history-performance/after`。修改前的构建及来源分别保存为 `.cache/history-performance-before/dist` 和 `build-info.json`，以 `BROWSER_BEFORE=1` 记录同机对照，耗时用于比较同机行为。单元及组件回归同时验证旧接口完整轮次回退、分页失败后的可读记录与重试、实时结果优先及切换隔离。现有 README 图片展示完整加载后的界面，布局和内容继续适用。
@@ -95,7 +176,7 @@ package-lock.json      全项目依赖锁文件
 
 已有对话模型隔离回归使用 `EXISTING_MODEL=1 CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，以项目默认模型 C 与已有对话模型 A 的隔离数据验证打开、刷新、实际发送及从新建界面返回已有对话，并保存桌面深浅主题和手机截图。修改前将生产构建和构建来源保存到 `.cache/existing-model-before/dist` 与 `.cache/existing-model-before/build-info.json`，增加 `BROWSER_BEFORE=1` 复现覆盖；证据写入 `.cache/existing-model-browser/`。组件回归另覆盖重连初始化、恢复及迟到响应期间手动调整。README 及其他文档现有截图展示常规对话，模型选择器的外观与布局保持一致，相关图片继续适用。
 
-同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CODEX_HOME` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
+同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CODEX_WEB_CONFIG_DIR` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
 
 ```bash
 npm run format
@@ -227,7 +308,7 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 ### 登录与证书
 
-`server/tests/auth.test.mjs` 通过临时 CODEX_HOME、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。
+`server/tests/auth.test.mjs` 通过临时 CODEX_WEB_CONFIG_DIR、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。
 
 浏览器回归使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/auth.mjs`，在生产构建和临时模拟后端上实际填写登录表单，检查刷新、跨标签页退出、草稿恢复、过期、证书下载、设备安装指引、关于页隐藏开发标记、深浅主题及手机布局。截图及构建信息保存在 `.cache/auth-browser`。
 
@@ -262,3 +343,7 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/plans.mjs`。脚本使用生产构建和隔离历史，验证默认部分预览、点击与键盘展开收起、刷新恢复默认折叠、修改意见使用计划模式、批准以默认模式提交完整方案、失败重试、刷新及草稿保留；深浅主题覆盖 80%、100%、125%、150% 和 200% 缩放，并检查窄屏点击区域和横向溢出。截图、发送参数和构建来源保存在 `.cache/plans-browser`。`BROWSER_BEFORE=1 BROWSER_BUILD_DIR=/path/to/old/dist` 可在同一夹具中核对旧版正文折叠与缺少批准入口，证据保存在 `.cache/plans-before/browser`。领域与组件回归补充流式更新、重复点击、失败轮次、只读展示和切换对话后的迟到结果。
 
 客户端行为核对依据为 Codex VS Code 扩展 `26.1021.22027` 的本机打包资源：`webview/assets/src-622b307a9baf.js` 中的 `item/plan/delta` 分派和计划执行状态，以及 `pending-request-item-panel-d13bffae20bf.js` 中的批准与修改处理。客户端批准选择默认模式并提交完整方案，修改意见继续使用计划模式；网页沿用这一提交语义，并依据 `plan-summary-item-content-27c95dedbba3.js` 的正文预览与展开交互，主对话调用在 `local-conversation-turn-6d79d254d102.js` 显式传入 `defaultCollapsed: true`；预览正文高度为 320 像素，底部渐隐并提供展开按钮。网页以字体相对尺寸实现同一预览高度，并在提交成功后更新模式，使失败请求保留重试状态。README 已有截图使用普通任务与文件预览，当前计划卡片的变化不影响这些图片的内容及说明。
+
+### 后端归属图标
+
+对话顶部和侧栏通过后端资源标识选择图标，保持纯图标展示。Codex 使用 `client/src/assets/openai.svg`，取自 [OpenAI 官方品牌资源](https://cdn.openai.com/brand/OpenAI-Logos-2025.zip)的黑色 Blossom SVG；标识归 OpenAI 所有，使用说明见[品牌指南](https://openai.com/brand/)。CSS 蒙版保持原有形状，以主题正文颜色显示。Claude Code 使用 `client/src/assets/claude.svg`，提取自 [Claude 官方网站](https://claude.com/)页首 Claude 标志中的独立图形路径，保留原始轮廓；标识归 Anthropic 所有。后端身份图标使用对应产品的官方标识。项目品牌图标仍由 `codex-web.svg` 提供。

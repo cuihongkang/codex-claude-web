@@ -130,7 +130,7 @@ test(
     await writeFile(join(dir, ".env"), "PORT=invalid\n");
     run("config", "init");
     assert.equal(await readFile(join(configDir, ".env"), "utf8"), config);
-    const auth = await authenticationFixture(join(dir, "codex-home"));
+    const auth = await authenticationFixture(configDir);
     env.CODEX_HOME = join(dir, "codex-home");
     const fetch = httpsFetch(auth.tls.cert);
     const child = spawn(cli, [], {

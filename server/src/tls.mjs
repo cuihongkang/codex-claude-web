@@ -24,7 +24,7 @@ export async function readTls(config) {
       key: await readFile(config.tlsKey),
       minVersion: "TLSv1.2",
     };
-  const parent = join(config.codexHome, "codex-web");
+  const parent = config.configDir;
   const directory = join(parent, "tls");
   const certificate = join(directory, "certificate.pem");
   const key = join(directory, "private-key.pem");

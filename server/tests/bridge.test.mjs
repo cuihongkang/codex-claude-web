@@ -221,6 +221,7 @@ test(
           STATIC_DIR: files,
           DEFAULT_CWD: files,
           CODEX_HOME: files,
+          CODEX_WEB_CONFIG_DIR: files,
           CODEX_APP_SERVER_URL: `ws://127.0.0.1:${upstream.address().port}`,
         },
         stdio: ["ignore", "pipe", "pipe"],
@@ -256,7 +257,7 @@ test(
             assert.equal(message.params.defaultCwd, files);
             assert.equal(
               message.params.projectlessRoot,
-              join(files, "codex-web", "workspaces"),
+              join(files, "workspaces"),
             );
             assert.deepEqual(message.params.version, version);
             onState(message.params);
@@ -316,9 +317,7 @@ test(
     );
     assert.deepEqual((await readModels).result.projects, expectedProjectModels);
     assert.deepEqual(
-      JSON.parse(
-        await readFile(join(files, "codex-web", "project-models.json"), "utf8"),
-      ),
+      JSON.parse(await readFile(join(files, "project-models.json"), "utf8")),
       expectedProjectModels,
     );
     assert.equal(
@@ -437,7 +436,7 @@ test(
     ]);
     assert.notEqual(workspaces[0].cwd, workspaces[1].cwd);
     for (const workspace of workspaces) {
-      assert.equal(workspace.root, join(files, "codex-web", "workspaces"));
+      assert.equal(workspace.root, join(files, "workspaces"));
       assert.ok(workspace.cwd.startsWith(workspace.root + "/chat-"));
       assert.ok((await stat(workspace.cwd)).isDirectory());
     }

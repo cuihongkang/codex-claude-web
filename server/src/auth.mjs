@@ -36,7 +36,7 @@ async function credentials(request) {
   }
 }
 export async function createAuthentication(config) {
-  const directory = join(config.codexHome, "codex-web", "auth");
+  const directory = join(config.configDir, "auth");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const path = join(directory, "sessions.json");
   const username = userInfo().username;

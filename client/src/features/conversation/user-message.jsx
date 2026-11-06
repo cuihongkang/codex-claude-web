@@ -149,6 +149,14 @@ export function UserMessage({ item, readOnly, editable, cwd }) {
   const s = useStore();
   const [editing, setEditing] = useState(false);
   const threadId = s.current?.id;
+  useEffect(() => {
+    if (
+      editable &&
+      s.messageEditRequest?.threadId === threadId &&
+      s.messageEditRequest.itemId === item.id
+    )
+      setEditing(true);
+  }, [editable, threadId, item.id, s.messageEditRequest]);
   return (
     <article
       className="message user-message"

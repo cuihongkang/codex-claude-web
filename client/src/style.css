@@ -29,3 +29,5 @@
 @import "./styles/typography.css";
 @import "./styles/commands.css";
 @import "./styles/auth.css";
+
+@import "./styles/backends.css";

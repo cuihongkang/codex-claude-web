@@ -17,7 +17,7 @@ test("项目设置写入磁盘，重新创建存储后恢复，连续写入保�
     store.set({ cwd: "", model: "model-a", effort: "low" }),
   ]);
   const persisted = JSON.parse(
-    await readFile(join(directory, "codex-web", "project-models.json"), "utf8"),
+    await readFile(join(directory, "project-models.json"), "utf8"),
   );
   assert.deepEqual(persisted, {
     "/demo/a": { model: "model-c", effort: "xhigh" },
@@ -47,7 +47,7 @@ test("输入及磁盘损坏保留原文件，写入失败后支持重试", async
     /无效/,
   );
   await store.set({ cwd: "/demo/a", model: "m", effort: "high" });
-  const path = join(directory, "codex-web", "project-models.json");
+  const path = join(directory, "project-models.json");
   await writeFile(path, "broken-json");
   await assert.rejects(
     store.set({ cwd: "/demo/b", model: "m", effort: "low" }),

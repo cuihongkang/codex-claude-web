@@ -1,6 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { reasoningSummaries } from "../src/domain/reasoning-summary.js";
+import {
+  reasoningSummaries,
+  appendReasoningSummary,
+} from "../src/domain/reasoning-summary.js";
+
+test("完整思考保留单行长正文和段落，并以独立标题展开", () => {
+  const body = "这是完整思考正文。".repeat(80) + "\n\n第二段。";
+  let summary = appendReasoningSummary([], 0, body.slice(0, 100), "思考");
+  summary = appendReasoningSummary(summary, 0, body.slice(100));
+  assert.deepEqual(reasoningSummaries(summary), [{ title: "思考", body }]);
+  assert.deepEqual(appendReasoningSummary(["标题"], 0, "正文"), ["标题正文"]);
+});
 
 test("空摘要和空标题不生成思考行", () => {
   assert.deepEqual(reasoningSummaries(), []);

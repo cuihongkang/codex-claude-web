@@ -1,3 +1,4 @@
+import { ThreadListErrors } from "./thread-list-errors.jsx";
 import React from "react";
 import {
   PanelLeft,
@@ -90,6 +91,10 @@ export function Sidebar() {
           </div>
         </div>
         <div className="thread-list">
+          <ThreadListErrors
+            errors={s.threadListErrors}
+            onRetry={() => loadThreads().catch(report)}
+          />
           {pinned.length > 0 && (
             <div className="project-group">
               <div className="pinned-heading">
@@ -112,7 +117,7 @@ export function Sidebar() {
               ))}
             </ProjectGroup>
           ))}
-          {!s.threads.length && (
+          {!s.threads.length && !s.threadListErrors?.length && (
             <div className="sidebar-empty">
               {s.booting
                 ? "正在载入…"

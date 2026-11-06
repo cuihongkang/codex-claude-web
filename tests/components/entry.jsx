@@ -14,3 +14,5 @@ export { FilePanel } from "../../client/src/features/workspace/file-panel.jsx";
 export { VersionDetails } from "../../client/src/app/version.jsx";
 export { ProjectGroup } from "../../client/src/app/project-group.jsx";
 export * from "../../client/src/store.js";
+
+export { SkillsDialog } from "../../client/src/app/tool-dialogs.jsx";

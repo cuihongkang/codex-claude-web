@@ -6,6 +6,8 @@ import { compatibleEffort } from "../domain/model-preferences.js";
 import { saved, persist } from "../infrastructure/storage.js";
 import { uid } from "../domain/format.js";
 export function createModelPreferences({ get, set, rpc, transport, report }) {
+  const storageKey = (name, id = get().backendId) =>
+    !id || id === "codex" ? name : `${name}-${id}`;
   let defaultModelSelection = { model: "", effort: "" };
   let modelSelectionRevision = 0;
   let projectModelsRemote = false;
@@ -38,19 +40,19 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
       model: get().model,
       effort: get().effort || model?.defaultReasoningEffort || "",
     };
-    persist("cx-project-models", {
-      ...saved("cx-project-models", {}),
+    persist(storageKey("cx-project-models"), {
+      ...saved(storageKey("cx-project-models"), {}),
       [key]: selection,
     });
-    persist("cx-project-models-pending", {
-      ...saved("cx-project-models-pending", {}),
+    persist(storageKey("cx-project-models-pending"), {
+      ...saved(storageKey("cx-project-models-pending"), {}),
       [key]: { selection, id: uid() },
     });
     flushProjectModels().catch(report);
   }
   function mergeProjectModels(projects) {
-    const pending = saved("cx-project-models-pending", {});
-    persist("cx-project-models", {
+    const pending = saved(storageKey("cx-project-models-pending"), {});
+    persist(storageKey("cx-project-models"), {
       ...projects,
       ...Object.fromEntries(
         Object.entries(pending).map(([key, entry]) => [key, entry.selection]),
@@ -60,19 +62,24 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
   function flushProjectModels() {
     if (!projectModelsRemote || !get().connected) return Promise.resolve();
     if (projectModelsWriting) return projectModelsWriting;
+    const backendId = get().backendId;
     projectModelsWriting = (async () => {
-      while (get().connected) {
-        const [entry] = Object.entries(saved("cx-project-models-pending", {}));
+      while (get().connected && get().backendId === backendId) {
+        const [entry] = Object.entries(
+          saved(storageKey("cx-project-models-pending"), {}),
+        );
         if (!entry) return;
         const [cwd, pending] = entry;
         const result = await rpc("lan/projectModels/set", {
+          backendId,
           cwd,
           ...pending.selection,
           ifAbsent: pending.ifAbsent || false,
         });
-        const remaining = saved("cx-project-models-pending", {});
+        if (get().backendId !== backendId) return;
+        const remaining = saved(storageKey("cx-project-models-pending"), {});
         if (remaining[cwd]?.id === pending.id) delete remaining[cwd];
-        persist("cx-project-models-pending", remaining);
+        persist(storageKey("cx-project-models-pending"), remaining);
         mergeProjectModels(result.projects);
       }
     })()
@@ -86,13 +93,15 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
   }
   async function syncProjectModels() {
     const connection = transport.connection;
+    const backendId = get().backendId;
     const result = await rpc("lan/projectModels/read");
-    if (connection !== transport.connection) return;
+    if (connection !== transport.connection || backendId !== get().backendId)
+      return;
     projectModelsRemote = Boolean(result.projects);
     if (!projectModelsRemote) return;
-    const pending = saved("cx-project-models-pending", {});
+    const pending = saved(storageKey("cx-project-models-pending"), {});
     for (const [key, selection] of Object.entries(
-      saved("cx-project-models", {}),
+      saved(storageKey("cx-project-models"), {}),
     ))
       if (
         !Object.hasOwn(result.projects, key) &&
@@ -100,7 +109,7 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
         selection.model
       )
         pending[key] = { selection, id: uid(), ifAbsent: true };
-    persist("cx-project-models-pending", pending);
+    persist(storageKey("cx-project-models-pending"), pending);
     mergeProjectModels(result.projects);
     await flushProjectModels();
   }
@@ -110,7 +119,7 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
     fallback,
     models = get().models,
   ) {
-    const preferences = saved("cx-project-models", {});
+    const preferences = saved(storageKey("cx-project-models"), {});
     const key = projectless ? "" : cwd;
     const selection = Object.hasOwn(preferences, key)
       ? preferences[key]

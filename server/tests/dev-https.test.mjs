@@ -73,12 +73,14 @@ test(
     const old = {
       PORT: process.env.PORT,
       CODEX_HOME: process.env.CODEX_HOME,
+      CODEX_WEB_CONFIG_DIR: process.env.CODEX_HOME,
       TLS_CERT: process.env.TLS_CERT,
       TLS_KEY: process.env.TLS_KEY,
     };
     Object.assign(process.env, {
       PORT: String(backend.address().port),
       CODEX_HOME: directory,
+      CODEX_WEB_CONFIG_DIR: directory,
       TLS_CERT: certificate,
       TLS_KEY: key,
     });

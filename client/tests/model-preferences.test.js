@@ -29,3 +29,8 @@ test("初次选择使用模型默认值，未提供档位列表时保留已有�
   );
   assert.equal(compatibleEffort("high", undefined), "high");
 });
+
+test("明确为空的强度列表清理旧选择，缺失列表继续保留历史偏好", () => {
+  assert.equal(compatibleEffort("high", { supportedReasoningEfforts: [] }), "");
+  assert.equal(compatibleEffort("high", undefined), "high");
+});

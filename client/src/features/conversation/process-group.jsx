@@ -8,11 +8,7 @@ import { ReasoningPart } from "./activity.jsx";
 import { Message } from "./message.jsx";
 export function ProcessDuration({ timing, working }) {
   const [now, setNow] = useState(Date.now);
-  const ticking =
-    working &&
-    Number.isFinite(timing?.startedAt) &&
-    !Number.isFinite(timing?.completedAt) &&
-    !Number.isFinite(timing?.durationMs);
+  const ticking = working && Number.isFinite(timing?.startedAt);
   useEffect(() => {
     if (!ticking) return;
     setNow(Date.now());

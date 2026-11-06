@@ -42,6 +42,7 @@
   padding: 0.461538rem 0.538462rem 0.615385rem;
 }
 .brand {
+  min-width: 0;
   padding: 0.307692rem 0.076923rem;
   gap: 0.692308rem;
   letter-spacing: -0.4px;
@@ -51,10 +52,14 @@
   flex: none;
 }
 .brand strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 1.384615rem;
   font-weight: 600;
 }
 .brand span {
+  flex: none;
   font-size: 0.769231rem;
   letter-spacing: 0;
   color: var(--muted);
@@ -186,7 +191,7 @@
   font-size: 1rem;
   line-height: 1.3;
 }
-.thread-link > span:not(.thread-status) {
+.thread-link > .thread-title {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;

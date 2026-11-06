@@ -10,6 +10,12 @@ export {
 export { persist } from "./infrastructure/storage.js";
 const application = createApplication();
 export const {
+  activateBackend,
+  selectModelChoice,
+  selectProvider,
+  refreshBackends,
+  saveBackend,
+  saveProvider,
   setReadingThread,
   openSubAgent,
   selectModel,

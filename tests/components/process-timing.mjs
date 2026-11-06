@@ -70,7 +70,13 @@ export async function testProcessTiming(app, requests, setResponse, emit) {
     await act(async () => {
       emit("turn/started", {
         threadId: thread.id,
-        turn: { id: "live", status: "inProgress", startedAt },
+        turn: {
+          id: "live",
+          status: "inProgress",
+          startedAt,
+          completedAt: startedAt,
+          durationMs: 0,
+        },
       });
       view = create(React.createElement(app.Conversation));
     });

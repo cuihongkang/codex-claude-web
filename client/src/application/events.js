@@ -1,6 +1,7 @@
 import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
 import { b64decode } from "../domain/format.js";
+import { appendReasoningSummary } from "../domain/reasoning-summary.js";
 export function createEvents({
   get,
   set,
@@ -18,6 +19,13 @@ export function createEvents({
     set({ terminalOpen: false });
   }
   function handle({ method, params: p = {} }) {
+    if (method === "lan/executionStatus") {
+      if (get().active[p.threadId] === p.turnId)
+        set({
+          executionStatuses: { ...get().executionStatuses, [p.threadId]: p },
+        });
+      return;
+    }
     if (method.startsWith("account/")) {
       account.handle({ method, params: p });
       return;
@@ -264,11 +272,16 @@ export function createEvents({
       const i = get().items.find((i) => i.id === p.itemId) || {
         id: p.itemId,
         type: "reasoning",
+        turnId: p.turnId,
         summary: [],
       };
-      const summary = [...(i.summary || [])];
-      summary[p.summaryIndex] = (summary[p.summaryIndex] || "") + p.delta;
-      messages.put({ ...i, summary });
+      const summary = appendReasoningSummary(
+        i.summary,
+        p.summaryIndex,
+        p.delta,
+        p.summaryTitle,
+      );
+      messages.put({ ...i, turnId: p.turnId, summary });
     }
   }
   return { handle, closeTerminal };

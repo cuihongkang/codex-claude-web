@@ -1,7 +1,7 @@
 import https from "node:https";
 import { WebSocketServer } from "ws";
 import { createHttpHandler } from "./http/router.mjs";
-import { createBridge } from "./bridge/create-bridge.mjs";
+import { createBackendManager } from "./backends/manager.mjs";
 import { sendRpcText } from "./rpc-transport.mjs";
 export function createWebApplication({ config, tls, authentication, version }) {
   const clients = new WebSocketServer({ noServer: true });
@@ -24,9 +24,8 @@ export function createWebApplication({ config, tls, authentication, version }) {
       for (const monitor of monitors.clients)
         send(monitor, bridge.maintenanceState());
   }
-  const bridge = createBridge({ config, version, send, broadcast });
-  const { state, maintenanceState, releaseUnusedThreads, subscriptions } =
-    bridge;
+  const bridge = createBackendManager({ config, version, send, broadcast });
+  const { state, maintenanceState, releaseUnusedThreads } = bridge;
   const server = https.createServer(
     tls,
     createHttpHandler({
@@ -71,7 +70,7 @@ export function createWebApplication({ config, tls, authentication, version }) {
       console.error("Browser connection:", error.message),
     );
     client.on("close", () => {
-      for (const owners of subscriptions.values()) owners.delete(client);
+      bridge.releaseClient(client);
       releaseUnusedThreads();
     });
     send(client, state());
@@ -116,7 +115,7 @@ export function createWebApplication({ config, tls, authentication, version }) {
           resolve();
         });
       });
-      bridge.connect();
+      await bridge.connect();
     },
     async close() {
       clearInterval(heartbeat);

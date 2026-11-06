@@ -1,3 +1,4 @@
+import { createBackendConfiguration } from "../server/src/backends/configuration.mjs";
 import { execFileSync } from "node:child_process";
 import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -11,6 +12,15 @@ export async function installServices({ configDir = root, cli = false } = {}) {
     throw new Error("后台服务安装需要 Linux 和 systemd 用户服务。");
   execFileSync("systemctl", ["--user", "show-environment"], { stdio: "pipe" });
   const config = readConfig();
+  const configured = await createBackendConfiguration(config).read();
+  const codexBackend = configured.backends.find(
+    (b) => b.id === "codex" && b.type === "codex" && b.enabled,
+  );
+  const manageCodex =
+    codexBackend &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(
+      new URL(codexBackend.url).hostname,
+    );
   const userUnits = join(
     process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
     "systemd/user",
@@ -38,8 +48,10 @@ export async function installServices({ configDir = root, cli = false } = {}) {
   await mkdir(backups, { recursive: true });
 
   const backendPath = join(userUnits, "codex-app-server.service");
-  if (!(await exists(backendPath))) {
-    const codex = execFileSync("which", ["codex"], { encoding: "utf8" }).trim();
+  if (manageCodex && !(await exists(backendPath))) {
+    const codex = execFileSync("which", [codexBackend.executable || "codex"], {
+      encoding: "utf8",
+    }).trim();
     await writeFile(
       backendPath,
       `[Unit]
@@ -51,7 +63,7 @@ Type=simple
 WorkingDirectory=${unitPath(homedir())}
 Environment=${quote("PATH=" + dirname(process.execPath) + ":" + process.env.PATH)}
 EnvironmentFile=-${unitPath(join(configDir, ".env.backend"))}
-ExecStart=${quote(codex)} -c thread_unload_delay_secs=0 app-server --listen ${quote(config.upstreamUrl)}
+ExecStart=${quote(codex)} -c thread_unload_delay_secs=0 app-server --listen ${quote(codexBackend.url)}
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -60,7 +72,7 @@ UMask=0077
 WantedBy=default.target
 `,
     );
-  } else
+  } else if (manageCodex)
     console.log(
       "保留现有 codex-app-server.service 的登录环境、代理和启动配置。",
     );
@@ -72,8 +84,7 @@ WantedBy=default.target
     webPath,
     `[Unit]
 Description=Codex Web
-Wants=codex-app-server.service
-After=network.target codex-app-server.service
+${manageCodex ? "Wants=codex-app-server.service\nAfter=network.target codex-app-server.service" : "After=network.target"}
 
 [Service]
 Type=simple
@@ -88,9 +99,13 @@ UMask=0077
 WantedBy=default.target
 `,
   );
-  execFileSync("systemd-analyze", ["--user", "verify", webPath, backendPath], {
-    stdio: "inherit",
-  });
+  execFileSync(
+    "systemd-analyze",
+    ["--user", "verify", webPath, ...(manageCodex ? [backendPath] : [])],
+    {
+      stdio: "inherit",
+    },
+  );
   execFileSync("systemctl", ["--user", "daemon-reload"], { stdio: "inherit" });
   execFileSync(
     "systemctl",
@@ -98,7 +113,7 @@ WantedBy=default.target
       "--user",
       "enable",
       "--now",
-      "codex-app-server.service",
+      ...(manageCodex ? ["codex-app-server.service"] : []),
       "codex-lan-web.service",
     ],
     { stdio: "inherit" },

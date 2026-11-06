@@ -274,6 +274,45 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
       view.root.findAllByProps({ className: "quota-toggle" }).length,
       0,
     );
+    const beforeClaude = count();
+    await act(async () =>
+      app.set({
+        current: { id: "backend:claude:session" },
+        backendId: "claude",
+        account: null,
+        providers: [
+          { id: "local", name: "LM Studio" },
+          { id: "other", name: "Other" },
+        ],
+        providerId: "local",
+        backends: [{ id: "claude", ready: true }],
+      }),
+    );
+    assert.match(text(), /LM Studio/);
+    assert.doesNotMatch(text(), /Codex/);
+    assert.equal(
+      view.root.findAllByProps({ className: "quota-toggle" }).length,
+      0,
+    );
+    assert.equal(intervals.size, 0);
+    assert.equal(resets.size, 0);
+    assert.equal(count(), beforeClaude);
+    await act(async () => app.set({ providerId: "other" }));
+    assert.match(text(), /Other/);
+    await act(async () =>
+      app.set({ providers: [], backends: [{ id: "claude", ready: false }] }),
+    );
+    assert.match(text(), /Claude Code/);
+    assert.match(text(), /正在连接/);
+    await act(async () =>
+      app.set({
+        current: null,
+        backendId: "codex",
+        backends: [],
+        account: { type: "apiKey" },
+      }),
+    );
+    assert.match(text(), /API Key/);
   } finally {
     await act(async () => view?.unmount());
     assert.equal(intervals.size, 0);

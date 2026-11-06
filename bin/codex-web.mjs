@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Codex Web 命令入口，配置与运行时数据独立于 npm 安装目录。
 import { execFileSync } from "node:child_process";
 import { constants } from "node:fs";
 import { copyFile, mkdir } from "node:fs/promises";
@@ -22,7 +23,7 @@ const command = args.join(" ") || "start";
 
 async function main() {
   if (["--help", "-h", "help"].includes(command)) {
-    console.log(`Codex Web — 本机 Codex 的浏览器客户端
+    console.log(`Codex Web — Codex 与 Claude Code 的浏览器客户端
 
 用法：codex-web [命令]
   start                      前台启动网页服务（默认命令）
@@ -67,7 +68,7 @@ async function main() {
   if (command.startsWith("service ") && process.platform !== "linux")
     throw new Error("后台服务管理需要 Linux 和 systemd 用户服务。");
 
-  await mkdir(configDir, { recursive: true });
+  await mkdir(configDir, { recursive: true, mode: 0o700 });
   if (["config init", "service install"].includes(command)) {
     try {
       await copyFile(
@@ -79,6 +80,7 @@ async function main() {
       if (error.code !== "EEXIST") throw error;
     }
   }
+  process.env.CODEX_WEB_CONFIG_DIR = configDir;
   process.chdir(configDir);
   try {
     loadEnvFile(join(configDir, ".env"));
@@ -102,7 +104,7 @@ async function main() {
       console.log('开机运行用户服务：loginctl enable-linger "$USER"');
       const config = readConfig();
       console.log(
-        `HTTPS 健康检查：https://127.0.0.1:${config.port}/healthz；证书：${config.tlsCert || join(config.codexHome, "codex-web", "tls", "certificate.pem")}`,
+        `HTTPS 健康检查：https://127.0.0.1:${config.port}/healthz；证书：${config.tlsCert || join(config.configDir, "tls", "certificate.pem")}`,
       );
       break;
     }

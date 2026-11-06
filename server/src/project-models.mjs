@@ -1,8 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 
-export function createProjectModels(codexHome) {
-  const directory = join(codexHome, "codex-web");
+export function createProjectModels(directory) {
   const path = join(directory, "project-models.json");
   let writing = Promise.resolve();
   async function read() {

@@ -1,4 +1,9 @@
-import { projectGroups, PROJECTLESS_SOURCE } from "../domain/thread-order.js";
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
+import {
+  projectGroups,
+  PROJECTLESS_SOURCE,
+  preserveFailedBackendThreads,
+} from "../domain/thread-order.js";
 import { nextForkTitle } from "../domain/fork-title.js";
 import { saved, persist } from "../infrastructure/storage.js";
 import { titleOf } from "../domain/format.js";
@@ -12,19 +17,34 @@ export function createThreadCatalog({
   notice,
 }) {
   let listing = 0;
+  let listedScope;
   let pendingForks = saved("cx-pending-forks", []);
-  const listThreads = (params) => records.threadOrdering.list(params);
+  const listThreads = (params, options) =>
+    records.threadOrdering.list(params, options);
   async function loadThreads() {
     const epoch = ++listing;
     const revision = records.nameRevision;
-    const [data, projectless] = await Promise.all([
-      listThreads({
-        archived: get().archived,
-        ...(get().search ? { searchTerm: get().search } : {}),
+    const params = {
+      archived: get().archived,
+      ...(get().search ? { searchTerm: get().search } : {}),
+    };
+    let errors = [];
+    const [loaded, projectless] = await Promise.all([
+      listThreads(params, {
+        onBackendErrors: (value) => {
+          errors = value;
+        },
       }),
       rpc("lan/projectless/read").catch(() => ({ directories: {} })),
     ]);
     if (epoch !== listing) return;
+    const data = preserveFailedBackendThreads(
+      loaded,
+      get().threads,
+      errors,
+      params,
+      listedScope,
+    );
     pendingForks = pendingForks.filter((id) => !data.some((t) => t.id === id));
     persist("cx-pending-forks", pendingForks);
     const extra = await Promise.all(
@@ -49,16 +69,27 @@ export function createThreadCatalog({
       !threads.some((t) => t.id === get().current.id)
     )
       threads.unshift(get().current);
-    const hydrated = await records.threadOrdering.hydrate(
-      [...new Map(threads.map((t) => [t.id, t])).values()].filter(
-        (thread) => !records.deletedThreads.has(thread.id),
+    const failed = new Set(errors.map((error) => error.backendId));
+    const unique = [
+      ...new Map(threads.map((thread) => [thread.id, thread])).values(),
+    ].filter((thread) => !records.deletedThreads.has(thread.id));
+    const hydrated = [
+      ...(await records.threadOrdering.hydrate(
+        unique.filter(
+          (thread) => !failed.has(resourceTarget(thread.id).backendId),
+        ),
+      )),
+      ...unique.filter((thread) =>
+        failed.has(resourceTarget(thread.id).backendId),
       ),
-    );
+    ];
     if (epoch !== listing) return;
     const sorted = hydrated.map((thread) =>
       records.preserveThreadName(thread, revision),
     );
+    listedScope = params;
     set({
+      threadListErrors: errors,
       projectlessDirectories: projectless.directories,
       projectOrder: [
         ...projectGroups(
