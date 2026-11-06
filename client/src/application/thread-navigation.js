@@ -1,5 +1,6 @@
 import { newDraftKey } from "../infrastructure/backend-storage.js";
 import { resourceTarget } from "../../../shared/backend-identity.mjs";
+import { backendEnabled } from "../domain/backend-visibility.js";
 import { compatibleEffort } from "../domain/model-preferences.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import {
@@ -46,11 +47,11 @@ export function createThreadNavigation({
   }
   function newChat(
     cwd = get().projectless ? "" : get().cwd,
-    { reuseDirectory = false } = {},
+    { reuseDirectory = false, applyModelSelection = true } = {},
   ) {
     const sameProject = (get().projectless ? "" : get().cwd) === (cwd || "");
     const selection =
-      get().model && !get().loading
+      applyModelSelection && get().model && !get().loading
         ? {
             model: get().model,
             effort: compatibleEffort(
@@ -59,7 +60,7 @@ export function createThreadNavigation({
             ),
           }
         : null;
-    if (!get().loading) models.rememberModelSelection();
+    if (applyModelSelection && !get().loading) models.rememberModelSelection();
     const projectlessCwd =
       reuseDirectory &&
       get().projectless &&
@@ -76,9 +77,11 @@ export function createThreadNavigation({
       cwd: cwd || projectlessCwd || get().defaultCwd,
       projectless: !cwd,
       projectlessCwd,
-      ...(sameProject && selection
-        ? selection
-        : models.projectModelSelection(cwd, !cwd, models.defaults)),
+      ...(applyModelSelection
+        ? sameProject && selection
+          ? selection
+          : models.projectModelSelection(cwd, !cwd, models.defaults)
+        : { model: "", effort: "", serviceTier: null }),
       draft: localStorage.getItem(newDraftKey(get().backendId)) || "",
       attachments: getAttachmentDraft(null).attachments,
       error: "",
@@ -90,6 +93,7 @@ export function createThreadNavigation({
     });
   }
   async function openThread(id, { preserveServiceTier = false } = {}) {
+    if (!backendEnabled(get().backends, resourceTarget(id).backendId)) return;
     if (get().current && !get().loading) models.rememberModelSelection();
     const epoch = ++opening;
     const revision = records.nameRevision;

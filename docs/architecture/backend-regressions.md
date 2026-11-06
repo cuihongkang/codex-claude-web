@@ -16,6 +16,7 @@
 - 后端目录迟到：模型目录和账户读取现同时检查激活版本、后端、目录及连接实例，断线或替换连接后停止应用旧结果。
 - 列表初始化失败：启用后端构造失败时曾直接从汇总列表中消失。现将其保留为有明确后端标识的读取错误，已有记录由前端保留及提供重试。
 - 证书与登录迁移：自动证书与登录文件随目录切换重新创建。现只在目标目录缺失时原子复制已有网页自有文件，保持受限权限及旧文件；证书对缺失时提供明确错误。
+- 后端启停列表：停用后端后曾只更新后端配置，所属对话与当前对话保留到页面刷新。现由桥接状态通知触发列表重新读取，停用后立即移除所属对话，正在查看的所属对话回到新对话，并清除被停用后端的模型选择；重新启用后恢复显示。
 
 ## 网页交互对照
 
@@ -39,6 +40,8 @@
 - `server/tests/project-models.test.mjs` 与 `web-config-migration.test.mjs`：旧配置继承、目标优先、原文件保留及文件权限。
 - `tests/integration/claude-message-provenance.mjs`：真实 SDK 读取临时原生记录，验证来源字段在历史恢复中保留。
 - `tests/browser/backend-regressions.mjs`：生产构建下的分组、Markdown、引用键盘打开、Claude 历史、刷新、深浅主题、规定缩放和窄屏。截图及构建来源保存到 `.cache/backend-regressions/`。
+- `client/tests/backend-toggle.test.js`：核对启停快照同步过滤列表和模型选项、迟到响应与实时插入隔离、当前及待打开对话退出，以及两个后端全部停用和恢复。
+- `tests/browser/backend-toggle.mjs`：实际点击设置中的后端启停，核对停用后对话列表与当前对话立即更新、重新启用后恢复，以及两个后端全部停用后列表清空，且无需刷新页面；覆盖深浅主题、手机侧栏，并通过 `UI_BUILD_DIR` 与 `UI_BEFORE=1` 在旧构建上复现。截图保存到 `.cache/backend-toggle/`。
 - 既有 `plans.mjs`、`message-editing.mjs` 与 `connection-recovery.mjs` 浏览器测试：计划收放及批准、编辑失败重试、重连期间草稿与消息区保留。
 - `tests/browser/history-performance.mjs`：完整 33 页与 3210 条隔离记录、最近消息先显示、历史前插阅读位置、草稿及迟到分页隔离。
 - `npm run check`：版本、架构、格式、单元、组件及临时全局安装。

@@ -1,6 +1,13 @@
 import { newDraftKey } from "../infrastructure/backend-storage.js";
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
 import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
+const enabledBackendKey = (backends) =>
+  (backends || [])
+    .filter((backend) => backend.enabled)
+    .map((backend) => backend.id)
+    .sort()
+    .join(",");
 export function createConnection({
   get,
   set,
@@ -45,6 +52,19 @@ export function createConnection({
     if (m.method === "lan/state") {
       projectModelsSupported = m.params.projectModels === true;
       const was = get().connected;
+      const previousBackends = get().backends;
+      const previousBackendId = get().backendId;
+      const nextBackends = m.params.backends;
+      const selectedDisabled =
+        Boolean(previousBackendId) &&
+        Boolean(nextBackends) &&
+        !nextBackends.some(
+          (backend) => backend.id === previousBackendId && backend.enabled,
+        );
+      const backendsChanged =
+        previousBackends.length > 0 &&
+        Boolean(nextBackends) &&
+        enabledBackendKey(previousBackends) !== enabledBackendKey(nextBackends);
       const selectedWasReady = get().backends.find(
         (backend) => backend.id === get().backendId,
       )?.ready;
@@ -86,6 +106,11 @@ export function createConnection({
           )
             ? get().backendId
             : m.params.defaultBackendId,
+          ...(selectedDisabled && {
+            model: "",
+            effort: "",
+            serviceTier: null,
+          }),
         }),
         ...(!m.params.ready && { usageLoading: false }),
         serverVersion: m.params.version || null,
@@ -99,6 +124,21 @@ export function createConnection({
       if (m.params.terminals?.[terminalId]?.running === false)
         events.closeTerminal(terminalId);
       emit(m);
+      if (backendsChanged) {
+        const targetId = get().threadAccess?.threadId || get().current?.id;
+        const currentBackendId = targetId
+          ? resourceTarget(targetId).backendId
+          : null;
+        if (
+          currentBackendId &&
+          !nextBackends.some(
+            (backend) => backend.id === currentBackendId && backend.enabled,
+          )
+        )
+          navigation.newChat(undefined, { applyModelSelection: false });
+        if (selectedDisabled) activateBackend(get().backendId).catch(report);
+        catalog.loadThreads().catch(() => {});
+      }
       if (m.params.ready)
         for (const [threadId, entry] of Object.entries(get().compactions))
           if (isCompacting(entry))

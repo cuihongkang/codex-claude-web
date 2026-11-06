@@ -1,5 +1,9 @@
 import { saved, persist } from "../infrastructure/storage.js";
 import { isCompacting } from "../domain/compaction.js";
+import {
+  backendEnabled,
+  visibleBackendThreads,
+} from "../domain/backend-visibility.js";
 export function createAppState() {
   const modes = saved("cx-thread-modes", {});
   let state = {
@@ -85,6 +89,22 @@ export function createAppState() {
     return () => listeners.delete(listener);
   };
   function set(patch) {
+    const backends = patch.backends ?? state.backends;
+    if (patch.backends || patch.threads)
+      patch = {
+        ...patch,
+        threads: visibleBackendThreads(
+          patch.threads ?? state.threads,
+          backends,
+        ),
+      };
+    if (patch.backends || patch.modelChoices)
+      patch = {
+        ...patch,
+        modelChoices: (patch.modelChoices ?? state.modelChoices ?? []).filter(
+          (choice) => backendEnabled(backends, choice.backendId),
+        ),
+      };
     const previousThreadId = state.current?.id;
     if (
       Object.hasOwn(patch, "current") &&

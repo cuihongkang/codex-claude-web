@@ -1,6 +1,7 @@
 import { newDraftKey } from "../infrastructure/backend-storage.js";
 import { persist, saved } from "../infrastructure/storage.js";
 import { compatibleEffort } from "../domain/model-preferences.js";
+import { backendEnabled } from "../domain/backend-visibility.js";
 import {
   modelServiceTiers,
   resolveServiceTier,
@@ -20,10 +21,30 @@ export function createBackends({
   async function activateBackend(id, choice) {
     if (!get().backends?.length) return;
     const epoch = ++revision;
+    if (!backendEnabled(get().backends, id)) {
+      models.disconnect();
+      set({
+        models: [],
+        modelChoices: [],
+        model: "",
+        effort: "",
+        serviceTier: null,
+        providers: [],
+        skills: [],
+        nativeCommands: [],
+        nativeAgents: [],
+        account: null,
+        usage: null,
+        usageLoading: false,
+        usageError: "",
+      });
+      return;
+    }
     const connection = transport?.connection;
     const cwd = get().cwd;
     const current = () =>
       epoch === revision &&
+      backendEnabled(get().backends, id) &&
       get().backendId === id &&
       get().cwd === cwd &&
       (!transport || (transport.connection === connection && get().connected));

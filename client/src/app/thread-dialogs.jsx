@@ -1,5 +1,6 @@
 import { ThreadListErrors } from "./thread-list-errors.jsx";
 import { preserveFailedBackendThreads } from "../domain/thread-order.js";
+import { visibleBackendThreads } from "../domain/backend-visibility.js";
 import React, { useState, useEffect, useRef } from "react";
 
 import {
@@ -28,6 +29,11 @@ export function SearchDialog() {
     [attempt, retry] = useState(0);
   const epoch = useRef(0);
   const previousScope = useRef({ archived: s.archived });
+  const enabledKey = (s.backends || [])
+    .filter((b) => b.enabled)
+    .map((b) => b.id)
+    .join(",");
+  const visibleResults = visibleBackendThreads(results, s.backends);
   useEffect(() => {
     const n = ++epoch.current;
     const params = { archived: s.archived, searchTerm: q || undefined };
@@ -75,7 +81,7 @@ export function SearchDialog() {
       clearTimeout(timer);
       epoch.current++;
     };
-  }, [q, s.archived, attempt]);
+  }, [q, s.archived, attempt, enabledKey]);
   return (
     <>
       <label className="search-input">
@@ -94,7 +100,7 @@ export function SearchDialog() {
         onRetry={() => retry((value) => value + 1)}
       />
       <div className="search-results">
-        {results.map((t) => (
+        {visibleResults.map((t) => (
           <button
             key={t.id}
             onClick={() => {
@@ -110,7 +116,7 @@ export function SearchDialog() {
             <ChevronRight size={14} />
           </button>
         ))}
-        {!results.length && !loading && !errors.length && (
+        {!visibleResults.length && !loading && !errors.length && (
           <Empty icon={Search} title="没有找到对话" />
         )}
       </div>

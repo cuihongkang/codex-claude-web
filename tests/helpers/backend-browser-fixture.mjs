@@ -65,6 +65,26 @@ export function backendFixture(data) {
           },
         ]
       : []);
+  const backendIdOf = (id) =>
+    id?.startsWith("backend:") ? id.split(":")[1] : "codex";
+  const state = () => ({
+    ready: backends.some((backend) => backend.ready),
+    bridgeReady: true,
+    backends,
+    defaultBackendId:
+      backends.find((backend) => backend.enabled)?.id || "codex",
+    defaultCwd: "/demo/project",
+    projectlessRoot: data.main
+      ? "/native/claudex-web/workspaces"
+      : "/web/workspaces",
+    projectlessRoots: ["/web/workspaces", "/native/claudex-web/workspaces"],
+    activeTurns: {},
+    executionStatuses: {},
+    compactions: {},
+    undoneFiles: [],
+    questions: [],
+    terminals: {},
+  });
   window.fixtureRequests = [];
   window.WebSocket = class {
     static OPEN = 1;
@@ -74,26 +94,7 @@ export function backendFixture(data) {
       setTimeout(
         () =>
           this.onmessage({
-            data: JSON.stringify({
-              method: "lan/state",
-              params: {
-                ready: true,
-                bridgeReady: true,
-                backends,
-                defaultBackendId: "codex",
-                defaultCwd: "/demo/project",
-                projectlessRoot: data.main
-                  ? "/native/claudex-web/workspaces"
-                  : "/web/workspaces",
-                projectlessRoots: [
-                  "/web/workspaces",
-                  "/native/claudex-web/workspaces",
-                ],
-                activeTurns: {},
-                questions: [],
-                terminals: {},
-              },
-            }),
+            data: JSON.stringify({ method: "lan/state", params: state() }),
           }),
         0,
       );
@@ -106,26 +107,14 @@ export function backendFixture(data) {
       let result = { data: [] };
       if (m.method === "lan/backends/list") result = { backends };
       if (m.method === "lan/backends/save") {
-        Object.assign(
-          backends.find((b) => b.id === p.id),
-          p,
-        );
+        const backend = backends.find((b) => b.id === p.id);
+        Object.assign(backend, p);
+        if (Object.hasOwn(p, "enabled")) backend.ready = p.enabled;
+        this.emit("lan/state", state());
         result = { backends };
       }
       if (m.method === "lan/backends/versions") {
-        this.onmessage({
-          data: JSON.stringify({
-            method: "lan/state",
-            params: {
-              ready: true,
-              bridgeReady: true,
-              backends,
-              activeTurns: {},
-              compactions: {},
-              questions: [],
-            },
-          }),
-        });
+        this.emit("lan/state", state());
         result = { backends };
       }
       if (m.method === "lan/backends/install") {
@@ -136,22 +125,18 @@ export function backendFixture(data) {
           latestVersion: "2.1.318",
           installing: false,
         };
-        this.onmessage({
-          data: JSON.stringify({
-            method: "lan/state",
-            params: {
-              ready: true,
-              bridgeReady: true,
-              backends,
-              activeTurns: {},
-              compactions: {},
-              questions: [],
-            },
-          }),
-        });
+        this.emit("lan/state", state());
         result = { backends };
       }
-      if (m.method === "thread/list") result = { data: threads };
+      if (m.method === "thread/list")
+        result = {
+          data: threads.filter((thread) =>
+            backends.some(
+              (backend) =>
+                backend.enabled && backend.id === backendIdOf(thread.id),
+            ),
+          ),
+        };
       if (m.method === "lan/projectless/read")
         result = { directories: { desktop: threads[1].cwd } };
       if (m.method === "lan/providers/list")
@@ -270,20 +255,7 @@ export function backendFixture(data) {
     }
     setBackendReady(id, ready) {
       backends.find((backend) => backend.id === id).ready = ready;
-      this.emit("lan/state", {
-        ready: backends.some((backend) => backend.ready),
-        bridgeReady: true,
-        backends,
-        defaultBackendId: "codex",
-        defaultCwd: "/demo/project",
-        projectlessRoot: data.main
-          ? "/native/claudex-web/workspaces"
-          : "/web/workspaces",
-        projectlessRoots: ["/web/workspaces", "/native/claudex-web/workspaces"],
-        activeTurns: {},
-        questions: [],
-        terminals: {},
-      });
+      this.emit("lan/state", state());
     }
     emit(method, params) {
       this.onmessage({ data: JSON.stringify({ method, params }) });
