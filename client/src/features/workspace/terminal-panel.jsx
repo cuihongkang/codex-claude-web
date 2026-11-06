@@ -127,6 +127,7 @@ export function TerminalPanel() {
     rpc(
       "command/exec",
       {
+        command: ["/bin/sh", "-c", 'exec "${SHELL:-/bin/sh}" -l'],
         env: { TERM: "xterm-256color", COLORTERM: "truecolor" },
         cwd: get().cwd,
         processId: pid.current,

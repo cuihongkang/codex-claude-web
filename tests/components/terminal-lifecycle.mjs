@@ -26,6 +26,10 @@ export async function testTerminalLifecycle(app, fixture) {
   const first = localStorage.getItem("cx-terminal");
   assert(first);
   assert.deepEqual(
+    requests.find((r) => r.method === "command/exec").params.command,
+    ["/bin/sh", "-c", 'exec "${SHELL:-/bin/sh}" -l'],
+  );
+  assert.deepEqual(
     requests.find((r) => r.method === "command/exec").params.sandboxPolicy,
     { type: "dangerFullAccess" },
   );
