@@ -81,3 +81,31 @@ test("状态入口统一清理详情选择、运行轮次未读标记并只保�
   assert.equal(state.get().compactions.b, undefined, "离开对话收起完成提示");
   assert.equal(state.get().compactions.a.status, "running");
 });
+
+test("计划模式按对话保存并在新实例恢复，迟到结果只更新原对话", (t) => {
+  const previous = globalThis.localStorage;
+  const storage = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, value),
+  };
+  t.after(() => {
+    globalThis.localStorage = previous;
+  });
+  const state = createAppState();
+  state.set({ mode: "plan" });
+  state.set({ current: { id: "created" }, mode: state.get().mode });
+  assert.equal(state.get().mode, "plan");
+  state.set({ current: { id: "other" } });
+  assert.equal(state.get().mode, "default");
+  state.set({ mode: "plan" });
+  state.setThreadMode("created", "default");
+  assert.equal(state.get().mode, "plan");
+  const restored = createAppState();
+  restored.set({ current: { id: "created" } });
+  assert.equal(restored.get().mode, "default");
+  restored.set({ current: { id: "other" } });
+  assert.equal(restored.get().mode, "plan");
+  restored.set({ current: null });
+  assert.equal(restored.get().mode, "default");
+});

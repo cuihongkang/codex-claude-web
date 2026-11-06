@@ -254,3 +254,9 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 编辑框尺寸的修改前对照可使用 `EDIT_SIZE_BEFORE=1`，并通过 `BROWSER_BUILD_DIR` 与 `BROWSER_BUILD_INFO` 指定修改前的生产构建和来源；结果保存在 `.cache/message-edit-size-before/browser/`。README 现有图片展示普通消息与文件预览，原地编辑框的尺寸变化通过专项浏览器截图核对。
 
 编辑框样式的修改前对照使用 `EDIT_STYLE_BEFORE=1` 并指定旧构建及来源，记录实际输入区与消息编辑框的背景、聚焦和失焦边框、阴影及发送按钮配色；结果保存在 `.cache/message-edit-style-before/browser/`。当前构建同时比较浅色、深色及跟随系统深色，确认两处输入区域使用一致的视觉反馈。
+
+### 计划模式回归
+
+执行 `npm run build` 后，使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/plans.mjs`。脚本使用生产构建和隔离历史，验证默认部分预览、点击与键盘展开收起、刷新恢复默认折叠、修改意见使用计划模式、批准以默认模式提交完整方案、失败重试、刷新及草稿保留；深浅主题覆盖 80%、100%、125%、150% 和 200% 缩放，并检查窄屏点击区域和横向溢出。截图、发送参数和构建来源保存在 `.cache/plans-browser`。`BROWSER_BEFORE=1 BROWSER_BUILD_DIR=/path/to/old/dist` 可在同一夹具中核对旧版正文折叠与缺少批准入口，证据保存在 `.cache/plans-before/browser`。领域与组件回归补充流式更新、重复点击、失败轮次、只读展示和切换对话后的迟到结果。
+
+客户端行为核对依据为 Codex VS Code 扩展 `26.1021.22027` 的本机打包资源：`webview/assets/src-622b307a9baf.js` 中的 `item/plan/delta` 分派和计划执行状态，以及 `pending-request-item-panel-d13bffae20bf.js` 中的批准与修改处理。客户端批准选择默认模式并提交完整方案，修改意见继续使用计划模式；网页沿用这一提交语义，并依据 `plan-summary-item-content-27c95dedbba3.js` 的正文预览与展开交互，主对话调用在 `local-conversation-turn-6d79d254d102.js` 显式传入 `defaultCollapsed: true`；预览正文高度为 320 像素，底部渐隐并提供展开按钮。网页以字体相对尺寸实现同一预览高度，并在提交成功后更新模式，使失败请求保留重试状态。README 已有截图使用普通任务与文件预览，当前计划卡片的变化不影响这些图片的内容及说明。

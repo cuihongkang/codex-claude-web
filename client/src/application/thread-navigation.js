@@ -67,6 +67,7 @@ export function createThreadNavigation({
     localStorage.removeItem("cx-current");
     set({
       current: null,
+      mode: "default",
       items: [],
       cwd: cwd || projectlessCwd || get().defaultCwd,
       projectless: !cwd,
@@ -204,6 +205,7 @@ export function createThreadNavigation({
       model: get().model,
       effort: get().effort,
       serviceTier: get().serviceTier,
+      mode: get().mode,
     };
     const checking = {
       threadId: id,
@@ -238,6 +240,10 @@ export function createThreadNavigation({
       );
       set({
         threadAccess: { threadId: id, status: "ready" },
+        ...(get().mode === selection.mode &&
+          settings.collaborationMode?.mode && {
+            mode: settings.collaborationMode.mode,
+          }),
         ...(selectionRevision === models.revision &&
           get().model === selection.model &&
           get().effort === selection.effort &&
@@ -355,7 +361,7 @@ export function createThreadNavigation({
     localStorage.removeItem("cx-draft-new");
     attachmentDrafts.set(r.thread.id, getAttachmentDraft());
     attachmentDrafts.delete(null);
-    set({ current: r.thread });
+    set({ current: r.thread, mode: get().mode });
     localStorage.setItem("cx-current", r.thread.id);
     return r.thread;
   }

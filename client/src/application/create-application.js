@@ -102,6 +102,7 @@ export function createApplication() {
     notice,
   });
   const messages = createMessages({
+    setThreadMode: store.setThreadMode,
     get,
     set,
     rpc,

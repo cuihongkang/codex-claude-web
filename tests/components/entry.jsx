@@ -1,4 +1,7 @@
-export { Conversation } from "../../client/src/features/conversation/conversation.jsx";
+export {
+  Conversation,
+  ReadOnlyConversation,
+} from "../../client/src/features/conversation/conversation.jsx";
 export { Composer } from "../../client/src/features/composer/composer.jsx";
 export { RichText } from "../../client/src/features/markdown/rich-text.jsx";
 export { AccountFooter } from "../../client/src/features/account/account-usage.jsx";

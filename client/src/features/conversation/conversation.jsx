@@ -283,7 +283,7 @@ export function Conversation({ children, footer }) {
               <details className="plan-card" open={!!active}>
                 <summary>
                   <ListChecks size={16} />
-                  计划 ·{" "}
+                  执行进度 ·{" "}
                   {plan.plan.filter((p) => p.status === "completed").length}/
                   {plan.plan.length}
                 </summary>

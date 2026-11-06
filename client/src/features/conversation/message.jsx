@@ -8,6 +8,7 @@ import { MessageAnnotations } from "../annotations/message-annotations.jsx";
 import { UserMessage } from "./user-message.jsx";
 import { Activity, Reasoning } from "./activity.jsx";
 
+import { PlanMessage } from "./plan-message.jsx";
 import { AsyncQuestion } from "./questions.jsx";
 export function Message({
   item,
@@ -16,6 +17,8 @@ export function Message({
   editable = false,
   cwd,
 }) {
+  if (item.type === "plan")
+    return <PlanMessage item={item} readOnly={readOnly} cwd={cwd} />;
   if (item.type === "reasoning") return <Reasoning item={item} cwd={cwd} />;
   if (item.type === "userInputRequest")
     return (

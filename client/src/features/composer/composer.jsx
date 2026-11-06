@@ -225,6 +225,7 @@ export function Composer() {
               <IconButton
                 icon={ListChecks}
                 title="计划模式"
+                aria-pressed={s.mode === "plan"}
                 active={s.mode === "plan"}
                 onClick={() =>
                   set({ mode: s.mode === "plan" ? "default" : "plan" })

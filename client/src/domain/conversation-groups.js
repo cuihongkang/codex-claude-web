@@ -81,7 +81,7 @@ export function conversationGroups(items, requests = [], turns = []) {
           lastInTurn.get(item.turnId) === item.id));
     if (question && !answered.has(item.id) && !closedTurns.has(item.turnId)) {
       processFor(item).questions.push({ type: "message", id: item.id, item });
-    } else if (item.type === "userMessage" || answer) {
+    } else if (item.type === "userMessage" || item.type === "plan" || answer) {
       groups.push({ type: "message", id: item.id, item });
       const process = item.turnId && processes.get(item.turnId);
       if (item.type === "userMessage" && process) {
