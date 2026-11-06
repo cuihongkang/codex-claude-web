@@ -16,7 +16,7 @@ import { projectGroups } from "../domain/thread-order.js";
 import { ProjectGroup } from "./project-group.jsx";
 import { ResizableSidebar } from "./sidebar-resize.jsx";
 import { AccountFooter } from "../features/account/account-usage.jsx";
-import codexWebIcon from "../assets/codex-web.svg";
+import claudexWebIcon from "../assets/claudex-web.svg";
 import { ThreadRow } from "./thread-row.jsx";
 export function Sidebar() {
   const s = useStore();
@@ -38,8 +38,8 @@ export function Sidebar() {
       <ResizableSidebar open={s.sidebar}>
         <div className="sidebar-top">
           <button className="brand" onClick={() => newChat()}>
-            <img src={codexWebIcon} width={24} height={24} alt="" />
-            <strong>Codex</strong>
+            <img src={claudexWebIcon} width={24} height={24} alt="" />
+            <strong>Claudex</strong>
             <span>Web</span>
           </button>
           <IconButton

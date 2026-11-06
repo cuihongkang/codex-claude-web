@@ -25,7 +25,7 @@ export function createClaudeAdapter({
   workspace: sharedWorkspace,
 }) {
   const storage = createStorage(
-    join(backend.stateDir, "codex-web-index.json"),
+    join(backend.stateDir, "claudex-web-index.json"),
     {
       sessions: {},
     },

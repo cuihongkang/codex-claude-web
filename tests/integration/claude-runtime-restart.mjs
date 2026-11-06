@@ -133,7 +133,7 @@ try {
     "初始前台轮次完成",
   );
   const before = JSON.parse(
-    await readFile(join(backend.stateDir, "codex-web-index.json"), "utf8"),
+    await readFile(join(backend.stateDir, "claudex-web-index.json"), "utf8"),
   ).sessions[id];
   assert.ok(
     Object.values(before.backgroundTasks).some(
@@ -191,7 +191,7 @@ try {
     "恢复会话继续执行",
   );
   const after = JSON.parse(
-    await readFile(join(backend.stateDir, "codex-web-index.json"), "utf8"),
+    await readFile(join(backend.stateDir, "claudex-web-index.json"), "utf8"),
   ).sessions[id];
   assert.equal(after.nativeProcess.pid, before.nativeProcess.pid);
   const location = workerLocation(backend);

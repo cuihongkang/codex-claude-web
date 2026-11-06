@@ -6,8 +6,8 @@ export function backendFixture(data) {
     {
       id: "legacy",
       name: "旧版未分类与 Markdown",
-      cwd: "/native/codex-web/workspaces/chat-ABC123",
-      originator: "codex_lan_web",
+      cwd: "/native/claudex-web/workspaces/chat-ABC123",
+      originator: "claudex_web",
       createdAt: 3,
     },
     {
@@ -79,11 +79,11 @@ export function backendFixture(data) {
                 defaultBackendId: "codex",
                 defaultCwd: "/demo/project",
                 projectlessRoot: data.main
-                  ? "/native/codex-web/workspaces"
+                  ? "/native/claudex-web/workspaces"
                   : "/web/workspaces",
                 projectlessRoots: [
                   "/web/workspaces",
-                  "/native/codex-web/workspaces",
+                  "/native/claudex-web/workspaces",
                 ],
                 activeTurns: {},
                 questions: [],
@@ -206,9 +206,9 @@ export function backendFixture(data) {
         defaultBackendId: "codex",
         defaultCwd: "/demo/project",
         projectlessRoot: data.main
-          ? "/native/codex-web/workspaces"
+          ? "/native/claudex-web/workspaces"
           : "/web/workspaces",
-        projectlessRoots: ["/web/workspaces", "/native/codex-web/workspaces"],
+        projectlessRoots: ["/web/workspaces", "/native/claudex-web/workspaces"],
         activeTurns: {},
         questions: [],
         terminals: {},

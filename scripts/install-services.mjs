@@ -4,6 +4,7 @@ import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { migrateProductConfig } from "../server/src/product-config.mjs";
 import { readConfig } from "../server/src/config.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -12,6 +13,7 @@ export async function installServices({ configDir = root, cli = false } = {}) {
     throw new Error("后台服务安装需要 Linux 和 systemd 用户服务。");
   execFileSync("systemctl", ["--user", "show-environment"], { stdio: "pipe" });
   const config = readConfig();
+  await migrateProductConfig(config);
   const configured = await createBackendConfiguration(config).read();
   const codexBackend = configured.backends.find(
     (b) => b.id === "codex" && b.type === "codex" && b.enabled,
@@ -27,7 +29,7 @@ export async function installServices({ configDir = root, cli = false } = {}) {
   );
   const backups = join(
     process.env.XDG_STATE_HOME || join(homedir(), ".local/state"),
-    "codex-web/service-backups",
+    "claudex-web/service-backups",
     new Date().toISOString().replaceAll(":", "-"),
   );
   const quote = (value) => JSON.stringify(value.replaceAll("%", "%%"));
@@ -77,20 +79,20 @@ WantedBy=default.target
       "保留现有 codex-app-server.service 的登录环境、代理和启动配置。",
     );
 
-  const webPath = join(userUnits, "codex-lan-web.service");
+  const webPath = join(userUnits, "claudex-web.service");
   if (await exists(webPath))
-    await copyFile(webPath, join(backups, "codex-lan-web.service"));
+    await copyFile(webPath, join(backups, "claudex-web.service"));
   await writeFile(
     webPath,
     `[Unit]
-Description=Codex Web
+Description=Claudex Web
 ${manageCodex ? "Wants=codex-app-server.service\nAfter=network.target codex-app-server.service" : "After=network.target"}
 
 [Service]
 Type=simple
 WorkingDirectory=${unitPath(configDir)}
-${cli ? `Environment=${quote("CODEX_WEB_CONFIG_DIR=" + configDir)}\n` : ""}EnvironmentFile=-${unitPath(join(configDir, ".env"))}
-ExecStart=${quote(process.execPath)} ${quote(join(root, cli ? "bin/codex-web.mjs" : "server/src/server.mjs"))}${cli ? " start" : ""}
+${cli ? `Environment=${quote("CLAUDEX_WEB_CONFIG_DIR=" + configDir)}\n` : ""}EnvironmentFile=-${unitPath(join(configDir, ".env"))}
+ExecStart=${quote(process.execPath)} ${quote(join(root, cli ? "bin/claudex-web.mjs" : "server/src/server.mjs"))}${cli ? " start" : ""}
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -114,13 +116,13 @@ WantedBy=default.target
       "enable",
       "--now",
       ...(manageCodex ? ["codex-app-server.service"] : []),
-      "codex-lan-web.service",
+      "claudex-web.service",
     ],
     { stdio: "inherit" },
   );
   console.log(`服务配置已安装，旧网页服务配置备份在 ${backups}`);
   console.log(
-    `正在运行的网页服务会继续运行；需要切换桥接服务代码时执行 ${cli ? "codex-web service restart-when-idle" : "npm run service:restart-when-idle"}。`,
+    `正在运行的网页服务会继续运行；需要切换桥接服务代码时执行 ${cli ? "claudex-web service restart-when-idle" : "npm run service:restart-when-idle"}。`,
   );
 }
 

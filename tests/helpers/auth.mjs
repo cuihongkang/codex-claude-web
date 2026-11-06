@@ -44,7 +44,7 @@ process.exit(input === 'fixture-password\\n' ? 0 : 1);
   );
   return {
     tls,
-    cookie: `__Host-codex-web-session=${token}`,
+    cookie: `__Host-claudex-web-session=${token}`,
     pamtester,
     authDirectory,
     id,

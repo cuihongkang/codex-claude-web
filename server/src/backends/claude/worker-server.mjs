@@ -37,7 +37,7 @@ async function currentState() {
   let sessions = {};
   try {
     sessions = JSON.parse(
-      await readFile(join(dataDir, "codex-web-index.json"), "utf8"),
+      await readFile(join(dataDir, "claudex-web-index.json"), "utf8"),
     ).sessions;
   } catch (error) {
     if (error.code !== "ENOENT") throw error;

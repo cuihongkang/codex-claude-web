@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="client/src/assets/codex-web.svg" width="88" height="88" alt="Codex Web 图标">
+  <img src="client/src/assets/claudex-web.svg" width="88" height="88" alt="Claudex Web 图标">
 </p>
 
-<h1 align="center">Codex Web</h1>
+<h1 align="center">Claudex Web</h1>
 
 <p align="center">
-  <strong>在浏览器中，继续你的 Codex 工作。</strong><br>
+  <strong>在浏览器中，继续你的 Codex 与 Claude Code 工作。</strong><br>
   从电脑到手机和平板，随时查看对话、审阅计划并批准执行、跟进任务、掌握账户额度、阅读文件与变更。
 </p>
 
@@ -17,7 +17,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/desktop-dark.png">
-  <img src="docs/images/desktop-light.png" alt="Codex Web 桌面界面：项目列表、账户额度圆环、任务对话、文件变更汇总与 Markdown 文件预览" width="1440">
+  <img src="docs/images/desktop-light.png" alt="Claudex Web 桌面界面：项目列表、账户额度圆环、任务对话、文件变更汇总与 Markdown 文件预览" width="1440">
 </picture>
 
 <p align="center"><sub>桌面界面 · 演示数据</sub></p>
@@ -26,13 +26,13 @@
 <summary>查看手机界面</summary>
 
 <p align="center">
-  <img src="docs/images/mobile.png" alt="Codex Web 手机界面：任务对话、文件变更汇总与消息输入框" width="320">
-  <img src="docs/images/mobile-sidebar.png" alt="Codex Web 手机侧栏：项目对话列表与账户额度圆环" width="320">
+  <img src="docs/images/mobile.png" alt="Claudex Web 手机界面：任务对话、文件变更汇总与消息输入框" width="320">
+  <img src="docs/images/mobile-sidebar.png" alt="Claudex Web 手机侧栏：项目对话列表与账户额度圆环" width="320">
 </p>
 
 </details>
 
-Codex Web 提供 Codex 与 Claude Code 双后端：现有 ChatGPT 模型继续使用 Codex，其他供应商的模型通过 Claude Code 使用。输入区统一选择模型，Claude 对话可在空闲时切换供应商继续。配置方法见[部署指南](docs/deployment.md#claude-code-与模型配置)。
+Claudex Web 提供 Codex 与 Claude Code 双后端：现有 ChatGPT 模型继续使用 Codex，其他供应商的模型通过 Claude Code 使用。输入区统一选择模型，Claude 对话可在空闲时切换供应商继续。配置方法见[部署指南](docs/deployment.md#claude-code-与模型配置)。
 
 ## 快速开始
 
@@ -40,12 +40,12 @@ Codex Web 提供 Codex 与 Claude Code 双后端：现有 ChatGPT 模型继续�
 
 ### 1. 安装并启动
 
-在安装 Codex 的电脑上，以运行 Codex 的普通用户执行：
+当前双后端版本从源码构建安装包。在源码目录执行 `npm ci` 和 `npm pack`，生成 `claudex-web-3.1.1.tgz`，再以运行代理后端的普通用户执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
-codex-web service install
-codex-web service status
+npm install -g ./claudex-web-3.1.1.tgz
+claudex-web service install
+claudex-web service status
 ```
 
 npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务会自动启动，已有 Codex 配置继续保留。
@@ -61,7 +61,7 @@ npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务�
 
 输入消息后，按 **Ctrl+Enter** 发送，**Enter** 换行。
 
-对话完成通知默认开启，首次使用时在“设置 → 通知”点击“允许系统通知”并完成浏览器授权。本轮任务成功完成时，通知显示对话标题；点击可返回对应对话。提醒开关保存在当前浏览器中，手动关闭后刷新仍保持关闭，同一浏览器打开多个页面时每轮提醒一次。接收提醒时需保持至少一个已登录的 Codex Web 页面与服务连接；通知展示还需在系统设置中允许浏览器通知。权限被阻止或环境不支持时，设置页会显示对应状态。
+对话完成通知默认开启，首次使用时在“设置 → 通知”点击“允许系统通知”并完成浏览器授权。本轮任务成功完成时，通知显示对话标题；点击可返回对应对话。提醒开关保存在当前浏览器中，手动关闭后刷新仍保持关闭，同一浏览器打开多个页面时每轮提醒一次。接收提醒时需保持至少一个已登录的 Claudex Web 页面与服务连接；通知展示还需在系统设置中允许浏览器通知。权限被阻止或环境不支持时，设置页会显示对应状态。
 
 <details>
 <summary>开机启动与退出系统登录后继续运行</summary>
@@ -83,10 +83,10 @@ loginctl enable-linger "$USER"
 执行以下命令可创建用户配置并显示其位置，已有配置会保留：
 
 ```bash
-codex-web config init
+claudex-web config init
 ```
 
-通常可直接使用初始配置。需要修改时，编辑命令显示的 `.env` 文件；默认位置为 `~/.config/codex-web/.env`，升级后保留。
+通常可直接使用初始配置。需要修改时，编辑命令显示的 `.env` 文件；默认位置为 `~/.config/claudex-web/.env`，升级后保留。
 
 常用配置项：
 
@@ -94,16 +94,16 @@ codex-web config init
 - `PORT`：网页端口，初始为 `8766`。
 - `DEFAULT_CWD`：首次使用时的默认工作目录，未设置时使用当前用户的主目录。
 
-修改配置前先结束当前任务和网页终端，保存后执行 `codex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置见[部署与维护](docs/deployment.md#配置)。
+修改配置前先结束当前任务和网页终端，保存后执行 `claudex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置见[部署与维护](docs/deployment.md#配置)。
 
 ## 升级
 
 升级时，从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
-codex-web service install
-codex-web service restart-when-idle
+npm install -g ./claudex-web-3.1.1.tgz
+claudex-web service install
+claudex-web service restart-when-idle
 ```
 
 最后一个命令会等待当前任务和上下文整理结束后再重启，等待期间保持命令运行。升级后刷新网页，在“设置 → 关于”查看版本。
@@ -118,6 +118,6 @@ codex-web service restart-when-idle
 
 ## 许可证
 
-Copyright (C) 2026 Codex Web contributors.
+Copyright (C) 2026 Claudex Web contributors.
 
-Codex Web 采用 [GNU General Public License v3.0](LICENSE)（SPDX：`GPL-3.0-only`）发布。你可以按 GNU GPL 第 3 版的条款使用、复制、修改和分发本项目。担保与责任限制见许可证正文，第三方依赖沿用各自的许可证。
+Claudex Web 采用 [GNU General Public License v3.0](LICENSE)（SPDX：`GPL-3.0-only`）发布。你可以按 GNU GPL 第 3 版的条款使用、复制、修改和分发本项目。担保与责任限制见许可证正文，第三方依赖沿用各自的许可证。

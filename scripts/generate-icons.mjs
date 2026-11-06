@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const source = fileURLToPath(
-  new URL("../client/src/assets/codex-web.svg", import.meta.url),
+  new URL("../client/src/assets/claudex-web.svg", import.meta.url),
 );
 const output = fileURLToPath(new URL("../client/public/", import.meta.url));
-const temporary = await mkdtemp(join(tmpdir(), "codex-web-icons-"));
+const temporary = await mkdtemp(join(tmpdir(), "claudex-web-icons-"));
 try {
   await mkdir(output, { recursive: true });
   const images = new Map();

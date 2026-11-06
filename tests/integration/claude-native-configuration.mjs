@@ -24,7 +24,7 @@ const cwd = join(root, "workspace");
 const config = readConfig({
   CODEX_HOME: join(root, "native-codex"),
   CLAUDE_CONFIG_DIR: join(root, "native-claude"),
-  CODEX_WEB_CONFIG_DIR: join(root, "web"),
+  CLAUDEX_WEB_CONFIG_DIR: join(root, "web"),
 });
 const backend = (await createBackendConfiguration(config).read()).backends.find(
   (b) => b.id === "claude",
@@ -94,7 +94,7 @@ try {
   assert.equal(messages[0].uuid, uuid);
   assert.equal(messages[0].message.content, "Original native conversation");
   const originalFiles = await readdir(backend.dataDir);
-  assert(!originalFiles.some((name) => /^(codex-web|worker-)/.test(name)));
+  assert(!originalFiles.some((name) => /^(claudex-web|worker-)/.test(name)));
   await assert.rejects(readdir(backend.stateDir), { code: "ENOENT" });
   service = await messagesServer(() => [
     { type: "text", text: "Provider selection preserved" },

@@ -66,8 +66,8 @@ export function createUpstream({
           method: "initialize",
           params: {
             clientInfo: {
-              name: "codex_lan_web",
-              title: "Codex LAN Web",
+              name: "claudex_web",
+              title: "Claudex Web",
               version: version.displayVersion,
             },
             capabilities: { experimentalApi: true },

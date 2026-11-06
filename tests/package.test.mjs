@@ -16,7 +16,7 @@ test(
   "发布包可全局安装、读取用户配置并安装服务，保留现有后端",
   { timeout: 60000 },
   async (t) => {
-    const dir = await mkdtemp(join(tmpdir(), "codex-web-package-"));
+    const dir = await mkdtemp(join(tmpdir(), "claudex-web-package-"));
     t.after(() => rm(dir, { recursive: true, force: true }));
     const [pack] = JSON.parse(
       execFileSync(
@@ -27,7 +27,7 @@ test(
     );
     const paths = pack.files.map((file) => file.path);
     for (const path of [
-      "bin/codex-web.mjs",
+      "bin/claudex-web.mjs",
       "client/dist/index.html",
       "client/dist/app.js",
       "client/dist/notification-worker.js",
@@ -75,11 +75,11 @@ test(
       ],
       { encoding: "utf8" },
     );
-    const cli = join(prefix, "bin/codex-web");
+    const cli = join(prefix, "bin/claudex-web");
     const configDir = join(dir, "user config");
     const env = {
       ...process.env,
-      CODEX_WEB_CONFIG_DIR: configDir,
+      CLAUDEX_WEB_CONFIG_DIR: configDir,
       XDG_CONFIG_HOME: join(dir, "config"),
       XDG_STATE_HOME: join(dir, "state"),
     };
@@ -220,13 +220,13 @@ test(
       );
     run("service", "install");
     const units = join(env.XDG_CONFIG_HOME, "systemd/user");
-    const web = await readFile(join(units, "codex-lan-web.service"), "utf8");
+    const web = await readFile(join(units, "claudex-web.service"), "utf8");
     assert.ok(
       web.includes(
-        join(prefix, "lib/node_modules/codex-web/bin/codex-web.mjs"),
+        join(prefix, "lib/node_modules/claudex-web/bin/claudex-web.mjs"),
       ),
     );
-    assert.ok(web.includes(`CODEX_WEB_CONFIG_DIR=${configDir}`));
+    assert.ok(web.includes(`CLAUDEX_WEB_CONFIG_DIR=${configDir}`));
     assert.match(web, /Wants=codex-app-server.service/);
     const backendPath = join(units, "codex-app-server.service");
     const backend = await readFile(backendPath, "utf8");
@@ -246,7 +246,7 @@ test(
     assert.match(log, /-c thread_unload_delay_secs=0 app-server --listen/);
     assert.match(
       log,
-      /--user enable --now codex-app-server.service codex-lan-web.service/,
+      /--user enable --now codex-app-server.service claudex-web.service/,
     );
     assert.ok(!log.includes(" restart "));
 
@@ -261,10 +261,10 @@ test(
       },
     );
     const sourceWeb = await readFile(
-      join(sourceConfig, "systemd/user/codex-lan-web.service"),
+      join(sourceConfig, "systemd/user/claudex-web.service"),
       "utf8",
     );
     assert.ok(sourceWeb.includes(join(root, "server/src/server.mjs")));
-    assert.ok(!sourceWeb.includes("CODEX_WEB_CONFIG_DIR="));
+    assert.ok(!sourceWeb.includes("CLAUDEX_WEB_CONFIG_DIR="));
   },
 );

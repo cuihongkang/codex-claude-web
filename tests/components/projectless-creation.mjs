@@ -7,12 +7,12 @@ import {
 export async function testProjectlessCreation(app, fixture) {
   const { requests } = fixture;
   {
-    const root = "/codex/codex-web/workspaces";
+    const root = "/codex/claudex-web/workspaces";
     const thread = {
       id: "new-projectless",
       cwd: root + "/chat-ABC123",
       threadSource: PROJECTLESS_SOURCE,
-      originator: "codex_lan_web",
+      originator: "claudex_web",
       source: "vscode",
       createdAt: 1,
       updatedAt: 1,

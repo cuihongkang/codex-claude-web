@@ -9,7 +9,7 @@ import {
 } from "../scripts/architecture.mjs";
 
 test("架构检查识别文件膨胀、逆向依赖、跨端耦合和循环，包括动态导入", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "codex-web-architecture-"));
+  const root = await mkdtemp(join(tmpdir(), "claudex-web-architecture-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   async function file(path, source) {
     await mkdir(dirname(join(root, path)), { recursive: true });

@@ -204,7 +204,7 @@ test("明确项目归属、改变后的目录和未被记录的相似目录保�
 });
 
 test("网页新建的无项目对话通过持久来源和独立目录分组，明确归属继续优先", () => {
-  const root = "/custom/codex-web/workspaces";
+  const root = "/custom/claudex-web/workspaces";
   const thread = {
     id: "web",
     cwd: root + "/chat-ABC123",
@@ -232,12 +232,12 @@ test("网页新建的无项目对话通过持久来源和独立目录分组，�
 });
 
 test("列表缺少无项目来源时通过网页创建者与自动目录恢复分类，明确归属继续优先", () => {
-  const root = "/custom/codex-web/workspaces";
+  const root = "/custom/claudex-web/workspaces";
   for (const threadSource of [null, undefined]) {
     const thread = {
       id: "web-list",
       cwd: root + "/chat-ABC123",
-      originator: "codex_lan_web",
+      originator: "claudex_web",
       source: "vscode",
       threadSource,
     };
@@ -443,12 +443,12 @@ test("读取期间的新轮次开始、迟到完成及旧历史响应保持最�
 });
 
 test("升级后的分组同时识别新旧自动目录，固定目录和其他创建者继续独立分组", () => {
-  const roots = ["/web/workspaces", "/native/codex-web/workspaces"];
+  const roots = ["/web/workspaces", "/native/claudex-web/workspaces"];
   for (const root of roots) {
     const thread = {
       id: root,
       cwd: root + "/chat-ABC123",
-      originator: "codex_lan_web",
+      originator: "claudex_web",
     };
     assert.equal(threadGroupPath(thread, [], {}, roots), "");
     assert.equal(threadGroupPath(thread, [thread.cwd], {}, roots), thread.cwd);
@@ -459,6 +459,26 @@ test("升级后的分组同时识别新旧自动目录，固定目录和其他�
     assert.equal(
       threadGroupPath({ ...thread, cwd: thread.cwd + "/repo" }, [], {}, roots),
       thread.cwd + "/repo",
+    );
+  }
+});
+
+test("更名后兼容旧来源标记与创建者，既有未分类目录继续恢复", () => {
+  const root = "/tmp/legacy-web/workspaces";
+  for (const metadata of [
+    { threadSource: "codex-web-projectless" },
+    { originator: "codex_lan_web" },
+    { threadSource: PROJECTLESS_SOURCE },
+    { originator: "claudex_web" },
+  ]) {
+    assert.equal(
+      threadGroupPath(
+        { id: "legacy", cwd: root + "/chat-ABC123", ...metadata },
+        [],
+        {},
+        ["/tmp/new/workspaces", root],
+      ),
+      "",
     );
   }
 });

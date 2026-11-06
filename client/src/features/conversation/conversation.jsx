@@ -6,7 +6,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import codexWebIcon from "../../assets/codex-web.svg";
+import claudexWebIcon from "../../assets/claudex-web.svg";
 import {
   ArrowDown,
   GitBranch,
@@ -171,7 +171,7 @@ export function Conversation({ children, footer }) {
       <div className="conversation-layout">
         <div className="welcome">
           <div className="welcome-symbol">
-            <img src={codexWebIcon} width={56} height={56} alt="" />
+            <img src={claudexWebIcon} width={56} height={56} alt="" />
           </div>
           <h1>今天想完成什么？</h1>
           <p>从一个想法开始，选择模型一起完成。</p>

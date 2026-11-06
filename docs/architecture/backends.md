@@ -1,6 +1,6 @@
 # 双后端产品契约与实施
 
-Codex Web 提供一致的浏览器工作台，连接一个 Codex app-server 和一个 Claude Code 运行时。模型选择决定执行后端，用户操作及其状态、错误恢复和数据保护规则由网页产品契约决定。后端适配层负责实现完整契约；原生协议差异在服务端吸收。既有 Codex 的正常调用链作为回归基线，Claude 适配补齐同一产品操作，共享实现按实际职责确定。
+Claudex Web 提供一致的浏览器工作台，连接一个 Codex app-server 和一个 Claude Code 运行时。模型选择决定执行后端，用户操作及其状态、错误恢复和数据保护规则由网页产品契约决定。后端适配层负责实现完整契约；原生协议差异在服务端吸收。既有 Codex 的正常调用链作为回归基线，Claude 适配补齐同一产品操作，共享实现按实际职责确定。
 
 ## 职责与依赖
 
@@ -45,7 +45,7 @@ Claude Code 原生账户依据 SDK `initializationResult().account` 的实际认
 
 自定义模型的上下文容量由供应商模型参数中的 `contextWindow` 记录服务实际加载的 tokens 上限，并通过原生 `CLAUDE_CODE_MAX_CONTEXT_TOKENS` 配置保持 CLI 计量及整理策略一致。模型最大支持容量与当前服务加载容量分别核对；产品默认值保持为空。流式消息开始时即通过 `getContextUsage({detail: "summary"})` 读取原生容量，轮次结束再校准已用上下文；更换原生进程或模型时重新查询，查询失败保留实际用量及错误信息。
 
-Claude Code 的附加能力通过后端扩展描述提供，采用显式命令、工具记录、任务和提问界面呈现。扩展描述保留参数及生命周期，前端无需根据后端名称硬编码功能路径。原生技能、插件、MCP 和子代理目录按当前工作目录与本机 CLI 原有配置读取。Codex 沿用 `CODEX_HOME`，Claude 沿用 `CLAUDE_CONFIG_DIR`，未设置时分别使用 `~/.codex` 和 `~/.claude`。网页自身配置与 Claude 执行状态存入 `CODEX_WEB_CONFIG_DIR`，原生 `dataDir` 与网页 `stateDir` 分别传递。原生模式保留本机认证环境；用户显式选择供应商时，在首次输入前通过原生 `applyFlagSettings` 覆盖该会话的供应商环境，避免原有用户设置改变已选择的请求目标，原配置文件保持原样。
+Claude Code 的附加能力通过后端扩展描述提供，采用显式命令、工具记录、任务和提问界面呈现。扩展描述保留参数及生命周期，前端无需根据后端名称硬编码功能路径。原生技能、插件、MCP 和子代理目录按当前工作目录与本机 CLI 原有配置读取。Codex 沿用 `CODEX_HOME`，Claude 沿用 `CLAUDE_CONFIG_DIR`，未设置时分别使用 `~/.codex` 和 `~/.claude`。网页自身配置与 Claude 执行状态存入 `CLAUDEX_WEB_CONFIG_DIR`，原生 `dataDir` 与网页 `stateDir` 分别传递。原生模式保留本机认证环境；用户显式选择供应商时，在首次输入前通过原生 `applyFlagSettings` 覆盖该会话的供应商环境，避免原有用户设置改变已选择的请求目标，原配置文件保持原样。
 
 ## 验收规则
 

@@ -65,7 +65,9 @@ const demoData = {
   ],
 };
 assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文件");
-const buildDirectory = await mkdtemp(join(tmpdir(), "codex-web-readme-build-"));
+const buildDirectory = await mkdtemp(
+  join(tmpdir(), "claudex-web-readme-build-"),
+);
 await cp(join(root, "client/dist"), buildDirectory, { recursive: true });
 const buildInfo = JSON.parse(
   await readFile(join(root, "build-info.json"), "utf8"),
@@ -258,7 +260,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-readme-browser-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-readme-browser-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [
@@ -456,6 +458,15 @@ try {
   });
   await waitFor(
     'document.querySelector(".file-change-source") && document.querySelectorAll(".quota-summary").length===2',
+  );
+  assert.equal(await evaluate("document.title"), "Claudex Web");
+  assert.equal(
+    await evaluate("document.querySelector('.brand strong').innerText.trim()"),
+    "Claudex",
+  );
+  assert.equal(
+    await evaluate("document.querySelector('.brand span').innerText.trim()"),
+    "Web",
   );
   await click(".file-change-source");
   await waitFor('document.querySelector(".file-markdown-preview")');

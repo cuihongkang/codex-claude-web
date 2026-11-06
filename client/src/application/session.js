@@ -33,7 +33,7 @@ export function createSession({ get, set, transport, connection }) {
         ? {
             headers: {
               "Content-Type": "application/json",
-              "X-Codex-Web-Request": "1",
+              "X-Claudex-Web-Request": "1",
             },
             body: JSON.stringify(input),
           }

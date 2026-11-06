@@ -12,7 +12,7 @@ import {
 } from "../scripts/version.mjs";
 
 async function fixture(t) {
-  const dir = await mkdtemp(join(tmpdir(), "codex-web-version-"));
+  const dir = await mkdtemp(join(tmpdir(), "claudex-web-version-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   for (const path of ["client", "server", "docs/releases"])
     await mkdir(join(dir, path), { recursive: true });
@@ -20,7 +20,7 @@ async function fixture(t) {
     await writeFile(
       join(dir, path, "package.json"),
       JSON.stringify({
-        name: path ? `@codex-web/${path}` : "codex-web",
+        name: path ? `@claudex-web/${path}` : "claudex-web",
         version: "1.2.3",
         ...(path ? {} : { workspaces: ["client", "server"] }),
       }),
@@ -42,12 +42,12 @@ async function fixture(t) {
   );
   await writeFile(
     join(dir, "docs/releases/v1.2.3.md"),
-    "# Codex Web v1.2.3\n\n- 初始版本。\n",
+    "# Claudex Web v1.2.3\n\n- 初始版本。\n",
   );
   for (const path of ["README.md", "docs/deployment.md"])
     await writeFile(
       join(dir, path),
-      "https://example.test/releases/download/v1.2.3/codex-web-1.2.3.tgz\n",
+      "https://example.test/releases/download/v1.2.3/claudex-web-1.2.3.tgz\n",
     );
   return dir;
 }
@@ -125,6 +125,11 @@ test("npm 安装从构建清单恢复身份，忽略父目录 Git 仓库", async
 
 test("版本准备同步包与锁文件、汇总未发布内容并更新安装地址", async (t) => {
   const dir = await fixture(t);
+  for (const path of ["README.md", "docs/deployment.md"])
+    await writeFile(
+      join(dir, path),
+      "npm install -g ./claudex-web-1.2.3.tgz\n",
+    );
   initialize(dir);
   assert.equal(prepareVersion(dir, "minor", "2026-10-26"), "1.3.0");
   assert.equal(checkVersions(dir), "1.3.0");
@@ -133,11 +138,11 @@ test("版本准备同步包与锁文件、汇总未发布内容并更新安装�
   assert.equal(changelog.split("展示构建来源。").length, 2);
   assert.match(changelog, /## \[1\.2\.3\] - 2026-10-01/);
   const notes = await readFile(join(dir, "docs/releases/v1.3.0.md"), "utf8");
-  assert.match(notes, /^# Codex Web v1\.3\.0\n/);
+  assert.match(notes, /^# Claudex Web v1\.3\.0\n/);
   assert.match(notes, /- 展示构建来源。/);
   assert.match(
     await readFile(join(dir, "README.md"), "utf8"),
-    /v1\.3\.0\/codex-web-1\.3\.0\.tgz/,
+    /v1\.3\.0\/claudex-web-1\.3\.0\.tgz/,
   );
   assert.throws(() => prepareVersion(dir, "patch"), /已准备且尚未创建标签/);
   assert.throws(() => prepareVersion(dir, "1.2.4"), /大于当前版本/);
@@ -207,7 +212,7 @@ test("同版本重试保持版本、发布说明和待发布变更原样", async
   const notesPath = join(dir, "docs/releases/v1.2.4.md");
   await writeFile(
     notesPath,
-    "# Codex Web v1.2.4\n\n- 已审阅的安装与升级说明。\n",
+    "# Claudex Web v1.2.4\n\n- 已审阅的安装与升级说明。\n",
   );
   const changelogPath = join(dir, "CHANGELOG.md");
   await writeFile(

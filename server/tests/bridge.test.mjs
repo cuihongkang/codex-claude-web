@@ -29,11 +29,11 @@ test(
   "桥接服务提供资源、隔离请求 ID，并恢复和同步提问状态",
   { timeout: 15000 },
   async (t) => {
-    const files = await mkdtemp(join(tmpdir(), "codex-web-test-"));
+    const files = await mkdtemp(join(tmpdir(), "claudex-web-test-"));
     const version = readVersion();
     const auth = await authenticationFixture(files);
     const fetch = httpsFetch(auth.tls.cert, auth.cookie);
-    await writeFile(join(files, "index.html"), "<h1>Codex Web test</h1>");
+    await writeFile(join(files, "index.html"), "<h1>Claudex Web test</h1>");
     await writeFile(
       join(files, "mermaid.core.js"),
       "export const diagram = 1;",
@@ -221,7 +221,7 @@ test(
           STATIC_DIR: files,
           DEFAULT_CWD: files,
           CODEX_HOME: files,
-          CODEX_WEB_CONFIG_DIR: files,
+          CLAUDEX_WEB_CONFIG_DIR: files,
           CODEX_APP_SERVER_URL: `ws://127.0.0.1:${upstream.address().port}`,
         },
         stdio: ["ignore", "pipe", "pipe"],
@@ -349,7 +349,7 @@ test(
     );
     assert.equal(
       await readFile(join(files, "index.html"), "utf8"),
-      "<h1>Codex Web test</h1>",
+      "<h1>Claudex Web test</h1>",
     );
     const started = messageFrom(first, (m) => m.method === "turn/started");
     backend.send(
@@ -478,7 +478,7 @@ test(
       Buffer.from([0, 4, 5, 6]),
     );
     assert.equal(clientVersion, version.displayVersion);
-    assert.equal(await (await fetch(url)).text(), "<h1>Codex Web test</h1>");
+    assert.equal(await (await fetch(url)).text(), "<h1>Claudex Web test</h1>");
     await writeFile(join(files, "index.html"), "<h1>Updated build</h1>");
     assert.equal(await (await fetch(url)).text(), "<h1>Updated build</h1>");
     assert.equal((await fetch(url + "/missing")).status, 404);

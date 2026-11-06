@@ -115,7 +115,7 @@ export async function generateThreadName({
       socket.once("close", () => reject(new Error("标题生成连接已关闭")));
     });
     await call("initialize", {
-      clientInfo: { name: "codex_lan_web", title: "Codex Web", version },
+      clientInfo: { name: "claudex_web_titles", title: "Claudex Web", version },
       capabilities: { experimentalApi: true },
     });
     socket.send(JSON.stringify({ method: "initialized" }));

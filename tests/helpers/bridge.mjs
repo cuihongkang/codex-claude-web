@@ -55,7 +55,7 @@ export async function bridge(t, handle = () => undefined) {
       );
     });
   });
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-subscriptions-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-subscriptions-"));
   const auth = await authenticationFixture(directory);
   t.after(() => rm(directory, { recursive: true, force: true }));
   const child = spawn(
@@ -66,7 +66,7 @@ export async function bridge(t, handle = () => undefined) {
         ...process.env,
         HOST: "127.0.0.1",
         CODEX_HOME: directory,
-        CODEX_WEB_CONFIG_DIR: directory,
+        CLAUDEX_WEB_CONFIG_DIR: directory,
         PORT: "0",
         CODEX_APP_SERVER_URL: `ws://127.0.0.1:${backend.address().port}`,
       },

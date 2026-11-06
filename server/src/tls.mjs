@@ -1,3 +1,4 @@
+import { migrateProductConfig } from "./product-config.mjs";
 import { migrateWebDirectory } from "./web-config-migration.mjs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -19,6 +20,7 @@ export function localTlsClient(cert) {
   };
 }
 export async function readTls(config) {
+  await migrateProductConfig(config);
   if (config.tlsCert)
     return {
       cert: await readFile(config.tlsCert),
@@ -56,7 +58,7 @@ export async function readTls(config) {
           "-days",
           "365",
           "-subj",
-          "/CN=Codex Web",
+          "/CN=Claudex Web",
           "-addext",
           `subjectAltName=${[...names].join(",")}`,
           "-keyout",

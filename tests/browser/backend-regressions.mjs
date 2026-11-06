@@ -130,7 +130,7 @@ try {
     assert.equal(
       await page
         .locator(
-          '.project-heading button[title="/native/codex-web/workspaces/chat-ABC123"]',
+          '.project-heading button[title="/native/claudex-web/workspaces/chat-ABC123"]',
         )
         .count(),
       0,

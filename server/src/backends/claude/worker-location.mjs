@@ -10,12 +10,12 @@ export function workerLocation(backend) {
     .slice(0, 20);
   const directory = join(
     process.env.XDG_RUNTIME_DIR || tmpdir(),
-    `codex-web-claude-${process.getuid()}`,
+    `claudex-web-claude-${process.getuid()}`,
   );
   return {
     directory,
     socket: join(directory, `${key}.sock`),
-    unit: `codex-web-claude-${key}`,
+    unit: `claudex-web-claude-${key}`,
   };
 }
 export async function prepareWorkerDirectory(directory) {

@@ -186,13 +186,13 @@ native.on("connection", (socket) =>
 );
 const config = readConfig({
   CODEX_HOME: directory,
-  CODEX_WEB_CONFIG_DIR: directory,
+  CLAUDEX_WEB_CONFIG_DIR: directory,
   HOST: "127.0.0.1",
   PORT: "0",
   DEFAULT_CWD: directory,
   CODEX_APP_SERVER_URL: `ws://127.0.0.1:${native.address().port}`,
 });
-await mkdir(join(directory, "codex-web"), { recursive: true });
+await mkdir(join(directory, "claudex-web"), { recursive: true });
 await writeFile(
   config.backendsFile,
   JSON.stringify({
@@ -329,7 +329,7 @@ try {
   });
   await context.addCookies([
     {
-      name: "__Host-codex-web-session",
+      name: "__Host-claudex-web-session",
       value: auth.cookie.split("=")[1],
       url,
       secure: true,
@@ -417,7 +417,7 @@ try {
       if (entry.isDirectory()) await preserveNative(file, target);
       else if (
         entry.name.endsWith(".jsonl") ||
-        entry.name === "codex-web-index.json"
+        entry.name === "claudex-web-index.json"
       ) {
         const destination = join(artifacts, "native", target);
         await mkdir(join(destination, ".."), { recursive: true });

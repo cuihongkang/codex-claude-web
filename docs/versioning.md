@@ -61,7 +61,7 @@ v2.0.0 标签上的干净代码             2.0.0                    正式发�
 npm run version:prepare -- X.Y.Z
 GITHUB_REF_NAME=vX.Y.Z npm run check
 # 审阅并提交发布准备后的文件，然后执行：
-git tag -a vX.Y.Z -m "Codex Web vX.Y.Z"
+git tag -a vX.Y.Z -m "Claudex Web vX.Y.Z"
 npm run release:check
 git push origin main vX.Y.Z
 ```
@@ -113,7 +113,7 @@ GitHub cron 补偿 ─┘                                      ↓
 ## 查看正在使用的版本
 
 - 网页打开“设置 → 关于”，查看网页构建和桥接进程各自的版本、完整提交与可用的构建时间。网页信息在构建时固定，源码桥接信息在进程启动时读取。
-- `codex-web --version` 输出便于阅读的标识；`codex-web version --json` 输出完整的 `version`、`displayVersion`、`revision`、`dirty`、`channel` 和 `builtAt`。源码目录可用 `node bin/codex-web.mjs version --json`。
+- `claudex-web --version` 输出便于阅读的标识；`claudex-web version --json` 输出完整的 `version`、`displayVersion`、`revision`、`dirty`、`channel` 和 `builtAt`。源码目录可用 `node bin/claudex-web.mjs version --json`。
 - `curl http://127.0.0.1:8766/healthz` 返回 `ready` 与桥接进程的 `version` 对象。HTTP 200 / 503 继续表示后端连接就绪 / 未就绪。
 
 前端重新构建并刷新后显示新网页标识；桥接版本随进程重启更新。全局命令查看当前磁盘安装包，健康接口查看正在运行的进程。升级排查时同时核对这两个来源。

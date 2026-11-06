@@ -29,7 +29,7 @@ function fixture() {
     (name, i) => ({
       id: "quota-demo-" + i,
       name,
-      cwd: "/demo/codex-web",
+      cwd: "/demo/claudex-web",
       createdAt: 1,
       completedAt: 2,
     }),
@@ -111,7 +111,7 @@ function fixture() {
         () =>
           data.emit("lan/state", {
             ready: true,
-            defaultCwd: "/demo/codex-web",
+            defaultCwd: "/demo/claudex-web",
             activeTurns: {},
             questions: [],
             terminals: {},
@@ -194,7 +194,7 @@ const server = http.createServer(async (req, res) => {
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文件");
-const profile = await mkdtemp(join(tmpdir(), "codex-web-quota-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-quota-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [

@@ -1,31 +1,30 @@
 #!/usr/bin/env node
-// Codex Web 命令入口，配置与运行时数据独立于 npm 安装目录。
+// Claudex Web 命令入口，配置与运行时数据独立于 npm 安装目录。
 import { execFileSync } from "node:child_process";
 import { constants } from "node:fs";
 import { copyFile, mkdir } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 import { readConfig } from "../server/src/config.mjs";
 import { readVersion } from "../server/src/version.mjs";
 
+import {
+  productDirectories,
+  migrateProductConfig,
+} from "../server/src/product-config.mjs";
+
 const root = fileURLToPath(new URL("../", import.meta.url));
-const configDir = resolve(
-  process.env.CODEX_WEB_CONFIG_DIR ||
-    join(
-      process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
-      "codex-web",
-    ),
-);
+const directories = productDirectories();
+const { configDir } = directories;
 const args = process.argv.slice(2);
 const command = args.join(" ") || "start";
 
 async function main() {
   if (["--help", "-h", "help"].includes(command)) {
-    console.log(`Codex Web — Codex 与 Claude Code 的浏览器客户端
+    console.log(`Claudex Web — Codex 与 Claude Code 的浏览器客户端
 
-用法：codex-web [命令]
+用法：claudex-web [命令]
   start                      前台启动网页服务（默认命令）
   backend                    前台启动 Codex app-server
   config init                创建用户配置，保留已有配置
@@ -39,8 +38,8 @@ async function main() {
   version --json             显示完整版本、提交和构建信息
 
 配置目录：${configDir}
-可用 CODEX_WEB_CONFIG_DIR 指定配置目录。
-安装 npm 包后执行 codex-web service install 可启用后台访问。`);
+可用 CLAUDEX_WEB_CONFIG_DIR 指定配置目录。
+安装 npm 包后执行 claudex-web service install 可启用后台访问。`);
     return;
   }
   if (["--version", "-v"].includes(command)) {
@@ -64,10 +63,11 @@ async function main() {
       "service restart-when-idle",
     ].includes(command)
   )
-    throw new Error(`未知命令：${command}。使用 codex-web --help 查看用法。`);
+    throw new Error(`未知命令：${command}。使用 claudex-web --help 查看用法。`);
   if (command.startsWith("service ") && process.platform !== "linux")
     throw new Error("后台服务管理需要 Linux 和 systemd 用户服务。");
 
+  await migrateProductConfig(directories);
   await mkdir(configDir, { recursive: true, mode: 0o700 });
   if (["config init", "service install"].includes(command)) {
     try {
@@ -80,7 +80,7 @@ async function main() {
       if (error.code !== "EEXIST") throw error;
     }
   }
-  process.env.CODEX_WEB_CONFIG_DIR = configDir;
+  process.env.CLAUDEX_WEB_CONFIG_DIR = configDir;
   process.chdir(configDir);
   try {
     loadEnvFile(join(configDir, ".env"));
@@ -113,7 +113,7 @@ async function main() {
       break;
     default: {
       const action = args[1];
-      const units = ["codex-lan-web.service"];
+      const units = ["claudex-web.service"];
       if (action === "status")
         units.push("codex-app-server.service", "--no-pager");
       execFileSync("systemctl", ["--user", action, ...units], {

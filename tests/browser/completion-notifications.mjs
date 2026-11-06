@@ -172,7 +172,7 @@ try {
     ]);
     const claims = await page.evaluate(async () => {
       const database = await new Promise((resolve) => {
-        const request = indexedDB.open("codex-web-notifications", 1);
+        const request = indexedDB.open("claudex-web-notifications", 1);
         request.onsuccess = () => resolve(request.result);
       });
       const count = await new Promise((resolve) => {

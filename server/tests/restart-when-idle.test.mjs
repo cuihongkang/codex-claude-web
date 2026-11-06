@@ -21,7 +21,7 @@ async function waitFor(read) {
 }
 
 async function watcher(t, state, fail = false) {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-idle-restart-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-idle-restart-"));
   const auth = await authenticationFixture(directory);
   const record = join(directory, "restart.json");
   await writeFile(
@@ -65,7 +65,7 @@ async function watcher(t, state, fail = false) {
         ...process.env,
         PORT: String(server.address().port),
         CODEX_HOME: directory,
-        CODEX_WEB_CONFIG_DIR: directory,
+        CLAUDEX_WEB_CONFIG_DIR: directory,
         PATH: directory + ":" + process.env.PATH,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -120,7 +120,7 @@ test("网页终端保持打开时执行重启，健康检查就绪后报告实�
   assert.deepEqual(await waitFor(app.restarted), [
     "--user",
     "restart",
-    "codex-lan-web.service",
+    "claudex-web.service",
   ]);
   assert.deepEqual(await app.exited, [0, null]);
   assert.equal(app.healthChecks(), 2, "健康接口未就绪时继续验证");

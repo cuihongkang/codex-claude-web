@@ -21,7 +21,7 @@ const change = (path, diff, type = "update", move_path = null) => ({
 const patch = (before, after) =>
   `--- a/test\n+++ b/test\n@@ -1 +1 @@\n-${before}\n+${after}\n`;
 async function directory(t) {
-  const cwd = await mkdtemp(join(tmpdir(), "codex-web-undo-test-"));
+  const cwd = await mkdtemp(join(tmpdir(), "claudex-web-undo-test-"));
   t.after(() => rm(cwd, { recursive: true, force: true }));
   return cwd;
 }

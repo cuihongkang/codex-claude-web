@@ -1,12 +1,12 @@
 # 开发者指南
 
-本文面向修改、测试和发布 Codex Web 的开发者。安装发行包及日常使用见 [README](../README.md)，运行配置和故障处理见[部署与维护](deployment.md)。实现设计见[架构说明](architecture.md)，版本选择和完整发布流程见[版本管理](versioning.md)。
+本文面向修改、测试和发布 Claudex Web 的开发者。安装发行包及日常使用见 [README](../README.md)，运行配置和故障处理见[部署与维护](deployment.md)。实现设计见[架构说明](architecture.md)，版本选择和完整发布流程见[版本管理](versioning.md)。
 
 ## 后台任务 MCP 的开发归属
 
-后台终端任务能力按[独立项目计划](background-tasks.md)推进。`feat/mcp-background-tasks` 是早期集成原型，后续工作应从中提取通用任务服务与 MCP 接口，在独立仓库设计、验证和发布。该分支的任务守护进程、自动续跑、专用网页面板、CLI 入口和服务安装配置均排除在 Codex Web 的合并与发布范围之外。
+后台终端任务能力按[独立项目计划](background-tasks.md)推进。`feat/mcp-background-tasks` 是早期集成原型，后续工作应从中提取通用任务服务与 MCP 接口，在独立仓库设计、验证和发布。该分支的任务守护进程、自动续跑、专用网页面板、CLI 入口和服务安装配置均排除在 Claudex Web 的合并与发布范围之外。
 
-Codex Web 的现有网页交互终端、后端原生后台终端 `/stop` 命令以及通用 MCP 状态与工具结果展示按各自契约维护。独立项目应能在未安装、未启动 Codex Web 时完成任务执行与结果读取；宿主相关的完成通知及续跑适配单独验证。当前记录的是开发方向，独立仓库创建和代码迁移的实施范围另行确定。
+Claudex Web 的现有网页交互终端、后端原生后台终端 `/stop` 命令以及通用 MCP 状态与工具结果展示按各自契约维护。独立项目应能在未安装、未启动 Claudex Web 时完成任务执行与结果读取；宿主相关的完成通知及续跑适配单独验证。当前记录的是开发方向，独立仓库创建和代码迁移的实施范围另行确定。
 
 ## 本地环境与源码启动
 
@@ -15,8 +15,8 @@ Codex Web 的现有网页交互终端、后端原生后台终端 `/stop` 命令�
 克隆仓库后，在项目根目录安装依赖并创建配置：
 
 ```bash
-git clone https://github.com/hjd-hitsz/codex-web.git
-cd codex-web
+git clone https://github.com/hjd-hitsz/codex-web.git claudex-web
+cd claudex-web
 npm ci
 ```
 
@@ -46,7 +46,7 @@ npm run dev
 ## 项目结构
 
 ```text
-bin/codex-web.mjs      全局命令入口和用户配置加载
+bin/claudex-web.mjs      全局命令入口和用户配置加载
 client/
   src/app/             页面布局、侧栏、登录和弹窗
   src/application/     状态容器、用例和请求生命周期
@@ -81,7 +81,7 @@ package-lock.json      全项目依赖锁文件
 
 前端采用 React，Node.js 桥接服务负责静态资源和 WebSocket JSON-RPC 转发。组件职责、状态流转、协议和生命周期约束见[架构说明](architecture.md)。
 
-服务图标源文件为 `client/src/assets/codex-web.svg`。侧栏和欢迎页使用内联 SVG，浏览器标签页使用 `client/public` 中的 PNG、ICO 和触屏图标，通过本站独立路径读取。修改 SVG 后，在安装了 `gdk-pixbuf-thumbnailer` 的 Linux 环境中执行 `npm run icons:generate`，同步生成并提交兼容资源；普通构建与发行包安装直接使用这些资源。验证时同时检查浏览器实际请求的图标地址、响应类型及标签页显示，手机浏览器的验证独立于窄屏页面布局检查。
+服务图标源文件为 `client/src/assets/claudex-web.svg`。侧栏和欢迎页使用内联 SVG，浏览器标签页使用 `client/public` 中的 PNG、ICO 和触屏图标，通过本站独立路径读取。修改 SVG 后，在安装了 `gdk-pixbuf-thumbnailer` 的 Linux 环境中执行 `npm run icons:generate`，同步生成并提交兼容资源；普通构建与发行包安装直接使用这些资源。验证时同时检查浏览器实际请求的图标地址、响应类型及标签页显示，手机浏览器的验证独立于窄屏页面布局检查。
 
 快捷命令的 CLI 对照、网页复用入口、专用能力边界及浏览器回归方法见[命令覆盖记录](cli-command-coverage.md)。
 
@@ -176,7 +176,7 @@ CLAUDE_EXECUTABLE=/absolute/path/to/claude MODEL_BASE_URL=https://model.example 
 
 已有对话模型隔离回归使用 `EXISTING_MODEL=1 CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，以项目默认模型 C 与已有对话模型 A 的隔离数据验证打开、刷新、实际发送及从新建界面返回已有对话，并保存桌面深浅主题和手机截图。修改前将生产构建和构建来源保存到 `.cache/existing-model-before/dist` 与 `.cache/existing-model-before/build-info.json`，增加 `BROWSER_BEFORE=1` 复现覆盖；证据写入 `.cache/existing-model-browser/`。组件回归另覆盖重连初始化、恢复及迟到响应期间手动调整。README 及其他文档现有截图展示常规对话，模型选择器的外观与布局保持一致，相关图片继续适用。
 
-同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CODEX_WEB_CONFIG_DIR` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
+同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CLAUDEX_WEB_CONFIG_DIR` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
 
 ```bash
 npm run format
@@ -241,7 +241,7 @@ npm run service:install
 npm run service:status
 ```
 
-安装脚本创建用户级 `codex-lan-web.service`，直接运行当前项目中的桥接服务。已有 `codex-app-server.service` 保留代理、环境和启动设置；缺失时创建后端服务。被覆盖的网页服务配置备份到用户状态目录下的 `codex-web/service-backups`。
+安装脚本创建用户级 `claudex-web.service`，直接运行当前项目中的桥接服务。已有 `codex-app-server.service` 保留代理、环境和启动设置；缺失时创建后端服务。被覆盖的网页服务配置备份到用户状态目录下的 `claudex-web/service-backups`。
 
 仅修改前端时重新构建并刷新网页。修改桥接后，通过以下命令等待任务与上下文整理结束再重启：
 
@@ -267,7 +267,7 @@ npm run check
 npm pack
 ```
 
-`npm pack` 的 `prepack` 会重新构建网页并生成 `codex-web-X.Y.Z.tgz`，其中 `X.Y.Z` 为根包版本。`package.json` 的 `files` 白名单包含命令行入口、前端构建资源、构建来源、桥接代码与运行脚本；开发源码、测试、聊天数据和实际环境配置在包外。运行依赖由目标机器上的 npm 安装。
+`npm pack` 的 `prepack` 会重新构建网页并生成 `claudex-web-X.Y.Z.tgz`，其中 `X.Y.Z` 为根包版本。`package.json` 的 `files` 白名单包含命令行入口、前端构建资源、构建来源、桥接代码与运行脚本；开发源码、测试、聊天数据和实际环境配置在包外。运行依赖由目标机器上的 npm 安装。
 
 日常开发保持包版本，有实际影响的变化先记入 [CHANGELOG.md](../CHANGELOG.md) 的“未发布”。准备发布时按批次选择版本：
 
@@ -283,10 +283,10 @@ npm run version:prepare -- minor
 如需改为 npm registry 分发，维护者需先取得包名发布权限并完成 npm 身份验证，再用实际版本替换以下 `X.Y.Z`：
 
 ```bash
-npm publish ./codex-web-X.Y.Z.tgz --access public
+npm publish ./claudex-web-X.Y.Z.tgz --access public
 ```
 
-发布成功后，使用者可通过包名安装。选择作用域包名时，先修改根 `package.json` 的 `name` 并更新锁文件，再重新验证和打包；全局命令名仍为 `codex-web`。
+发布成功后，使用者可通过包名安装。选择作用域包名时，先修改根 `package.json` 的 `name` 并更新锁文件，再重新验证和打包；全局命令名仍为 `claudex-web`。
 
 ## 构建来源
 
@@ -308,7 +308,7 @@ npm publish ./codex-web-X.Y.Z.tgz --access public
 
 ### 登录与证书
 
-`server/tests/auth.test.mjs` 通过临时 CODEX_WEB_CONFIG_DIR、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。
+`server/tests/auth.test.mjs` 通过临时 CLAUDEX_WEB_CONFIG_DIR、实际 TLS/WSS 服务及模拟 PAM 验证程序覆盖未登录访问、跨站请求、会话持久化、退出与过期、限流、维护连接及后台任务保护。测试凭据只用于隔离验证，不操作系统账户或真实 Codex 对话。`server/tests/tls.test.mjs` 检查证书并发生成、重复启动、权限与自定义证书；`server/tests/dev-https.test.mjs` 验证域名证书在本机 HTTPS/WSS 代理中的证书校验、Cookie 与来源转发。
 
 浏览器回归使用 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/auth.mjs`，在生产构建和临时模拟后端上实际填写登录表单，检查刷新、跨标签页退出、草稿恢复、过期、证书下载、设备安装指引、关于页隐藏开发标记、深浅主题及手机布局。截图及构建信息保存在 `.cache/auth-browser`。
 
@@ -346,7 +346,7 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 
 ### 后端归属图标
 
-对话顶部和侧栏通过后端资源标识选择图标，保持纯图标展示。Codex 使用 `client/src/assets/openai.svg`，取自 [OpenAI 官方品牌资源](https://cdn.openai.com/brand/OpenAI-Logos-2025.zip)的黑色 Blossom SVG；标识归 OpenAI 所有，使用说明见[品牌指南](https://openai.com/brand/)。CSS 蒙版保持原有形状，以主题正文颜色显示。Claude Code 使用 `client/src/assets/claude.svg`，提取自 [Claude 官方网站](https://claude.com/)页首 Claude 标志中的独立图形路径，保留原始轮廓；标识归 Anthropic 所有。后端身份图标使用对应产品的官方标识。项目品牌图标仍由 `codex-web.svg` 提供。
+对话顶部和侧栏通过后端资源标识选择图标，保持纯图标展示。Codex 使用 `client/src/assets/openai.svg`，取自 [OpenAI 官方品牌资源](https://cdn.openai.com/brand/OpenAI-Logos-2025.zip)的黑色 Blossom SVG；标识归 OpenAI 所有，使用说明见[品牌指南](https://openai.com/brand/)。CSS 蒙版保持原有形状，以主题正文颜色显示。Claude Code 使用 `client/src/assets/claude.svg`，提取自 [Claude 官方网站](https://claude.com/)页首 Claude 标志中的独立图形路径，保留原始轮廓；标识归 Anthropic 所有。后端身份图标使用对应产品的官方标识。项目品牌图标仍由 `claudex-web.svg` 提供。
 
 双后端回退对照记录见[双后端回归审查](architecture/backend-regressions.md)。`tests/browser/backend-regressions.mjs` 使用生产构建、独立浏览器和隔离传输验证旧未分类目录、用户消息 Markdown、引用键盘打开、Claude 内部消息来源、主题、缩放与窄屏；通过 `CHROME_PATH`、`PLAYWRIGHT_MODULE` 配置浏览器工具。`tests/integration/claude-message-provenance.mjs` 通过真实 SDK 读取临时原生 JSONL，核对来源字段保留与用户轮次归属。
 

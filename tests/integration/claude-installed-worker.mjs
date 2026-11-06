@@ -24,7 +24,7 @@ const artifacts = join(
   "installed-worker",
 );
 await mkdir(artifacts, { recursive: true });
-const root = await mkdtemp(join(tmpdir(), "codex-web-installed-claude-"));
+const root = await mkdtemp(join(tmpdir(), "claudex-web-installed-claude-"));
 const prefix = join(root, "prefix"),
   cwd = join(root, "workspace");
 await mkdir(cwd);
@@ -69,7 +69,7 @@ try {
     join(artifacts, "install.log"),
     installed.stdout + installed.stderr,
   );
-  const packageRoot = join(prefix, "node_modules", "codex-web");
+  const packageRoot = join(prefix, "node_modules", "claudex-web");
   await assert.rejects(access(join(packageRoot, ".git")));
   await assert.rejects(access(join(packageRoot, "package-lock.json")));
   const { createClaudeWorkerAdapter } = await import(

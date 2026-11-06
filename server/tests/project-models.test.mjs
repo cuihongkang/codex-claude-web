@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createProjectModels } from "../src/project-models.mjs";
 
 test("项目设置写入磁盘，重新创建存储后恢复，连续写入保留各项目和最新选择", async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-models-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-models-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const store = createProjectModels(directory);
   assert.deepEqual(await store.read(), {});
@@ -39,7 +39,7 @@ test("项目设置写入磁盘，重新创建存储后恢复，连续写入保�
 });
 
 test("输入及磁盘损坏保留原文件，写入失败后支持重试", async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-models-error-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-models-error-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const store = createProjectModels(directory);
   await assert.rejects(

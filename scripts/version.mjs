@@ -116,7 +116,11 @@ export function prepareVersion(
     path,
     content: read(dir, path)
       .replaceAll(`v${previous}`, tag)
-      .replaceAll(`codex-web-${previous}.tgz`, `codex-web-${target}.tgz`),
+      .replaceAll(`claudex-web-${previous}.tgz`, `claudex-web-${target}.tgz`)
+      .replace(
+        `npm install -g ./claudex-web-${target}.tgz`,
+        `npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/${tag}/claudex-web-${target}.tgz`,
+      ),
   }));
   const packages = manifests(dir);
   const lock = json(dir, "package-lock.json");
@@ -137,7 +141,7 @@ export function prepareVersion(
   );
   writeFileSync(
     join(dir, `docs/releases/${tag}.md`),
-    `# Codex Web ${tag}\n\n${changes}\n`,
+    `# Claudex Web ${tag}\n\n${changes}\n`,
   );
   for (const doc of docs) writeFileSync(join(dir, doc.path), doc.content);
   return target;
@@ -156,7 +160,7 @@ export function checkRelease(dir = root, tag = process.env.GITHUB_REF_NAME) {
   );
   const notes = read(dir, `docs/releases/${tag}.md`);
   assert.ok(
-    notes.startsWith(`# Codex Web ${tag}\n`),
+    notes.startsWith(`# Claudex Web ${tag}\n`),
     "发布说明标题需要匹配版本",
   );
   assert.ok(/^- \S/m.test(notes), "发布说明需要包含实际变更");
@@ -167,7 +171,7 @@ export function checkRelease(dir = root, tag = process.env.GITHUB_REF_NAME) {
   for (const path of ["README.md", "docs/deployment.md"])
     assert.ok(
       read(dir, path).includes(
-        `releases/download/${tag}/codex-web-${version}.tgz`,
+        `releases/download/${tag}/claudex-web-${version}.tgz`,
       ),
       `${path} 安装链接需要更新到 ${tag}`,
     );

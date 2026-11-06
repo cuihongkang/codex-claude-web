@@ -1,17 +1,17 @@
 # 部署与维护
 
-本文面向安装和运行 Codex Web 的使用者，说明发行包安装、配置、服务管理、升级与故障处理。界面预览与快速开始见 [README](../README.md)。
+本文面向安装和运行 Claudex Web 的使用者，说明发行包安装、配置、服务管理、升级与故障处理。界面预览与快速开始见 [README](../README.md)。
 
 ## 安装发行包
 
-预构建 npm 安装包通过 [GitHub Releases](https://github.com/hjd-hitsz/codex-web/releases) 分发。在已配置 Node.js 24+、npm、Codex CLI、OpenSSL、Linux PAM、`pamtester`、`/usr/bin/zsh` 和 systemd 的 Linux 电脑上，以运行 Codex 的普通用户完成本机 Codex 登录，然后执行：
+当前双后端开发版本在源码目录执行 `npm ci` 和 `npm pack`，生成本地安装包 `claudex-web-3.1.1.tgz`。[GitHub Releases](https://github.com/hjd-hitsz/codex-web/releases) 保留已发布版本及其原有名称。在已配置 Node.js 24+、npm、Codex CLI、OpenSSL、Linux PAM、`pamtester`、`/usr/bin/zsh` 和 systemd 的 Linux 电脑上，以运行 Codex 的普通用户完成本机 Codex 登录，然后执行：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
-codex-web service install
+npm install -g ./claudex-web-3.1.1.tgz
+claudex-web service install
 loginctl enable-linger "$USER"
-codex-web service status
-curl --cacert "${CODEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/codex-web}/tls/certificate.pem" https://127.0.0.1:8766/healthz
+claudex-web service status
+curl --cacert "${CLAUDEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/claudex-web}/tls/certificate.pem" https://127.0.0.1:8766/healthz
 ```
 
 `service install` 创建缺失的后端服务并安装网页服务，启用两者的自启动；已有后端服务继续使用原配置。`enable-linger` 使用户服务可在开机后、登录前启动，是否需要管理员操作由系统授权策略决定。npm 全局命令所在目录需在 `PATH` 中，目标电脑的防火墙需允许访问网页端口。
@@ -20,15 +20,15 @@ curl --cacert "${CODEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/codex-w
 
 ### 下载后安装与校验
 
-也可以下载或复制 Release 中的 `codex-web-3.1.1.tgz` 和 `codex-web-3.1.1.tgz.sha256` 到同一目录，然后执行：
+通过其他电脑分发本地安装包时，在构建机器执行 `sha256sum claudex-web-3.1.1.tgz > claudex-web-3.1.1.tgz.sha256`，将安装包与校验文件复制到目标机器的同一目录，然后执行：
 
 ```bash
-sha256sum -c codex-web-3.1.1.tgz.sha256
-npm install -g ./codex-web-3.1.1.tgz
-codex-web service install
+sha256sum -c claudex-web-3.1.1.tgz.sha256
+npm install -g ./claudex-web-3.1.1.tgz
+claudex-web service install
 ```
 
-安装使用 Release 的 `.tgz` 附件。安装过程中，npm 会获取运行依赖，目标电脑需具备相应缓存或能访问配置的 npm registry。
+安装使用构建生成或对应版本 Release 提供的 `.tgz` 文件。安装过程中，npm 会获取运行依赖，目标电脑需具备相应缓存或能访问配置的 npm registry。
 
 文件差异与撤销校验需要服务环境能够运行 `git`。文件变更汇总也支持 Git 仓库以外的目录；“撤销”遇到后续修改冲突时会保留当前文件。升级后先等待当前任务和网页终端结束，再重启网页服务并刷新页面，以使用更新后的功能。
 
@@ -44,16 +44,16 @@ codex-web service install
 sudo apt-get install pamtester openssl
 ```
 
-网页登录只允许运行 Codex Web 的系统账户，使用该账户的系统密码。账户须有可用密码，且处于允许登录的状态。默认使用系统的 `login` PAM 服务，管理员可通过 `AUTH_PAM_SERVICE` 指定专用策略。仅配置 SSH 密钥、没有可用系统密码的账户，需要先在系统中设置密码。网页服务继续以普通用户身份运行。
+网页登录只允许运行 Claudex Web 的系统账户，使用该账户的系统密码。账户须有可用密码，且处于允许登录的状态。默认使用系统的 `login` PAM 服务，管理员可通过 `AUTH_PAM_SERVICE` 指定专用策略。仅配置 SSH 密钥、没有可用系统密码的账户，需要先在系统中设置密码。网页服务继续以普通用户身份运行。
 
 登录状态默认保留 30 天，`AUTH_SESSION_DAYS` 可设为 1～90 天。刷新网页、重新打开浏览器或重启服务后，有效登录会自动恢复。退出会让同一浏览器的所有标签页返回登录页面，其他设备继续保持登录。到期或清除浏览器 Cookie 后需要重新登录。未发送草稿保留在原浏览器，已经提交的任务继续运行。
 
 ### 证书配置
 
-未指定证书时，首次启动生成一年有效的本站证书，保存在 `CODEX_WEB_CONFIG_DIR/tls`（默认 `~/.config/codex-web/tls`）。证书包含 localhost、当前主机名及生成时的本机 IP，私钥仅服务用户可读。首次访问前，在服务电脑查看指纹，并与浏览器显示的证书核对，再按设备的证书管理方式安装该证书：
+未指定证书时，首次启动生成一年有效的本站证书，保存在 `CLAUDEX_WEB_CONFIG_DIR/tls`（默认 `~/.config/claudex-web/tls`）。证书包含 localhost、当前主机名及生成时的本机 IP，私钥仅服务用户可读。首次访问前，在服务电脑查看指纹，并与浏览器显示的证书核对，再按设备的证书管理方式安装该证书：
 
 ```bash
-openssl x509 -in "${CODEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/codex-web}/tls/certificate.pem" -noout -fingerprint -sha256
+openssl x509 -in "${CLAUDEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/claudex-web}/tls/certificate.pem" -noout -fingerprint -sha256
 ```
 
 登录页和“设置 → 网页登录”中的“浏览器证书安装”提供证书下载与 Ubuntu、Windows、macOS、iPhone/iPad、Android 安装步骤。先向管理员核对证书，再下载并安装到用于访问的设备上。安装后重新打开浏览器，确认地址栏的证书警告消失，再输入登录密码。
@@ -61,12 +61,12 @@ openssl x509 -in "${CODEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/code
 Ubuntu 上，在文件管理器中打开证书下载目录，右键选择“在终端打开”。将下载的 DER 格式证书转换为 PEM 格式并安装到系统信任库，按提示输入本机管理员密码：
 
 ```bash
-openssl x509 -inform DER -in codex-web.cer -out codex-web.crt
-sudo install -m 644 codex-web.crt /usr/local/share/ca-certificates/codex-web.crt
+openssl x509 -inform DER -in claudex-web.cer -out claudex-web.crt
+sudo install -m 644 claudex-web.crt /usr/local/share/ca-certificates/claudex-web.crt
 sudo update-ca-certificates
 ```
 
-重复下载时请核对实际文件名。完全退出浏览器后重新访问；Chrome / Chromium 仍有警告时，在“设置 → 隐私和安全 → 安全 → 管理证书”的自定义或受信任证书中导入 `codex-web.crt`。Firefox 可在“设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构”中导入，并信任此证书以标识网站。浏览器版本不同，入口名称可能略有差异；完成后重启浏览器并检查证书警告。
+重复下载时请核对实际文件名。完全退出浏览器后重新访问；Chrome / Chromium 仍有警告时，在“设置 → 隐私和安全 → 安全 → 管理证书”的自定义或受信任证书中导入 `claudex-web.crt`。Firefox 可在“设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构”中导入，并信任此证书以标识网站。浏览器版本不同，入口名称可能略有差异；完成后重启浏览器并检查证书警告。
 
 首次证书警告发生在网页打开之前。核对证书后，可通过浏览器的“高级 → 继续访问”进入下载页面；浏览器没有继续入口时，请管理员直接提供证书。证书更新后，各设备需要重新核对并安装。使用证书机构签发的证书仍有警告时，请管理员检查证书配置或提供所需的信任证书。
 
@@ -88,16 +88,16 @@ AUTH_SESSION_DAYS=30
 
 ## 命令与前台运行
 
-- `codex-web` / `codex-web start`：前台运行网页服务，连接已启用的 Codex 和 Claude Code。
-- `codex-web backend`：前台运行 Codex app-server。
-- `codex-web config init`：创建用户 `.env`，显示配置路径并保留已有文件。
-- `codex-web --version` / `codex-web version --json`：查看版本或完整的版本来源信息。
-- `codex-web service install`：安装或更新服务文件，启动尚未运行的服务。
-- `codex-web service status`：查看网页与后端状态。
-- `codex-web service start` / `stop` / `restart`：启动、停止或重启网页服务；启动网页时也会拉起后端，停止网页时后端继续运行。
-- `codex-web service restart-when-idle`：等待当前任务和上下文整理结束后重启网页，打开的网页终端保持独立。
+- `claudex-web` / `claudex-web start`：前台运行网页服务，连接已启用的 Codex 和 Claude Code。
+- `claudex-web backend`：前台运行 Codex app-server。
+- `claudex-web config init`：创建用户 `.env`，显示配置路径并保留已有文件。
+- `claudex-web --version` / `claudex-web version --json`：查看版本或完整的版本来源信息。
+- `claudex-web service install`：安装或更新服务文件，启动尚未运行的服务。
+- `claudex-web service status`：查看网页与后端状态。
+- `claudex-web service start` / `stop` / `restart`：启动、停止或重启网页服务；启动网页时也会拉起后端，停止网页时后端继续运行。
+- `claudex-web service restart-when-idle`：等待当前任务和上下文整理结束后重启网页，打开的网页终端保持独立。
 
-前台运行时，在两个终端分别执行 `codex-web backend` 和 `codex-web`，并保持终端打开。已有可连接的后端时，直接运行 `codex-web`。
+前台运行时，在两个终端分别执行 `claudex-web backend` 和 `claudex-web`，并保持终端打开。已有可连接的后端时，直接运行 `claudex-web`。
 
 ## Claude Code 与模型配置
 
@@ -117,18 +117,18 @@ Claude Code 的对话、配置和原生账户状态继续保存在本机 CLI 原
 
 `/init` 检查并保留当前目录已有的 `AGENTS.md`，缺少时生成项目指令。Claude Code 每次提交读取当前目录及祖先目录的 `AGENTS.override.md` 或 `AGENTS.md`，同目录优先 override，更具体目录的规则优先；文件修改和删除从下一轮生效。已有的 `CLAUDE.md` 继续生效。
 
-后端和供应商配置默认保存至 `CODEX_WEB_CONFIG_DIR/backends.json`，可通过 `CODEX_WEB_BACKENDS_FILE` 指定文件位置。配置包含固定的 `codex`、`claude` 两项，各自支持启停，并指向本机 CLI 的实际程序和原生配置目录。保存配置前等待所属后端的任务结束。
+后端和供应商配置默认保存至 `CLAUDEX_WEB_CONFIG_DIR/backends.json`，可通过 `CLAUDEX_WEB_BACKENDS_FILE` 指定文件位置。配置包含固定的 `codex`、`claude` 两项，各自支持启停，并指向本机 CLI 的实际程序和原生配置目录。保存配置前等待所属后端的任务结束。
 
 ## 配置
 
-全局命令从 `~/.config/codex-web/.env` 读取配置；设置 `XDG_CONFIG_HOME` 时使用其下的 `codex-web` 目录，设置 `CODEX_WEB_CONFIG_DIR` 时优先使用该目录。外部环境变量优先于 `.env`。执行 `codex-web config init` 可创建配置并显示路径，已有配置和 npm 升级后的配置均会保留。
+全局命令从 `~/.config/claudex-web/.env` 读取配置；设置 `XDG_CONFIG_HOME` 时使用其下的 `claudex-web` 目录，设置 `CLAUDEX_WEB_CONFIG_DIR` 时优先使用该目录。外部环境变量优先于 `.env`。执行 `claudex-web config init` 可创建配置并显示路径，已有配置和 npm 升级后的配置均会保留。
 
-systemd 服务会记录安装时的配置目录，后续启动继续使用该目录。更换配置目录时，用新的 `CODEX_WEB_CONFIG_DIR` 执行 `codex-web service install`，再按下文方法重启网页服务。
+systemd 服务会记录安装时的配置目录，后续启动继续使用该目录。更换配置目录时，用新的 `CLAUDEX_WEB_CONFIG_DIR` 执行 `claudex-web service install`，再按下文方法重启网页服务。
 
 - `HOST`：HTTPS 监听地址，初始为 `0.0.0.0`，支持通过电脑 IP 访问；仅本机访问可设为 `127.0.0.1`。
 - `PORT`：网页端口，初始为 `8766`。
 - `CODEX_APP_SERVER_URL`：Codex 后端 WebSocket 地址，初始为 `ws://127.0.0.1:8765`；使用已有后端时填写其实际地址。
-- `CODEX_WEB_CONFIG_DIR`：Codex Web 自身配置与状态目录，默认 `$XDG_CONFIG_HOME/codex-web`，未设置 `XDG_CONFIG_HOME` 时为 `~/.config/codex-web`。连接设置、网页登录、证书、项目选择和网页索引统一保存在其中。
+- `CLAUDEX_WEB_CONFIG_DIR`：Claudex Web 自身配置与状态目录，默认 `$XDG_CONFIG_HOME/claudex-web`，未设置 `XDG_CONFIG_HOME` 时为 `~/.config/claudex-web`。连接设置、网页登录、证书、项目选择和网页索引统一保存在其中。
 - `CODEX_HOME`：本机 Codex CLI 已使用的配置目录，默认 `~/.codex`。
 - `CLAUDE_CONFIG_DIR`：本机 Claude Code CLI 已使用的配置目录，默认 `~/.claude`。
 - `DEFAULT_CWD`：首次打开网页时的默认目录，未设置时使用当前用户的主目录；浏览器已经选择的项目目录优先。
@@ -136,23 +136,23 @@ systemd 服务会记录安装时的配置目录，后续启动继续使用该目
 
 相对 `DEFAULT_CWD` 同样以用户配置目录为基准。建议为工作目录填写绝对路径，便于核对任务实际使用的位置。
 
-修改配置前先等待任务结束并退出网页终端，保存后执行 `codex-web service restart`；前台运行时重新启动网页进程。修改端口后使用新端口访问。
+修改配置前先等待任务结束并退出网页终端，保存后执行 `claudex-web service restart`；前台运行时重新启动网页进程。修改端口后使用新端口访问。
 
 `CODEX_APP_SERVER_URL` 用于指定网页连接地址。已有后端服务的监听地址继续由其服务配置管理，修改连接地址时需与实际后端保持一致。Codex 后端的环境配置见下一节。
 
 ## systemd 服务
 
-网页服务名为 `codex-lan-web.service`，后端服务名为 `codex-app-server.service`。`codex-web service install` 保留已有后端配置，更新网页服务文件，并让正在运行的服务继续运行。切换到新安装路径或配置后，通过重启使新设置生效。
+网页服务名为 `claudex-web.service`，后端服务名为 `codex-app-server.service`。`claudex-web service install` 保留已有后端配置，更新网页服务文件，并让正在运行的服务继续运行。切换到新安装路径或配置后，通过重启使新设置生效。
 
 安装脚本创建的后端服务从用户配置目录下的 `.env.backend` 读取环境变量，可在其中配置后端代理。已有后端服务的代理、登录环境和启动设置继续由原服务配置管理。更改后端配置后，在所有相关对话和终端空闲时重启后端服务。
 
 查看状态与日志：
 
 ```bash
-systemctl --user status codex-lan-web.service codex-app-server.service
-journalctl --user -u codex-lan-web.service -n 100 --no-pager
+systemctl --user status claudex-web.service codex-app-server.service
+journalctl --user -u claudex-web.service -n 100 --no-pager
 journalctl --user -u codex-app-server.service -n 100 --no-pager
-curl --cacert "${CODEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/codex-web}/tls/certificate.pem" https://127.0.0.1:8766/healthz
+curl --cacert "${CLAUDEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/claudex-web}/tls/certificate.pem" https://127.0.0.1:8766/healthz
 ```
 
 自定义网页端口时，相应替换健康检查地址。`/healthz` 在至少一个已启用后端就绪时返回 HTTP 200，全部后端未就绪时返回 HTTP 503；响应包含连接状态 `ready` 和正在运行的网页服务版本 `version`。
@@ -161,41 +161,41 @@ curl --cacert "${CODEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/codex-w
 
 Claude Code 的任务使用独立执行服务。关闭网页、重启网页服务或网页服务异常退出后，已提交的对话任务和后台终端继续运行，重新打开网页后恢复状态。网页交互终端仍由网页服务管理，重启前先保存其需要保留的工作。
 
-使用 systemd 用户服务部署时，Claude Code 首次启用后自动建立名称为 `codex-web-claude-<标识>.service` 的执行服务，其中标识由 Codex Web 保存的 Claude 执行状态目录确定。查看状态与日志：
+使用 systemd 用户服务部署时，Claude Code 首次启用后自动建立名称为 `claudex-web-claude-<标识>.service` 的执行服务，其中标识由 Claudex Web 保存的 Claude 执行状态目录确定。查看状态与日志：
 
 ```bash
-systemctl --user list-units --all 'codex-web-claude-*'
-journalctl --user -u 'codex-web-claude-*' -n 100 --no-pager
+systemctl --user list-units --all 'claudex-web-claude-*'
+journalctl --user -u 'claudex-web-claude-*' -n 100 --no-pager
 ```
 
-修改 Claude Code 运行配置或升级程序后，新网页服务自动核对执行服务。仍有对话、提问、整理或后台任务时继续使用原服务，空闲后完成更新。需要完全停止或更换执行服务时，先结束任务、处理待答提问并通过 `/stop` 清理后台终端；普通网页重启只重新连接。前台运行且没有 systemd 用户管理器时，执行服务日志保存在 `CODEX_WEB_CONFIG_DIR/backends/claude/worker.log`。
+修改 Claude Code 运行配置或升级程序后，新网页服务自动核对执行服务。仍有对话、提问、整理或后台任务时继续使用原服务，空闲后完成更新。需要完全停止或更换执行服务时，先结束任务、处理待答提问并通过 `/stop` 清理后台终端；普通网页重启只重新连接。前台运行且没有 systemd 用户管理器时，执行服务日志保存在 `CLAUDEX_WEB_CONFIG_DIR/backends/claude/worker.log`。
 
 ## 升级和回退
 
 从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
-codex-web service install
-codex-web service restart-when-idle
+npm install -g ./claudex-web-3.1.1.tgz
+claudex-web service install
+claudex-web service restart-when-idle
 ```
 
 最后一个命令等待网页服务观察到的任务和上下文整理结束后自动重启，等待期间保持命令运行。Claude Code 独立执行服务继续保留后台任务，代码及配置更新在该服务完全空闲后完成。打开或隐藏的网页终端不会阻塞更新，等待程序只重启网页服务。切换 Node.js 版本或 npm prefix 后，也需重新安装服务并重启，以更新服务中的安装路径。
 
 日志显示实际等待的任务与上下文整理数量；执行重启后继续检查 `/healthz`，连接就绪时报告实际运行版本，重启或健康检查失败时保留失败状态。
 
-升级后刷新网页，在“设置 → 关于”核对产品版本。`codex-web version --json` 查看当前磁盘安装包，`/healthz` 中的 `version` 查看实际运行的服务，便于确认重启是否生效。
+升级后刷新网页，在“设置 → 关于”核对产品版本。`claudex-web version --json` 查看当前磁盘安装包，`/healthz` 中的 `version` 查看实际运行的服务，便于确认重启是否生效。
 
-需要回退程序时，使用目标旧版本 Release 的 `.tgz` 安装地址重新安装，执行 `codex-web service install`，再等待空闲后重启。用户配置继续保留；涉及配置或数据迁移的版本，先查看对应发布说明。
+需要回退程序时，使用目标旧版本 Release 的 `.tgz` 安装地址重新安装，执行 `claudex-web service install`，再等待空闲后重启。用户配置继续保留；涉及配置或数据迁移的版本，先查看对应发布说明。
 
-服务安装会备份被覆盖的网页服务文件，默认位置为 `~/.local/state/codex-web/service-backups/时间戳/`；设置 `XDG_STATE_HOME` 时采用其下的对应目录。回退服务路径时，将备份的 `codex-lan-web.service` 恢复到用户服务目录，默认 `~/.config/systemd/user/`；设置 `XDG_CONFIG_HOME` 时使用其下的 `systemd/user/`。执行 `systemctl --user daemon-reload`，确认原安装路径仍可用，再等待空闲后重启网页服务。
+服务安装会备份被覆盖的网页服务文件，默认位置为 `~/.local/state/claudex-web/service-backups/时间戳/`；设置 `XDG_STATE_HOME` 时采用其下的对应目录。回退服务路径时，将备份的 `claudex-web.service` 恢复到用户服务目录，默认 `~/.config/systemd/user/`；设置 `XDG_CONFIG_HOME` 时使用其下的 `systemd/user/`。执行 `systemctl --user daemon-reload`，确认原安装路径仍可用，再等待空闲后重启网页服务。
 
 ## 数据保存与迁移
 
-- Codex 和 Claude Code 的原生对话、配置及登录凭据继续由各自 CLI 管理。网页对话索引和供应商设置保存在 `CODEX_WEB_CONFIG_DIR`；迁移网页时保留该目录，并将后端连接指向本机 CLI 的实际配置目录。网页登录与模型服务认证分别管理，系统密码仅用于登录验证，不会保存。
+- Codex 和 Claude Code 的原生对话、配置及登录凭据继续由各自 CLI 管理。网页对话索引和供应商设置保存在 `CLAUDEX_WEB_CONFIG_DIR`；迁移网页时保留该目录，并将后端连接指向本机 CLI 的实际配置目录。网页登录与模型服务认证分别管理，系统密码仅用于登录验证，不会保存。
 - 草稿、置顶、固定文件夹、项目快捷列表和主题保存在当前浏览器中。固定文件夹在全部对话归档后仍会在刷新或重新打开网页时显示；手动添加的项目自动固定，取消固定后在下次加载时按未归档对话重新确定是否显示。使用同一浏览器及站点地址可恢复固定记录，清除站点数据会清除这些记录。
-- Codex 每个项目上次选择的模型和思考强度保存在服务所在电脑的 `CODEX_WEB_CONFIG_DIR/project-models.json`。Claude Code 项目选择保存在 `CODEX_WEB_CONFIG_DIR/backends/claude/project-models.json`，迁移服务时分别保留。同项目新建沿用当前选择，跨项目及重新打开网页时恢复目标项目设置，清空浏览器数据后可再次从服务端读取。保存失败时会提示重试。切换模型时保留当前思考强度，目标模型缺少该档位时采用最近的可用档位，距离相同时选较低档。
-- “未分类”对话的文件保存在 `CODEX_WEB_CONFIG_DIR/workspaces/chat-XXXXXX`，首次发送时分配。迁移电脑时随 Codex Web 配置目录一起保留。
+- Codex 每个项目上次选择的模型和思考强度保存在服务所在电脑的 `CLAUDEX_WEB_CONFIG_DIR/project-models.json`。Claude Code 项目选择保存在 `CLAUDEX_WEB_CONFIG_DIR/backends/claude/project-models.json`，迁移服务时分别保留。同项目新建沿用当前选择，跨项目及重新打开网页时恢复目标项目设置，清空浏览器数据后可再次从服务端读取。保存失败时会提示重试。切换模型时保留当前思考强度，目标模型缺少该档位时采用最近的可用档位，距离相同时选较低档。
+- “未分类”对话的文件保存在 `CLAUDEX_WEB_CONFIG_DIR/workspaces/chat-XXXXXX`，首次发送时分配。迁移电脑时随 Claudex Web 配置目录一起保留。
 - 网页配置 `.env` 与新建后端服务使用的 `.env.backend` 位于用户配置目录，迁移时应一并保留；已有后端服务的配置按原部署方式迁移。
 - 摘要翻译由服务所在电脑调用免费、免认证的 TranSmart 服务，浏览器仅访问当前网页服务；待译摘要会发送至 TranSmart，代码、路径和链接在发送前替换为占位符。
 - 自动对话标题使用 Codex 模型，会产生少量额外模型用量。
@@ -228,7 +228,15 @@ codex -c thread_unload_delay_secs=0 app-server --listen ws://127.0.0.1:8765
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user restart codex-app-server.service codex-lan-web.service
+systemctl --user restart codex-app-server.service claudex-web.service
 ```
 
-`codex-web service restart-when-idle` 检查网页服务观察到的任务和上下文整理。重启后端还需确认其他客户端以及网页终端、对话后台终端的运行状态。
+`claudex-web service restart-when-idle` 检查网页服务观察到的任务和上下文整理。重启后端还需确认其他客户端以及网页终端、对话后台终端的运行状态。
+
+## 从 Codex Web 更名版本升级
+
+Claudex Web 的命令为 `claudex-web`，网页服务为 `claudex-web.service`，默认配置目录为 `~/.config/claudex-web`；可用 `CLAUDEX_WEB_CONFIG_DIR` 指定其他位置，`CLAUDEX_WEB_BACKENDS_FILE` 指定后端配置文件。原生 Codex 与 Claude Code 的配置和历史沿用各自目录。
+
+当前开发版本需在源码目录运行 `npm ci` 和 `npm pack`，再安装生成的 `claudex-web-3.1.1.tgz`。已发布的 Codex Web 安装包继续使用原有名称与命令。
+
+升级前结束运行中的任务与终端，保存文件，再执行 `systemctl --user disable --now codex-lan-web.service` 停用旧网页服务。安装新包后执行 `claudex-web service install`。首次启动在新配置目录尚未建立时复制旧 `~/.config/codex-web`；曾自定义旧目录的部署可在此次升级时设置 `CODEX_WEB_CONFIG_DIR` 指向原目录。新目录已有配置优先，旧目录保留，已有自动工作目录继续可访问。配置包含供应商凭据、证书和会话，请保护备份权限。

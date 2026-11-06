@@ -49,7 +49,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-command-browser-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-command-browser-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [

@@ -25,7 +25,7 @@ test("服务端直接请求 TranSmart，使用匿名批量翻译参数和超时"
     assert.deepEqual(options.headers, { "Content-Type": "application/json" });
     assert.ok(options.signal instanceof AbortSignal);
     const request = JSON.parse(options.body);
-    assert.match(request.header.client_key, /^browser-codex-web-server-/);
+    assert.match(request.header.client_key, /^browser-claudex-web-server-/);
     assert.equal(request.header.fn, "auto_translation");
     assert.equal(request.header.user, "");
     assert.equal(request.header.session, "");

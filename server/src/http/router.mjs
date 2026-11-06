@@ -46,7 +46,7 @@ export function createHttpHandler({
           : "application/json; charset=utf-8",
         "Content-Length": body.length,
         ...(download
-          ? { "Content-Disposition": 'attachment; filename="codex-web.cer"' }
+          ? { "Content-Disposition": 'attachment; filename="claudex-web.cer"' }
           : {}),
       });
       response.end(request.method === "HEAD" ? undefined : body);

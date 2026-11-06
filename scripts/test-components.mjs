@@ -14,7 +14,7 @@ try {
     },
     bundle: true,
     define: {
-      __CODEX_WEB_BUILD__: JSON.stringify({
+      __CLAUDEX_WEB_BUILD__: JSON.stringify({
         version: "1.2.3",
         displayVersion: "1.2.3+dev.gabc1234.dirty",
         revision: "abc123456789",

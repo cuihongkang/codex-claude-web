@@ -301,7 +301,7 @@ test(
     let generated = 0;
     const app = await backend(t, (request, socket) => {
       if (request.method === "initialize") {
-        if (request.params.clientInfo.title === "Codex LAN Web") main = socket;
+        if (request.params.clientInfo.name === "claudex_web") main = socket;
         return respond(socket, request, {});
       }
       if (request.id === undefined) return;
@@ -335,7 +335,7 @@ test(
       }
       respond(socket, request, {});
     });
-    const directory = await mkdtemp(join(tmpdir(), "codex-web-title-auth-"));
+    const directory = await mkdtemp(join(tmpdir(), "claudex-web-title-auth-"));
     const auth = await authenticationFixture(directory);
     const child = spawn(
       process.execPath,
@@ -345,7 +345,7 @@ test(
           ...process.env,
           HOST: "127.0.0.1",
           CODEX_HOME: directory,
-          CODEX_WEB_CONFIG_DIR: directory,
+          CLAUDEX_WEB_CONFIG_DIR: directory,
           PORT: "0",
           CODEX_APP_SERVER_URL: app.url,
         },

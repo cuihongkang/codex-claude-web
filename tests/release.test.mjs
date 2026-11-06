@@ -17,9 +17,12 @@ import {
   syncReleaseNotes,
 } from "../scripts/publish-release.mjs";
 
-const repo = "example/codex-web";
+const repo = "example/claudex-web";
 const tag = "v1.2.3";
-const assets = ["/tmp/codex-web-1.2.3.tgz", "/tmp/codex-web-1.2.3.tgz.sha256"];
+const assets = [
+  "/tmp/claudex-web-1.2.3.tgz",
+  "/tmp/claudex-web-1.2.3.tgz.sha256",
+];
 const notes = "docs/releases/v1.2.3.md";
 
 function registry() {
@@ -238,7 +241,7 @@ test("定时发布响应中断后重试保留已发布附件，后续调度只�
 });
 
 test("发布计划要求明确版本和含时区时间，缺少配置时沿用即时发布", (t) => {
-  const dir = mkdtempSync(join(tmpdir(), "codex-web-schedule-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "claudex-web-schedule-test-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   assert.deepEqual(readReleaseSchedule(dir), {});
   mkdirSync(join(dir, ".github"));
@@ -256,25 +259,25 @@ test("发布计划要求明确版本和含时区时间，缺少配置时沿用�
 test("Release 正文直接从列表开始，独立文档的标题和变更链接保持完整", () => {
   const list =
     "- 新增消息目录（[abc1234](https://example.test/commit/abc1234)）。\n";
-  const document = `# Codex Web ${tag}\n\n${list}`;
+  const document = `# Claudex Web ${tag}\n\n${list}`;
   assert.equal(releaseNotesBody(document, tag), list);
-  assert.ok(document.startsWith(`# Codex Web ${tag}`));
+  assert.ok(document.startsWith(`# Claudex Web ${tag}`));
   assert.throws(() => releaseNotesBody(document, "v9.9.9"), /标题/);
   assert.throws(
-    () => releaseNotesBody(`# Codex Web ${tag}\n\n## 概述\n`, tag),
+    () => releaseNotesBody(`# Claudex Web ${tag}\n\n## 概述\n`, tag),
     /变更列表/,
   );
 });
 
 test("同步历史 Release 仅更新正文，保留标题、标签和附件，重复同步省去写入", (t) => {
-  const dir = mkdtempSync(join(tmpdir(), "codex-web-notes-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "claudex-web-notes-test-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, "docs/releases"), { recursive: true });
-  const document = `# Codex Web ${tag}\n\n- 查看文件变更。\n`;
+  const document = `# Claudex Web ${tag}\n\n- 查看文件变更。\n`;
   writeFileSync(join(dir, `docs/releases/${tag}.md`), document);
   const release = {
     tag_name: tag,
-    name: `Codex Web ${tag}`,
+    name: `Claudex Web ${tag}`,
     draft: false,
     assets: [{ name: "已发布附件", size: 123 }],
     body: document,

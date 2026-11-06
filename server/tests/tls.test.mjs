@@ -7,7 +7,7 @@ import { X509Certificate, createPrivateKey } from "node:crypto";
 import { readTls, localTlsClient } from "../src/tls.mjs";
 
 test("证书原子生成、并发启动、重新读取和私钥权限", async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-tls-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-tls-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const [first, second] = await Promise.all([
     readTls({

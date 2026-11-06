@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 // TranSmart 匿名接口使用 browser 前缀的客户端标识；请求由 Node.js 直接发送。
-const clientKey = `browser-codex-web-server-${randomUUID()}`;
+const clientKey = `browser-claudex-web-server-${randomUUID()}`;
 
 export async function translateWithTransmart(texts) {
   const response = await fetch("https://transmart.qq.com/api/imt", {

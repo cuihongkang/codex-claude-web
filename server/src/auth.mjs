@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { userInfo } from "node:os";
 import { authenticateSystemUser } from "./system-auth.mjs";
 
-const cookieName = "__Host-codex-web-session";
+const cookieName = "__Host-claudex-web-session";
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 const cookie = (value, seconds) =>
   `${cookieName}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${seconds}`;
@@ -96,12 +96,15 @@ export async function createAuthentication(config) {
     return session;
   };
   const sessionId = (request) => {
-    const tokens = (request.headers.cookie || "")
+    const entries = (request.headers.cookie || "")
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.startsWith(cookieName + "="));
+      .map((s) => s.trim());
+    const name = entries.some((s) => s.startsWith(cookieName + "="))
+      ? cookieName
+      : "__Host-codex-web-session";
+    const tokens = entries.filter((s) => s.startsWith(name + "="));
     if (tokens.length !== 1) return null;
-    const token = tokens[0].slice(cookieName.length + 1);
+    const token = tokens[0].slice(name.length + 1);
     return /^[a-zA-Z0-9_-]{43}$/.test(token) ? digest(token) : null;
   };
   const sameOrigin = (request) => {
@@ -232,7 +235,7 @@ export async function createAuthentication(config) {
         }
         if (
           !sameOrigin(request) ||
-          request.headers["x-codex-web-request"] !== "1"
+          request.headers["x-claudex-web-request"] !== "1"
         ) {
           json(response, 403, { error: "请求来源不匹配，请重新打开本站。" });
           return true;

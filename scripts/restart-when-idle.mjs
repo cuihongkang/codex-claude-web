@@ -64,7 +64,7 @@ function connect() {
       try {
         execFileSync(
           "systemctl",
-          ["--user", "restart", "codex-lan-web.service"],
+          ["--user", "restart", "claudex-web.service"],
           { stdio: "inherit" },
         );
         for (let attempt = 0; attempt < 30; attempt++) {

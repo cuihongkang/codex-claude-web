@@ -20,7 +20,7 @@ export default defineConfig(async ({ mode, command }) => {
       JSON.stringify(buildInfo, null, 2) + "\n",
     );
   return {
-    define: { __CODEX_WEB_BUILD__: JSON.stringify(buildInfo) },
+    define: { __CLAUDEX_WEB_BUILD__: JSON.stringify(buildInfo) },
     server: {
       https: tls,
       proxy: {

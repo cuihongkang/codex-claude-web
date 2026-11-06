@@ -39,7 +39,7 @@ test("原生默认目录沿用 CLI 默认环境，已有自定义目录原样继
 
 test("网页配置目录独立于两种原生 CLI，切换网页目录保留原生目录", () => {
   const defaults = readConfig({});
-  assert.equal(defaults.configDir, join(homedir(), ".config", "codex-web"));
+  assert.equal(defaults.configDir, join(homedir(), ".config", "claudex-web"));
   assert.equal(defaults.codexHome, join(homedir(), ".codex"));
   assert.equal(defaults.claudeHome, join(homedir(), ".claude"));
   const env = {
@@ -47,7 +47,7 @@ test("网页配置目录独立于两种原生 CLI，切换网页目录保留原�
     CLAUDE_CONFIG_DIR: "/native/claude",
   };
   for (const web of ["/web/first", "/web/second"]) {
-    const config = readConfig({ ...env, CODEX_WEB_CONFIG_DIR: web });
+    const config = readConfig({ ...env, CLAUDEX_WEB_CONFIG_DIR: web });
     assert.equal(config.codexHome, env.CODEX_HOME);
     assert.equal(config.claudeHome, env.CLAUDE_CONFIG_DIR);
     assert.equal(config.backendsFile, join(web, "backends.json"));
@@ -55,7 +55,7 @@ test("网页配置目录独立于两种原生 CLI，切换网页目录保留原�
   }
   assert.equal(
     readConfig({ XDG_CONFIG_HOME: "/custom-config" }).configDir,
-    "/custom-config/codex-web",
+    "/custom-config/claudex-web",
   );
 });
 
@@ -63,7 +63,7 @@ test("网页配置、证书、登录状态和项目选择只写网页目录", as
   const root = await mkdtemp(join(tmpdir(), "web-config-ownership-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const config = readConfig({
-    CODEX_WEB_CONFIG_DIR: join(root, "web"),
+    CLAUDEX_WEB_CONFIG_DIR: join(root, "web"),
     CODEX_HOME: join(root, "codex"),
     CLAUDE_CONFIG_DIR: join(root, "claude"),
   });

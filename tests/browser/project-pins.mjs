@@ -24,7 +24,7 @@ const buildSource = join(
         : "client/dist",
 );
 const buildDirectory = await mkdtemp(
-  join(tmpdir(), "codex-web-project-pins-build-"),
+  join(tmpdir(), "claudex-web-project-pins-build-"),
 );
 await cp(buildSource, buildDirectory, { recursive: true });
 const buildInfo = JSON.parse(
@@ -197,7 +197,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-readme-browser-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-readme-browser-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [

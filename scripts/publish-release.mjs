@@ -39,7 +39,9 @@ function checkAssets(release, names) {
 }
 
 export function releaseNotesBody(markdown, tag) {
-  const heading = `# Codex Web ${tag}\n`;
+  const heading = markdown.startsWith(`# Codex Web ${tag}\n`)
+    ? `# Codex Web ${tag}\n`
+    : `# Claudex Web ${tag}\n`;
   assert.ok(markdown.startsWith(heading), `${tag} 发布说明标题需要匹配版本`);
   const body = markdown.slice(heading.length).trim();
   assert.match(body, /^- \S/, `${tag} Release 正文需要直接以变更列表开始`);
@@ -50,7 +52,7 @@ export function syncReleaseNotes(repo, run = gh, dir = root) {
   const releases = JSON.parse(
     run("api", `repos/${repo}/releases?per_page=100`, "--paginate", "--slurp"),
   ).flat();
-  const temporary = mkdtempSync(join(tmpdir(), "codex-web-release-notes-"));
+  const temporary = mkdtempSync(join(tmpdir(), "claudex-web-release-notes-"));
   try {
     for (const release of releases) {
       const tag = release.tag_name;
@@ -115,7 +117,7 @@ export function publishRelease(
       "--verify-tag",
       "--draft",
       "--title",
-      `Codex Web ${tag}`,
+      `Claudex Web ${tag}`,
       "--notes-file",
       notes,
     );
@@ -128,7 +130,7 @@ export function publishRelease(
     "--repo",
     repo,
     "--title",
-    `Codex Web ${tag}`,
+    `Claudex Web ${tag}`,
     "--notes-file",
     notes,
     "--draft=false",
@@ -138,9 +140,9 @@ export function publishRelease(
 }
 
 export function verifyReleaseAssets(repo, tag, run = gh) {
-  const dir = mkdtempSync(join(tmpdir(), "codex-web-release-verify-"));
+  const dir = mkdtempSync(join(tmpdir(), "claudex-web-release-verify-"));
   try {
-    const filename = `codex-web-${tag.slice(1)}.tgz`;
+    const filename = `claudex-web-${tag.slice(1)}.tgz`;
     run(
       "release",
       "download",
@@ -178,7 +180,7 @@ export function verifyReleaseAssets(repo, tag, run = gh) {
       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
     const info = JSON.parse(
-      execFileSync(join(prefix, "bin/codex-web"), ["version", "--json"], {
+      execFileSync(join(prefix, "bin/claudex-web"), ["version", "--json"], {
         encoding: "utf8",
       }),
     );
@@ -206,7 +208,7 @@ export function publishScheduledRelease(
   if (now < Date.parse(publishAt)) return "pending";
   const release = findRelease(repo, tag, run);
   assert.ok(release, `${tag} 的发布草稿尚未准备完成`);
-  const filename = `codex-web-${tag.slice(1)}.tgz`;
+  const filename = `claudex-web-${tag.slice(1)}.tgz`;
   checkAssets(release, [filename, `${filename}.sha256`]);
   if (!release.draft) return "published";
   verify(repo, tag, run);
@@ -232,7 +234,7 @@ if (
     }
     process.exit(0);
   }
-  const dir = mkdtempSync(join(tmpdir(), "codex-web-release-"));
+  const dir = mkdtempSync(join(tmpdir(), "claudex-web-release-"));
   try {
     const version = checkRelease();
     const [pack] = JSON.parse(

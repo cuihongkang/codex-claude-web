@@ -126,7 +126,7 @@ try {
   const auth = await authenticationFixture(home);
   const config = readConfig({
     CODEX_HOME: home,
-    CODEX_WEB_CONFIG_DIR: home,
+    CLAUDEX_WEB_CONFIG_DIR: home,
     HOST: "127.0.0.1",
     PORT: "0",
     DEFAULT_CWD: cwd,

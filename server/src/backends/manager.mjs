@@ -57,6 +57,9 @@ export function createBackendManager({
         projectlessRoot: config.projectlessRoot,
         projectlessRoots: [
           config.projectlessRoot,
+          ...(config.legacyConfigDir
+            ? [join(config.legacyConfigDir, "workspaces")]
+            : []),
           join(
             instances.get("codex")?.backend.dataDir || config.codexHome,
             "codex-web",

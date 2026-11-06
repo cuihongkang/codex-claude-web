@@ -19,7 +19,7 @@ import { readConfig } from "../src/config.mjs";
 import { authenticateSystemUser } from "../src/system-auth.mjs";
 
 async function appFixture(t) {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-auth-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-auth-"));
   const auth = await authenticationFixture(directory);
   await writeFile(join(directory, "index.html"), "<h1>Login shell</h1>");
   await writeFile(join(directory, "private.txt"), "protected file");
@@ -81,7 +81,7 @@ async function appFixture(t) {
           HOST: "127.0.0.1",
           PORT: "0",
           CODEX_HOME: directory,
-          CODEX_WEB_CONFIG_DIR: directory,
+          CLAUDEX_WEB_CONFIG_DIR: directory,
           STATIC_DIR: directory,
           AUTH_PAMTESTER: auth.pamtester,
           AUTH_SESSION_DAYS: "30",
@@ -142,7 +142,7 @@ async function appFixture(t) {
           method: "POST",
           headers: {
             Origin: url,
-            "X-Codex-Web-Request": "1",
+            "X-Claudex-Web-Request": "1",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ username: userInfo().username, password }),
@@ -174,7 +174,7 @@ test("未登录可下载当前公开证书并核对指纹，其他方法及业�
   assert.equal(response.headers.get("content-type"), "application/pkix-cert");
   assert.match(
     response.headers.get("content-disposition"),
-    /attachment; filename="codex-web.cer"/,
+    /attachment; filename="claudex-web.cer"/,
   );
   assert.equal(response.headers.get("cache-control"), "no-store");
   const bytes = Buffer.from(await response.arrayBuffer());
@@ -250,7 +250,7 @@ test(
       method: "POST",
       headers: {
         Origin: "https://evil.example",
-        "X-Codex-Web-Request": "1",
+        "X-Claudex-Web-Request": "1",
         "Content-Type": "application/json",
       },
       body: "{}",
@@ -282,7 +282,7 @@ test(
           method: "POST",
           headers: {
             Origin: app.url(),
-            "X-Codex-Web-Request": "1",
+            "X-Claudex-Web-Request": "1",
             "Content-Type": "application/json",
           },
           body: "{",
@@ -373,7 +373,7 @@ test(
       "/api/auth/logout",
       {
         method: "POST",
-        headers: { Origin: app.url(), "X-Codex-Web-Request": "1" },
+        headers: { Origin: app.url(), "X-Claudex-Web-Request": "1" },
       },
       cookie,
     );
@@ -537,7 +537,7 @@ test(
           "/api/auth/logout",
           {
             method: "POST",
-            headers: { Origin: app.url(), "X-Codex-Web-Request": "1" },
+            headers: { Origin: app.url(), "X-Claudex-Web-Request": "1" },
           },
           app.auth.cookie,
         )
@@ -550,7 +550,7 @@ test(
       method: "POST",
       headers: {
         Origin: app.url(),
-        "X-Codex-Web-Request": "1",
+        "X-Claudex-Web-Request": "1",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ username: "demo", password: "x".repeat(9000) }),

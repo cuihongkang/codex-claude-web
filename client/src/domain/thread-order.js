@@ -6,7 +6,7 @@ export const threadTime = (thread) =>
     thread.completedAt ?? 0,
     thread.createdAt ?? 0,
   );
-export const PROJECTLESS_SOURCE = "codex-web-projectless";
+export const PROJECTLESS_SOURCE = "claudex-web-projectless";
 
 export function sortThreads(threads) {
   return threads
@@ -24,9 +24,12 @@ export function threadGroupPath(thread, projects, directories, root) {
   const workspace = matchedRoot ? thread.cwd.slice(matchedRoot.length + 1) : "";
   const webProjectless =
     /^chat-[A-Za-z0-9]{6}$/.test(workspace) &&
-    (thread.threadSource === PROJECTLESS_SOURCE ||
+    ([PROJECTLESS_SOURCE, "codex-web-projectless"].includes(
+      thread.threadSource,
+    ) ||
       // 列表响应可能省略来源标记，通过网页创建者和专用自动目录恢复分类。
-      (thread.threadSource == null && thread.originator === "codex_lan_web"));
+      (thread.threadSource == null &&
+        ["claudex_web", "codex_lan_web"].includes(thread.originator)));
   return directories[thread.id] === thread.cwd || webProjectless
     ? ""
     : thread.cwd;
