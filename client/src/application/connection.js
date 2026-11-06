@@ -165,15 +165,16 @@ export function createConnection({
         ...(accountEpoch === account.revision && {
           account: accountResult.account,
         }),
-        ...models.projectModelSelection(
-          get().cwd,
-          get().projectless,
-          {
-            model: get().model || models.defaults.model,
-            effort: get().effort || models.defaults.effort,
-          },
-          modelList.data,
-        ),
+        ...(!get().current &&
+          models.projectModelSelection(
+            get().cwd,
+            get().projectless,
+            {
+              model: get().model || models.defaults.model,
+              effort: get().effort || models.defaults.effort,
+            },
+            modelList.data,
+          )),
         serviceTier:
           get().serviceTier === undefined
             ? (cfg.service_tier ?? null)

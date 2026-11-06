@@ -134,10 +134,8 @@ export function createThreadNavigation({
         cwd: r.cwd || r.thread.cwd,
         projectless,
         projectlessCwd: null,
-        ...models.projectModelSelection(r.cwd || thread.cwd, projectless, {
-          model: thread.model || models.defaults.model,
-          effort: thread.reasoningEffort || "",
-        }),
+        model: thread.model || models.defaults.model,
+        effort: thread.reasoningEffort || "",
         items: [],
         draft: localStorage.getItem("cx-draft-" + id) || "",
       });
@@ -230,14 +228,10 @@ export function createThreadNavigation({
       });
       if (!current()) return false;
       resumed = true;
-      const modelSelection = models.projectModelSelection(
-        get().cwd,
-        get().projectless,
-        {
-          model: settings.model || get().model,
-          effort: settings.reasoningEffort || "",
-        },
-      );
+      const modelSelection = {
+        model: settings.model || get().model,
+        effort: settings.reasoningEffort || "",
+      };
       set({
         threadAccess: { threadId: id, status: "ready" },
         ...(get().mode === selection.mode &&

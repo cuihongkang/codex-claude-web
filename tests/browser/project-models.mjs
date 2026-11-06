@@ -11,37 +11,46 @@ import { createProjectModels } from "../../server/src/project-models.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const before = process.env.BROWSER_BEFORE === "1";
+const existingModel = process.env.EXISTING_MODEL === "1";
 const serverPersistence = process.env.PROJECT_MODEL_SERVER === "1";
-const build = join(
-  root,
-  before
-    ? serverPersistence
-      ? ".cache/project-model-server-before/dist"
-      : ".cache/project-model-before/dist"
-    : "client/dist",
-);
+const build =
+  process.env.BROWSER_BUILD_DIR ||
+  join(
+    root,
+    existingModel && before
+      ? ".cache/existing-model-before/dist"
+      : before
+        ? serverPersistence
+          ? ".cache/project-model-server-before/dist"
+          : ".cache/project-model-before/dist"
+        : "client/dist",
+  );
 const buildInfo = JSON.parse(
   await readFile(
     join(
       root,
-      before
-        ? serverPersistence
-          ? ".cache/project-model-server-before/build-info.json"
-          : ".cache/project-model-before/build-info.json"
-        : "build-info.json",
+      existingModel && before
+        ? ".cache/existing-model-before/build-info.json"
+        : before
+          ? serverPersistence
+            ? ".cache/project-model-server-before/build-info.json"
+            : ".cache/project-model-before/build-info.json"
+          : "build-info.json",
     ),
     "utf8",
   ),
 );
 const output = join(
   root,
-  serverPersistence
-    ? ".cache/project-model-server-browser"
-    : ".cache/project-model-browser",
+  existingModel
+    ? ".cache/existing-model-browser"
+    : serverPersistence
+      ? ".cache/project-model-server-browser"
+      : ".cache/project-model-browser",
   before ? "before" : "after",
 );
 await mkdir(output, { recursive: true });
-function fixture(serverPersistence) {
+function fixture(serverPersistence, existingModel) {
   if (!sessionStorage.getItem("project-model-fixture")) {
     localStorage.clear();
     localStorage.setItem("cx-current", "project-a");
@@ -51,6 +60,13 @@ function fixture(serverPersistence) {
       JSON.stringify(["/demo/Atlas", "/demo/Beacon"]),
     );
     sessionStorage.setItem("project-model-fixture", "1");
+    if (existingModel)
+      localStorage.setItem(
+        "cx-project-models",
+        JSON.stringify({
+          "/demo/Atlas": { model: "model-c", effort: "high" },
+        }),
+      );
   }
   const models = [
     {
@@ -216,7 +232,7 @@ const server = http.createServer(async (req, res) => {
         .toString()
         .replace(
           "<head>",
-          `<head><script>(${fixture.toString()})(${serverPersistence})</script>`,
+          `<head><script>(${fixture.toString()})(${serverPersistence},${existingModel})</script>`,
         );
     res
       .writeHead(200, {
@@ -426,7 +442,75 @@ try {
       windowsVirtualKeyCode: 27,
     });
   };
-  if (serverPersistence) {
+  if (existingModel) {
+    const expected = before ? "model-c" : "model-a";
+    assert.equal(
+      await evaluate("document.querySelector('[aria-label=模型]').value"),
+      expected,
+    );
+    assert.equal(await effort(), before ? "思考强度：高" : "思考强度：中");
+    await screenshot("existing-thread-open");
+    await screenshot("existing-thread-model", ".composer");
+    await page("Page.reload", {});
+    await waitFor(
+      "document.querySelector('[aria-label=调整思考强度]') && !document.querySelector('[aria-label=消息]').disabled",
+    );
+    assert.equal(
+      await evaluate("document.querySelector('[aria-label=模型]').value"),
+      expected,
+    );
+    await click("[aria-label=消息]");
+    await page("Input.insertText", { text: "继续使用已有对话的模型" });
+    await click("[aria-label=发送消息]");
+    await waitFor("projectFixture.requests.some(m=>m.method==='turn/start')");
+    const params = await evaluate(
+      "projectFixture.requests.findLast(m=>m.method==='turn/start').params",
+    );
+    assert.equal(params.model, expected);
+    assert.equal(params.effort, before ? "high" : "medium");
+    proof.push({
+      stage: "existing-thread-refresh-and-send",
+      model: params.model,
+      effort: params.effort,
+    });
+    if (!before) {
+      await click('[title="在当前目录新建对话"]');
+      await selectModel("model-b");
+      await setEffort(3);
+      await click('[title="在 Beacon 中新建对话"]');
+      await click('[title="在 Atlas 中新建对话"]');
+      assert.equal(
+        await evaluate("document.querySelector('[aria-label=模型]').value"),
+        "model-b",
+      );
+      assert.equal(await effort(), "思考强度：极高");
+      await screenshot("new-thread-project-preference");
+      // 使用已有对话入口重新打开，核对新建界面的选择不会串入历史。
+      await click(".thread-link");
+      await waitFor(
+        "document.querySelector('[aria-label=模型]')?.value==='model-a' && !document.querySelector('[aria-label=消息]').disabled",
+      );
+      assert.equal(await effort(), "思考强度：中");
+      await screenshot("existing-thread-return");
+      proof.push({ stage: "new-thread-choice-isolated", model: "model-a" });
+      await evaluate("localStorage.setItem('cx-theme',JSON.stringify('dark'))");
+      await page("Page.reload", {});
+      await waitFor(
+        "document.querySelector('[aria-label=调整思考强度]') && !document.querySelector('[aria-label=消息]').disabled",
+      );
+      await screenshot("existing-thread-dark");
+      await page("Emulation.setDeviceMetricsOverride", {
+        width: 390,
+        height: 844,
+        deviceScaleFactor: 1,
+        mobile: true,
+      });
+      await waitFor(
+        "document.querySelector('.sidebar').getBoundingClientRect().right <= 1",
+      );
+      await screenshot("existing-thread-mobile");
+    }
+  } else if (serverPersistence) {
     assert.equal(await effort(), "思考强度：极高");
     await click('[title="在当前目录新建对话"]');
     await click("[aria-label=调整思考强度]");
@@ -441,7 +525,7 @@ try {
     );
     proof.push({ stage: "same-project-new-chat", effort: await effort() });
   }
-  if (!serverPersistence || !before) {
+  if (!existingModel && (!serverPersistence || !before)) {
     await setEffort(3);
     assert.equal(await effort(), "思考强度：极高");
     await selectModel("model-b");
@@ -580,10 +664,10 @@ try {
         await waitFor(
           "projectFixture.requests.some(m=>m.method==='thread/resume') && document.querySelector('[aria-label=调整思考强度]')",
         );
-        assert.equal(await effort(), "思考强度：高");
+        assert.equal(await effort(), "思考强度：极高");
         assert.equal(
           await evaluate("document.querySelector('[aria-label=模型]').value"),
-          "model-c",
+          "model-b",
         );
         await click("[aria-label=调整思考强度]");
         await screenshot(
@@ -623,8 +707,8 @@ try {
             await new Promise((resolve) => setTimeout(resolve, 40));
           }
           assert.deepEqual(isolatedSelection, {
-            model: "model-c",
-            effort: "思考强度：高",
+            model: "model-b",
+            effort: "思考强度：极高",
           });
           proof.push({
             stage: "independent-browser-context",

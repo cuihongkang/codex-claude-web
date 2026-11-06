@@ -4,6 +4,7 @@ import { create } from "react-test-renderer";
 
 export async function testConnectionRecovery(app, requests, setResponse, emit) {
   const original = app.get();
+  const preferences = localStorage.getItem("cx-project-models");
   const thread = { id: "recovery-fixture", cwd: "/recovery", createdAt: 1 };
   const turnId = "recovery-turn";
   const answer = (text) => ({
@@ -75,6 +76,12 @@ export async function testConnectionRecovery(app, requests, setResponse, emit) {
       attachments: [{ id: "recovery-attachment", name: "notes.txt" }],
     });
     app.setDraft("重连前的草稿");
+    localStorage.setItem(
+      "cx-project-models",
+      JSON.stringify({
+        [thread.cwd]: { model: "new-chat-model", effort: "low" },
+      }),
+    );
     await act(async () => {
       view = create(
         React.createElement(
@@ -96,6 +103,12 @@ export async function testConnectionRecovery(app, requests, setResponse, emit) {
     });
     const start = requests.length;
     await recover();
+    assert.equal(
+      app.get().model,
+      "selected-model",
+      "重连初始化保留已有对话模型",
+    );
+    assert.equal(app.get().effort, "high", "重连初始化保留已有对话强度");
     assert.equal(app.get().loading, false);
     assert.equal(app.get().items.at(-1).text, "断线前的部分回答");
     assert.equal(view.root.findByProps({ "aria-label": "消息" }), input);
@@ -124,6 +137,7 @@ export async function testConnectionRecovery(app, requests, setResponse, emit) {
     assert.equal(app.get().items.at(-1).text, "断线期间补齐的完整回答");
     assert.equal(app.get().draft, "同步历史时继续编辑草稿");
     assert.equal(app.get().effort, "");
+    assert.equal(app.get().model, "selected-model", "恢复使用对话自身模型");
     assert.equal(app.get().serviceTier, null);
     assert.equal(app.get().threadAccess.status, "ready");
     assert.equal(view.root.findByProps({ "aria-label": "消息" }), input);
@@ -180,6 +194,8 @@ export async function testConnectionRecovery(app, requests, setResponse, emit) {
       app.set(original);
     });
     localStorage.removeItem("cx-draft-" + thread.id);
+    if (preferences === null) localStorage.removeItem("cx-project-models");
+    else localStorage.setItem("cx-project-models", preferences);
   }
   console.log(
     "PASS 重连保留消息与组件状态、草稿附件、历史补齐、实时更新优先及失败与迟到结果隔离",

@@ -93,6 +93,8 @@ package-lock.json      全项目依赖锁文件
 
 项目模型偏好回归执行 `CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，使用生产构建、隔离的 Atlas/Beacon 项目与模拟后端，通过模型选择框和强度滑块的键盘操作验证保留强度、最近档位、项目切换、刷新恢复及实际发送参数，保存桌面深浅主题和手机截图。修改前的构建及来源分别保存在 `.cache/project-model-before/dist` 和 `.cache/project-model-before/build-info.json`，以 `BROWSER_BEFORE=1` 复现切换模型重置强度；执行证据写入 `.cache/project-model-browser/`。组件回归同时覆盖历史及迟到恢复、未分类隔离和选择目录时保留草稿附件。README 图片使用当前生产构建重新生成，并通过 Markdown HTML 浏览器回归检查加载与排版。
 
+已有对话模型隔离回归使用 `EXISTING_MODEL=1 CHROME_PATH=/path/to/chromium node tests/browser/project-models.mjs`，以项目默认模型 C 与已有对话模型 A 的隔离数据验证打开、刷新、实际发送及从新建界面返回已有对话，并保存桌面深浅主题和手机截图。修改前将生产构建和构建来源保存到 `.cache/existing-model-before/dist` 与 `.cache/existing-model-before/build-info.json`，增加 `BROWSER_BEFORE=1` 复现覆盖；证据写入 `.cache/existing-model-browser/`。组件回归另覆盖重连初始化、恢复及迟到响应期间手动调整。README 及其他文档现有截图展示常规对话，模型选择器的外观与布局保持一致，相关图片继续适用。
+
 同项目新建与服务端保存回归增加 `PROJECT_MODEL_SERVER=1`，从历史恢复一个不同于配置默认值的模型和强度，在尚未手动调整时点击右上角新建，断言完整保留当前选择。测试通过临时 `CODEX_HOME` 和实际项目存储模块写入文件，清空浏览器存储后重新加载，并重新创建存储实例核对项目设置。结果写入 `.cache/project-model-server-browser/`；修改前构建与构建来源保存到 `.cache/project-model-server-before/`，配合 `BROWSER_BEFORE=1` 复现回退到配置值。服务端单元及桥接测试覆盖跨项目连续写入、重建恢复、跨连接同步、旧缓存补齐、无效输入和损坏文件保护；组件测试覆盖保存失败重试及当前选择优先。
 
 ```bash
