@@ -134,6 +134,13 @@
   background: var(--bg);
   font: 0.846154rem/var(--ui-line-height) var(--mono);
 }
+.directory-options {
+  display: flex;
+  align-items: center;
+  gap: 0.538462rem;
+  padding: 0 1.384615rem 0.923077rem;
+  font-size: 0.846154rem;
+}
 .directory-list {
   overflow: auto;
   min-height: 18.461538rem;

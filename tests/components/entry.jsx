@@ -18,3 +18,4 @@ export * from "../../client/src/store.js";
 export { SkillsDialog } from "../../client/src/app/tool-dialogs.jsx";
 
 export { InputQueue } from "../../client/src/features/composer/input-queue.jsx";
+export { FolderPicker } from "../../client/src/features/workspace/folder-picker.jsx";
