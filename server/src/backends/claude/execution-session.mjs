@@ -8,6 +8,7 @@ import { modelOptions } from "./model-options.mjs";
 import { captureNativeProcesses } from "./process-ownership.mjs";
 import { createNativeCommands } from "./native-commands.mjs";
 import { providerSettingsEnvironment } from "./provider-environment.mjs";
+import { networkProxyEnvironment } from "../network-proxy.mjs";
 import {
   createProviderTransport,
   providerRuntimeEnvironment,
@@ -89,6 +90,10 @@ export async function createExecutionSession({
         disallowedTools: ["Write", "Edit", "NotebookEdit"],
       }),
       ...options,
+      settings: {
+        ...options.settings,
+        env: networkProxyEnvironment(backend.proxy),
+      },
       extraArgs: { "thinking-display": "summarized" },
       allowDangerouslySkipPermissions: true,
       includePartialMessages: true,

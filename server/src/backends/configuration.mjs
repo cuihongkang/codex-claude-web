@@ -1,5 +1,6 @@
 import { resolve, join } from "node:path";
 import { createStorage } from "./storage.mjs";
+import { validateNetworkProxy } from "./network-proxy.mjs";
 
 export function validateBackend(input, config) {
   if (!["codex", "claude"].includes(input.id) || input.id !== input.type)
@@ -14,6 +15,9 @@ export function validateBackend(input, config) {
     ),
     ...(input.type === "claude" && {
       stateDir: join(config.configDir, "backends", "claude"),
+      ...(input.proxy !== undefined && {
+        proxy: validateNetworkProxy(input.proxy),
+      }),
     }),
     executable: input.type === "claude" ? "claude" : "codex",
     args: [],

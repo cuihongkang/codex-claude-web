@@ -71,6 +71,7 @@ const backend = {
   dataDir: join(directory, "config space"),
   stateDir: join(directory, "web-state"),
   args: [],
+  proxy: { mode: "http", host: "127.0.0.1", port: 9 },
 };
 const config = {
   configDir: directory,
@@ -149,6 +150,9 @@ try {
   ).split("\0");
   assert.ok(environment.includes(`NODE_EXTRA_CA_CERTS=${cert}`));
   assert.ok(environment.includes("NODE_USE_ENV_PROXY=1"));
+  assert.ok(environment.includes("HTTPS_PROXY=http://127.0.0.1:9"));
+  assert.ok(environment.includes("https_proxy=http://127.0.0.1:9"));
+  assert.ok(environment.includes("NO_PROXY=localhost,127.0.0.1,::1"));
   const paths = (await readdir(backend.stateDir)).filter((path) =>
     path.startsWith("worker-environment-"),
   );
@@ -197,6 +201,24 @@ try {
     ).length,
     0,
   );
+  const direct = createClaudeWorkerAdapter({
+    backend: { ...backend, proxy: { mode: "off" } },
+    config,
+    broadcast() {},
+    send: (client, message) => client.deliver(message),
+  });
+  try {
+    await direct.connect();
+    const environment = (
+      await readFile(`/proc/${direct.workerPid}/environ`, "utf8")
+    ).split("\0");
+    assert.ok(environment.includes("HTTP_PROXY="));
+    assert.ok(environment.includes("https_proxy="));
+    assert.ok(environment.includes("NODE_USE_ENV_PROXY=0"));
+  } finally {
+    await direct.shutdown();
+    direct.close();
+  }
   console.log(
     "Claude worker bootstrap environment passed: Node startup CA and env proxy, HTTPS supplier, paths with spaces, private EnvironmentFile and no credentials in argv",
   );

@@ -138,6 +138,33 @@ async function fixture(t, shutdown = async () => {}, installation) {
   };
 }
 
+test("代理保存先保护运行任务，无效端口保持实例，空闲后替换并广播", async (t) => {
+  const f = await fixture(t);
+  const input = {
+    id: "claude",
+    type: "claude",
+    proxy: { mode: "http", host: "127.0.0.1", port: 8080 },
+  };
+  f.adapters[0].snapshot.activeTurns.thread = "turn";
+  await assert.rejects(f.call("lan/backends/save", input), /任务结束/);
+  assert.equal(await readFile(f.path, "utf8"), f.originalBytes);
+  f.adapters[0].snapshot.activeTurns = {};
+  await assert.rejects(
+    f.call("lan/backends/save", {
+      ...input,
+      proxy: { ...input.proxy, port: 0 },
+    }),
+    /代理/,
+  );
+  assert.deepEqual(f.events, []);
+  const result = await f.call("lan/backends/save", input);
+  assert.deepEqual(
+    result.backends.find((b) => b.id === "claude").proxy,
+    input.proxy,
+  );
+  assert.equal(f.adapters.length, 2);
+});
+
 test("starting整理任务拒绝修改配置，持久文件和运行实例保持原值", async (t) => {
   const f = await fixture(t);
   f.adapters[0].snapshot.compactions.thread = { status: "starting" };

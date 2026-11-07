@@ -138,7 +138,7 @@ Claude Code 的对话、配置和原生账户状态继续保存在本机 CLI 原
 
 `/init` 检查并保留当前目录已有的 `AGENTS.md`，缺少时生成项目指令。Claude Code 每次提交读取当前目录及祖先目录的 `AGENTS.override.md` 或 `AGENTS.md`，同目录优先 override，更具体目录的规则优先；文件修改和删除从下一轮生效。已有的 `CLAUDE.md` 继续生效。
 
-后端和供应商配置默认保存至 `CLAUDEX_WEB_CONFIG_DIR/backends.json`，可通过 `CLAUDEX_WEB_BACKENDS_FILE` 指定文件位置。配置包含固定的 `codex`、`claude` 两项，网页只保存启停选择。CLI 程序自动检测，原生配置目录和 Codex 连接地址由服务环境统一取得，旧网页记录中的程序路径、参数及目录覆盖会自动归一化。供应商配置独立保留。变更启停前等待所属后端的任务结束。
+后端和供应商配置默认保存至 `CLAUDEX_WEB_CONFIG_DIR/backends.json`，可通过 `CLAUDEX_WEB_BACKENDS_FILE` 指定文件位置。配置包含固定的 `codex`、`claude` 两项，网页保存启停选择和 Claude Code 网络代理。CLI 程序自动检测，原生配置目录和 Codex 连接地址由服务环境统一取得，旧网页记录中的程序路径、参数及目录覆盖会自动归一化。供应商配置独立保留。变更启停前等待所属后端的任务结束。
 
 ## 配置
 
@@ -265,3 +265,9 @@ Claudex Web 的命令为 `claudex-web`，网页服务为 `claudex-web.service`�
 ### 从双后端测试版回到 3.x
 
 升级前备份原 `codex-web` 网页配置和用户服务文件。首次迁移保留旧配置目录；测试期间对新 `claudex-web` 配置的修改保存在新目录。回到 3.x 前结束两端任务及后台终端，停用 `claudex-web.service`，从稳定版本 Release 重新安装原 `codex-web` 包，再按该版本部署说明恢复旧网页服务。Claude Code 对话继续保存在原生目录，3.x 网页展示 Codex 对话。
+
+### Claude Code 网络代理
+
+Claude Code 的网络代理使用服务器可访问的代理地址和端口，支持 HTTP、HTTPS、关闭及跟随服务环境。HTTP/HTTPS 指代理服务器自身的连接协议；目标网页仍可使用 HTTPS。服务器本机部署的代理可填写 `127.0.0.1`，远端代理填写其主机名或 IP。保存配置前结束 Claude 后端的活动任务及后台终端；保存成功后，后续会话使用新代理。
+
+首次升级沿用服务进程的代理环境；选择关闭会清除继承的代理。本机回环地址直接连接，以便访问本地模型服务。代理影响 Claude 执行服务、模型请求及其原生联网工具；WebFetch 的域名安全检查继续开启。WebSearch 还要求上游提供实际搜索能力，或通过搜索 MCP 接入独立搜索服务。

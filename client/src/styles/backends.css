@@ -67,6 +67,46 @@
 .backend-form button {
   margin-inline-end: 0.5em;
 }
+.modal .proxy-settings {
+  padding: 0;
+  margin-block: 0.5em;
+}
+.proxy-settings + .provider-settings {
+  margin-top: 0.5em;
+}
+.proxy-row,
+.backend-form .proxy-protocol {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.proxy-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.proxy-row button {
+  flex: none;
+  white-space: nowrap;
+}
+.proxy-protocol {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+.proxy-protocol select {
+  width: auto;
+  max-width: 9em;
+}
+.proxy-row .proxy-address {
+  flex: 1 1 7em;
+  width: 0;
+}
+.proxy-row .proxy-port {
+  width: 5.5em;
+}
+.proxy-row button {
+  margin: 0;
+}
 .composer-tools > select {
   font: inherit;
   max-width: 10em;

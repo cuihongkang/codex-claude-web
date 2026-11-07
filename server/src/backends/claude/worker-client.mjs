@@ -7,6 +7,7 @@ import { claudeCapabilities } from "../../../../shared/backend-capabilities.mjs"
 import { hasBackendWork } from "../../../../shared/backend-activity.mjs";
 import { launchWorker, workerLocation } from "./worker-launcher.mjs";
 import { workerRevision } from "./worker-revision.mjs";
+import { networkProxyEnvironment } from "../network-proxy.mjs";
 import {
   captureNativeProcesses,
   nativeProcessesAlive,
@@ -26,32 +27,35 @@ export function createClaudeWorkerAdapter({
   const options = {
     generation: Date.now(),
     backend,
-    runtimeEnv: Object.fromEntries(
-      [
-        "ANTHROPIC_AUTH_TOKEN",
-        "ANTHROPIC_API_KEY",
-        "ANTHROPIC_BASE_URL",
-        "ANTHROPIC_MODEL",
-        "CLAUDE_CODE_EFFORT_LEVEL",
-        "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS",
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "NO_PROXY",
-        "http_proxy",
-        "https_proxy",
-        "all_proxy",
-        "no_proxy",
-        "SSL_CERT_FILE",
-        "SSL_CERT_DIR",
-        "NODE_EXTRA_CA_CERTS",
-        "NODE_USE_ENV_PROXY",
-        "LANG",
-        "LC_ALL",
-      ]
-        .filter((key) => process.env[key] !== undefined)
-        .map((key) => [key, process.env[key]]),
-    ),
+    runtimeEnv: {
+      ...Object.fromEntries(
+        [
+          "ANTHROPIC_AUTH_TOKEN",
+          "ANTHROPIC_API_KEY",
+          "ANTHROPIC_BASE_URL",
+          "ANTHROPIC_MODEL",
+          "CLAUDE_CODE_EFFORT_LEVEL",
+          "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS",
+          "HTTP_PROXY",
+          "HTTPS_PROXY",
+          "ALL_PROXY",
+          "NO_PROXY",
+          "http_proxy",
+          "https_proxy",
+          "all_proxy",
+          "no_proxy",
+          "SSL_CERT_FILE",
+          "SSL_CERT_DIR",
+          "NODE_EXTRA_CA_CERTS",
+          "NODE_USE_ENV_PROXY",
+          "LANG",
+          "LC_ALL",
+        ]
+          .filter((key) => process.env[key] !== undefined)
+          .map((key) => [key, process.env[key]]),
+      ),
+      ...networkProxyEnvironment(backend.proxy),
+    },
     config: Object.fromEntries(
       [
         "codexHome",
@@ -251,6 +255,8 @@ export function createClaudeWorkerAdapter({
           return;
         } catch (error) {
           lastError = error;
+          if (error.code === "EWORKERUPDATE")
+            await launchWorker(backend, options);
         }
         await delay(100);
       }

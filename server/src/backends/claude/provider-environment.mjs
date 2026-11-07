@@ -1,8 +1,9 @@
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import { networkProxyEnvironment } from "../network-proxy.mjs";
 
 export function claudeRuntimeEnvironment(backend) {
-  const env = { ...process.env };
+  const env = { ...process.env, ...networkProxyEnvironment(backend.proxy) };
   const original = resolve(env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"));
   if (resolve(backend.dataDir) !== original)
     env.CLAUDE_CONFIG_DIR = backend.dataDir;
@@ -76,6 +77,7 @@ export function providerSettingsEnvironment(provider, backend, options) {
   const env = providerRuntimeEnvironment(provider, backend, options);
   return {
     ANTHROPIC_AUTH_TOKEN: "",
+    ...networkProxyEnvironment(backend.proxy),
     ...Object.fromEntries(
       Object.entries(env).filter(
         ([key]) =>

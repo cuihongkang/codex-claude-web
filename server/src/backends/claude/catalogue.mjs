@@ -7,6 +7,7 @@ import {
   providerSettingsEnvironment,
 } from "./provider-environment.mjs";
 import { claudeAccountIdentity } from "./account.mjs";
+import { networkProxyEnvironment } from "../network-proxy.mjs";
 
 export function modelRecord(model, providerId = "") {
   return {
@@ -78,6 +79,7 @@ export function createClaudeCatalogue({
         options: {
           cwd,
           env,
+          settings: { env: networkProxyEnvironment(backend.proxy) },
           pathToClaudeCodeExecutable: backend.executable,
           settingSources: ["user", "project", "local"],
           persistSession: false,

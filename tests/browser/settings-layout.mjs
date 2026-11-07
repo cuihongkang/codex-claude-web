@@ -82,7 +82,9 @@ try {
     .first()
     .click();
   await page.getByRole("button", { name: "设置", exact: true }).click();
-  if (before) {
+  if (process.env.PROXY_BEFORE === "1") {
+    await page.screenshot({ path: join(output, "proxy-before.png") });
+  } else if (before) {
     await page.getByText("模型与服务配置", { exact: true }).click();
     await page.getByText("供应商与模型", { exact: true }).click();
     await page.screenshot({ path: join(output, "desktop.png") });
@@ -149,6 +151,80 @@ try {
       "id",
       "type",
     ]);
+    const proxy = page.getByRole("form", { name: "Claude Code 网络代理" });
+    const protocol = proxy.getByLabel("网络代理", { exact: true });
+    assert.equal(
+      await proxy
+        .getByText("用于服务器上的 Claude Code 联网，本机连接直接访问。", {
+          exact: true,
+        })
+        .count(),
+      0,
+    );
+    await protocol.selectOption("http");
+    await proxy.getByLabel("代理地址").fill("proxy.example");
+    await proxy.getByLabel("代理端口").fill("8080");
+    const row = await proxy
+      .locator(".proxy-row")
+      .evaluate((el) =>
+        [...el.querySelectorAll("select,input,button")].map(
+          (control) => control.getBoundingClientRect().top,
+        ),
+      );
+    assert.ok(
+      Math.max(...row) - Math.min(...row) < 3,
+      "桌面代理控件保持同一行",
+    );
+    const spacing = await proxy.evaluate((el) => {
+      const row = el.querySelector(".proxy-row").getBoundingClientRect();
+      const providers = el.nextElementSibling.getBoundingClientRect();
+      return {
+        gap: providers.top - row.bottom,
+        indent: row.left - providers.left,
+        fontSize: parseFloat(getComputedStyle(el).fontSize),
+      };
+    });
+    assert.ok(spacing.gap <= spacing.fontSize, JSON.stringify(spacing));
+    assert.ok(Math.abs(spacing.indent) < 1, JSON.stringify(spacing));
+    await page.evaluate(() => {
+      const original = window.backendSocket.send.bind(window.backendSocket);
+      window.backendSocket.send = (raw) => {
+        const request = JSON.parse(raw);
+        if (request.method === "lan/backends/save" && request.params.proxy) {
+          window.backendSocket.send = original;
+          window.backendSocket.onmessage({
+            data: JSON.stringify({
+              id: request.id,
+              error: {
+                code: -1,
+                message: "请等待此后端的任务结束后修改配置。",
+              },
+            }),
+          });
+        } else original(raw);
+      };
+    });
+    await proxy.getByRole("button", { name: "保存代理" }).click();
+    await proxy.getByRole("alert").filter({ hasText: "任务结束" }).waitFor();
+    assert.equal(await proxy.getByLabel("代理端口").inputValue(), "8080");
+    await proxy.getByRole("button", { name: "保存代理" }).click();
+    await proxy.getByText("代理配置已保存", { exact: true }).waitFor();
+    const proxyWrite = await page.evaluate(() =>
+      window.fixtureRequests.filter((r) => r.params?.proxy).at(-1),
+    );
+    assert.deepEqual(proxyWrite.params.proxy, {
+      mode: "http",
+      host: "proxy.example",
+      port: 8080,
+    });
+    await protocol.selectOption("off");
+    await proxy.getByRole("button", { name: "保存代理" }).click();
+    await proxy.getByText("代理配置已保存", { exact: true }).waitFor();
+    assert.equal(await proxy.getByLabel("代理端口").count(), 0);
+    const disabledWrite = await page.evaluate(() =>
+      window.fixtureRequests.filter((r) => r.params?.proxy).at(-1),
+    );
+    assert.deepEqual(disabledWrite.params.proxy, { mode: "off" });
     const settings = await context.newPage();
     await settings.goto("chrome://settings/appearance");
     const zoom = settings.locator("#zoomLevel");
@@ -169,9 +245,21 @@ try {
             .getByRole("button", { name: "添加供应商", exact: true })
             .waitFor();
           await page.getByText("示例供应商", { exact: true }).waitFor();
-          await page.evaluate((theme) => {
-            document.documentElement.dataset.theme = theme;
-          }, theme);
+          const proxy = page.getByRole("form", {
+            name: "Claude Code 网络代理",
+          });
+          await proxy
+            .getByLabel("网络代理", { exact: true })
+            .selectOption("http");
+          await proxy.getByLabel("代理端口").fill("8080");
+          await page
+            .locator(".theme-options")
+            .getByRole("button", {
+              name: theme === "dark" ? "深色" : "浅色",
+              exact: true,
+            })
+            .click();
+          await proxy.scrollIntoViewIfNeeded();
           const metrics = await page
             .locator(".settings-body")
             .evaluate((el) => ({
@@ -188,6 +276,7 @@ try {
           );
           await page.screenshot({
             path: join(output, width + "-" + theme + "-" + scale + ".png"),
+            animations: "disabled",
           });
         }
       }

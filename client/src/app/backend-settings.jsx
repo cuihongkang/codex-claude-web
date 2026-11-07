@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useStore, saveBackend, rpc } from "../store.js";
 import { CodexModelSettings } from "./codex-model-settings.jsx";
 import { ProviderSettings } from "./provider-settings.jsx";
+import { ProxySettings } from "./proxy-settings.jsx";
 
 export function BackendSettings() {
   const s = useStore();
@@ -97,7 +98,10 @@ export function BackendSettings() {
               <CodexModelSettings backend={backend} />
             )}
             {backend.type === "claude" && (
-              <ProviderSettings backend={backend} />
+              <>
+                <ProxySettings backend={backend} disabled={working} />
+                <ProviderSettings backend={backend} />
+              </>
             )}
           </section>
         );
