@@ -324,15 +324,18 @@ export async function createExecutionSession({
           }
         }
         const finalMessage =
-          message.type === "assistant" && stopReasons.has(message.message?.id)
-            ? {
-                ...message,
-                message: {
-                  ...message.message,
-                  stop_reason: stopReasons.get(message.message.id),
-                },
-              }
-            : message;
+          message.type === "user" && !active.inputIds.has(message.uuid)
+            ? { ...message, isSynthetic: true }
+            : message.type === "assistant" &&
+                stopReasons.has(message.message?.id)
+              ? {
+                  ...message,
+                  message: {
+                    ...message.message,
+                    stop_reason: stopReasons.get(message.message.id),
+                  },
+                }
+              : message;
         const messageId = message.message?.id || message.uuid;
         const blockOffset = blockOffsets.get(messageId) || 0;
         if (message.type === "assistant")

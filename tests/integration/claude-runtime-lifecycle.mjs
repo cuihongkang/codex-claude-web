@@ -9,6 +9,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createClaudeRuntime } from "../../server/src/backends/claude/runtime.mjs";
 import { createStorage } from "../../server/src/backends/storage.mjs";
 import { createCompactions } from "../../server/src/compaction.mjs";
+import { createSessionReader } from "../../server/src/backends/claude/history.mjs";
+import { historyTurns } from "../../server/src/backends/claude/messages.mjs";
 import { messagesServer } from "../helpers/claude-messages-server.mjs";
 
 const dir = await mkdtemp(join(tmpdir(), "claude-runtime-lifecycle-"));
@@ -354,6 +356,63 @@ try {
     "interrupted",
   );
 
+  const readSession = createSessionReader({ dataDir: join(dir, "config") });
+  const nativeHistory = await readSession("getSessionMessages", id, {
+    dir: cwd,
+    includeSystemMessages: true,
+  });
+  assert.ok(
+    nativeHistory.some(
+      (message) =>
+        message.type === "user" &&
+        JSON.stringify(message.message.content).includes(
+          "[Request interrupted by user]",
+        ),
+    ),
+    "真实 CLI 已写入中断附加记录",
+  );
+  const restoredUsers = historyTurns(nativeHistory)
+    .flatMap((turn) => turn.items)
+    .filter((item) => item.type === "userMessage");
+  assert.ok(
+    restoredUsers.every(
+      (item) =>
+        !JSON.stringify(item.content).includes("[Request interrupted by user]"),
+    ),
+    "真实 SDK 历史恢复保持中断附加记录的内部归属",
+  );
+  assert.ok(
+    events
+      .filter((event) => event.method === "item/completed")
+      .every(
+        (event) =>
+          event.params.item.type !== "userMessage" ||
+          !JSON.stringify(event.params.item.content).includes(
+            "[Request interrupted by user]",
+          ),
+      ),
+    "实时展示保持中断附加记录的内部归属",
+  );
+  respond = () => [{ type: "text", text: "已收到原文引用" }];
+  const quoted = await send("[Request interrupted by user]");
+  await completed(quoted.turn.id);
+  const quotedHistory = await readSession("getSessionMessages", id, {
+    dir: cwd,
+    includeSystemMessages: true,
+  });
+  assert.equal(
+    historyTurns(quotedHistory)
+      .flatMap((turn) => turn.items)
+      .filter(
+        (item) =>
+          item.type === "userMessage" &&
+          JSON.stringify(item.content).includes(
+            "[Request interrupted by user]",
+          ),
+      ).length,
+    1,
+    "用户主动提交相同正文时，真实 SDK 历史只保留该用户输入",
+  );
   let goalAttempts = 0;
   respond = (body) => {
     if (

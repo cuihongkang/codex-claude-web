@@ -43,6 +43,14 @@ try {
     return uuid;
   };
   const human = append("user", "检查后台任务", { origin: { kind: "human" } });
+  const sdkSource = {
+    entrypoint: "sdk-ts",
+    promptId: randomUUID(),
+    promptSource: "sdk",
+    turnOrigin: "sdk",
+    turnPosition: { promptIndex: 0, turnIndex: 1 },
+  };
+  const sdkHuman = append("user", "检查原生中断", sdkSource);
   const notification = append(
     "user",
     "<task-notification><task-id>fixture</task-id><summary>检查完成</summary></task-notification>",
@@ -51,9 +59,18 @@ try {
   const interrupt = append("user", "[Request interrupted by user]", {
     isVisibleInTranscriptOnly: true,
   });
+  const unmarkedInterrupt = append("user", "[Request interrupted by user]", {
+    entrypoint: "sdk-ts",
+    promptId: sdkSource.promptId,
+    userType: "external",
+  });
   append("assistant", [{ type: "text", text: "后台检查已完成。" }]);
   const quote = append("user", "[Request interrupted by user]", {
     origin: { kind: "human" },
+  });
+  const sdkQuote = append("user", "[Request interrupted by user]", {
+    ...sdkSource,
+    promptId: randomUUID(),
   });
   await writeFile(
     join(directory, sessionId + ".jsonl"),
@@ -72,15 +89,19 @@ try {
     messages.find((m) => m.uuid === interrupt).isVisibleInTranscriptOnly,
     true,
   );
+  assert.equal(
+    messages.find((m) => m.uuid === unmarkedInterrupt).entrypoint,
+    "sdk-ts",
+  );
   const turns = historyTurns(messages);
   const users = turns
     .flatMap((t) => t.items)
     .filter((i) => i.type === "userMessage");
   assert.deepEqual(
     users.map((i) => i.id),
-    [human, quote],
+    [human, sdkHuman, quote, sdkQuote],
   );
-  assert.equal(turns.length, 2);
+  assert.equal(turns.length, 4);
   console.log(
     "PASS 真实 SDK 读取保留原生来源，后台通知和中断记录独立于用户正文",
   );

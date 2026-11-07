@@ -9,10 +9,9 @@ import { historyTurns } from "../../server/src/backends/claude/messages.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const before = process.env.BROWSER_BEFORE === "1";
-const build = join(
-  root,
-  before ? ".cache/regression-before/dist" : "client/dist",
-);
+const build =
+  process.env.UI_BUILD_DIR ||
+  join(root, before ? ".cache/regression-before/dist" : "client/dist");
 const output = join(
   root,
   ".cache/backend-regressions",
@@ -35,7 +34,9 @@ const native = [
   {
     type: "user",
     uuid: "interruption",
-    isVisibleInTranscriptOnly: true,
+    entrypoint: "sdk-ts",
+    promptId: "original-request",
+    userType: "external",
     message: { content: "[Request interrupted by user]" },
   },
   {
@@ -48,24 +49,28 @@ const native = [
     },
   },
 ];
-const claudeItems = before
-  ? native.map((m) =>
-      m.type === "user"
-        ? {
-            id: m.uuid,
-            turnId: "human",
-            type: "userMessage",
-            content: [{ type: "text", text: m.message.content }],
-          }
-        : {
-            id: "reply",
-            turnId: "human",
-            type: "agentMessage",
-            phase: "final_answer",
-            text: "后台检查已完成。",
-          },
-    )
-  : historyTurns(native).flatMap((t) => t.items);
+const claudeItems = process.env.CLAUDE_MESSAGE_MODULE
+  ? (await import(pathToFileURL(process.env.CLAUDE_MESSAGE_MODULE)))
+      .historyTurns(native)
+      .flatMap((turn) => turn.items)
+  : before
+    ? native.map((m) =>
+        m.type === "user"
+          ? {
+              id: m.uuid,
+              turnId: "human",
+              type: "userMessage",
+              content: [{ type: "text", text: m.message.content }],
+            }
+          : {
+              id: "reply",
+              turnId: "human",
+              type: "agentMessage",
+              phase: "final_answer",
+              text: "后台检查已完成。",
+            },
+      )
+    : historyTurns(native).flatMap((t) => t.items);
 
 const server = http.createServer(async (req, res) => {
   if (serveDemoSession(req, res)) return;
@@ -198,6 +203,22 @@ try {
         .count(),
       0,
     );
+    await page.reload();
+    await page.locator(".user-bubble li").first().waitFor();
+    const claudeGroup = page.locator(".project-group").filter({
+      has: page.locator('button[title="/demo/project"]'),
+    });
+    await claudeGroup.locator(".project-heading > button:first-child").click();
+    await page.getByText("Claude 原生消息归属", { exact: true }).click();
+    await page.getByText("后台检查已完成。", { exact: true }).waitFor();
+    assert.equal(await page.locator(".user-bubble").count(), 1);
+    await capture("claude-history-reloaded");
+    await page.evaluate(
+      () => (document.documentElement.dataset.theme = "dark"),
+    );
+    await capture("claude-history-dark");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await capture("claude-history-mobile");
     await page.reload();
     await page.locator(".user-bubble li").first().waitFor();
     assert.equal(await page.locator(".user-bubble li").count(), 2);

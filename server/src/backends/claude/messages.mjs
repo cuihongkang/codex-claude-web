@@ -169,6 +169,15 @@ export function isUserPrompt(message) {
     !message.isVisibleInTranscriptOnly &&
     !message.isSynthetic &&
     message.origin?.kind !== "task-notification" &&
+    // SDK 提交的输入带有来源或轮次归属；同一 promptId 下的原生附加记录仅继承入口。
+    !(
+      message.entrypoint === "sdk-ts" &&
+      message.promptId &&
+      !message.promptSource &&
+      !message.turnOrigin &&
+      !message.turnPosition &&
+      !message.origin
+    ) &&
     contentBlocks(message).some((block) =>
       ["text", "image"].includes(block.type),
     )

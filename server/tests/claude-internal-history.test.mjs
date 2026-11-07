@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   historyTurns,
+  convertMessage,
+  isUserPrompt,
   visibleSessionMessages,
 } from "../src/backends/claude/messages.mjs";
 
@@ -66,6 +68,46 @@ test("native internal local commands preserve visible history and activity time"
   assert.ok(
     manual.some((message) => message.uuid === "internal-command"),
     "a user's matching command stays visible without an internal UUID registration",
+  );
+});
+
+test("SDK 中断附加记录按实际来源归类，保留主动提交的同文输入与工具结果", () => {
+  const message = {
+    type: "user",
+    uuid: "native-interruption",
+    promptId: "native-prompt",
+    entrypoint: "sdk-ts",
+    userType: "external",
+    message: {
+      content: [{ type: "text", text: "[Request interrupted by user]" }],
+    },
+  };
+  assert.equal(isUserPrompt(message), false);
+  assert.deepEqual(convertMessage(message, "turn"), []);
+  assert.equal(historyTurns([message]).length, 0);
+  for (const source of [
+    { promptSource: "sdk" },
+    { turnOrigin: "sdk" },
+    { turnPosition: { promptIndex: 0, turnIndex: 1 } },
+    { origin: { kind: "human" } },
+  ]) {
+    assert.equal(isUserPrompt({ ...message, ...source }), true);
+  }
+  const tools = new Map([["tool", { id: "tool", type: "dynamicToolCall" }]]);
+  assert.equal(
+    convertMessage(
+      {
+        ...message,
+        message: {
+          content: [
+            { type: "tool_result", tool_use_id: "tool", content: "完成" },
+          ],
+        },
+      },
+      "turn",
+      tools,
+    )[0].status,
+    "completed",
   );
 });
 
