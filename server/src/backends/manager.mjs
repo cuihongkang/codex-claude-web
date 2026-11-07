@@ -227,6 +227,15 @@ export function createBackendManager({
   async function saveBackend(params, prepare) {
     validateBackend(params, config);
     const old = instances.get(params.id);
+    if (params.hiddenModels !== undefined && params.enabled === undefined) {
+      if (params.id !== "codex") throw new Error("模型显示配置仅用于 Codex");
+      old.backend = await configuration.save({
+        ...old.backend,
+        hiddenModels: params.hiddenModels,
+      });
+      emitState();
+      return { backends: publicBackends() };
+    }
     const snapshot = old?.adapter?.state().params;
     if (hasBackendWork(snapshot))
       throw new Error("请等待此后端的任务结束后修改配置。");

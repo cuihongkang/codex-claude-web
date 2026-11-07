@@ -34,3 +34,61 @@ test("明确为空的强度列表清理旧选择，缺失列表继续保留历�
   assert.equal(compatibleEffort("high", { supportedReasoningEfforts: [] }), "");
   assert.equal(compatibleEffort("high", undefined), "high");
 });
+
+test("项目偏好按当前模型目录校验，失效配置及空目录清除旧选择", async (t) => {
+  const { createModelPreferences } =
+    await import("../src/application/models.js");
+  const original = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: () =>
+      JSON.stringify({ "/demo": { model: "old-vendor", effort: "max" } }),
+  };
+  t.after(() => {
+    globalThis.localStorage = original;
+  });
+  const preferences = createModelPreferences({
+    get: () => ({ backendId: "claude" }),
+  });
+  const models = [
+    { model: "first", supportedReasoningEfforts: [] },
+    { model: "default", isDefault: true, supportedReasoningEfforts: [] },
+  ];
+  assert.deepEqual(
+    preferences.projectModelSelection(
+      "/demo",
+      false,
+      { model: "first" },
+      models,
+    ),
+    { model: "first", effort: "" },
+  );
+  assert.equal(
+    preferences.projectModelSelection(
+      "/demo",
+      false,
+      { model: "missing" },
+      models,
+    ).model,
+    "default",
+  );
+  assert.equal(
+    preferences.projectModelSelection("/demo", false, {}, models.slice(0, 1))
+      .model,
+    "first",
+  );
+  assert.deepEqual(
+    preferences.projectModelSelection(
+      "/demo",
+      false,
+      { model: "missing", effort: "high" },
+      [],
+    ),
+    { model: "", effort: "" },
+  );
+  assert.equal(
+    preferences.projectModelSelection("/demo", false, {}, [
+      { model: "old-vendor" },
+    ]).model,
+    "old-vendor",
+  );
+});

@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { Settings } from "lucide-react";
 import { useStore, set, refreshUsage } from "../../store.js";
 import {
+  quotaSnapshot,
   quotaCreditsText,
   quotaExtraUsageText,
   quotaLabel,
@@ -131,6 +132,15 @@ export function AccountFooter() {
 
   const windows = quotaWindows(s.usage);
   const hasWindows = windows.length > 0;
+  const balances = quotaSnapshot(s.usage)?.balances || [];
+  const money = (value, currency) =>
+    Number(value).toLocaleString("zh-CN", {
+      style: "currency",
+      currency,
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   const credits = quotaCreditsText(s.usage);
   const extraUsage = quotaExtraUsageText(s.usage);
   const plan = quotaPlan(s.account, s.usage);
@@ -140,7 +150,10 @@ export function AccountFooter() {
   const apiAccount = s.account && !quotaEnabled;
   const stale =
     (s.usageError || !connected) &&
-    (hasWindows || credits !== null || extraUsage !== null);
+    (hasWindows ||
+      balances.length > 0 ||
+      credits !== null ||
+      extraUsage !== null);
   return (
     <div
       className="account-card"
@@ -174,6 +187,32 @@ export function AccountFooter() {
             {plan && <span className="account-plan">{plan}</span>}
           </div>
           <UsageMeters usage={s.usage} />
+          {balances.map((balance) => (
+            <div key={balance.currency}>
+              <div className="quota-credits">
+                <span>账户余额</span>
+                <b>{money(balance.total_balance, balance.currency)}</b>
+              </div>
+              <div className="quota-credits">
+                <span>赠金余额</span>
+                <span>{money(balance.granted_balance, balance.currency)}</span>
+              </div>
+              <div className="quota-credits">
+                <span>充值余额</span>
+                <span>
+                  {money(balance.topped_up_balance, balance.currency)}
+                </span>
+              </div>
+            </div>
+          ))}
+          {quotaSnapshot(s.usage)?.balanceAvailable === false && (
+            <p role="status">当前余额无法用于 API 调用</p>
+          )}
+          {s.usageError && (
+            <button onClick={() => refreshUsage()} disabled={s.usageLoading}>
+              重试读取
+            </button>
+          )}
           {credits !== null && (
             <div className="quota-credits">
               <span>剩余点数</span>
@@ -186,23 +225,26 @@ export function AccountFooter() {
               <b>{extraUsage}</b>
             </div>
           )}
-          {!hasWindows && credits === null && extraUsage === null && (
-            <p
-              className="quota-empty"
-              role="status"
-              title={s.usageError || undefined}
-            >
-              {apiAccount
-                ? "当前使用 API 账户"
-                : !s.connected
-                  ? "连接后自动读取额度"
-                  : s.usageError
-                    ? "额度暂时不可用"
-                    : s.usageLoading || !s.usage
-                      ? "正在读取额度…"
-                      : "暂无额度数据"}
-            </p>
-          )}
+          {!hasWindows &&
+            !balances.length &&
+            credits === null &&
+            extraUsage === null && (
+              <p
+                className="quota-empty"
+                role="status"
+                title={s.usageError || undefined}
+              >
+                {apiAccount
+                  ? "当前使用 API 账户"
+                  : !s.connected
+                    ? "连接后自动读取额度"
+                    : s.usageError
+                      ? "额度暂时不可用"
+                      : s.usageLoading || !s.usage
+                        ? "正在读取额度…"
+                        : "暂无额度数据"}
+              </p>
+            )}
         </section>
       )}
       <div className="account-row">
@@ -280,7 +322,11 @@ export function AccountFooter() {
             {!hasWindows && (
               <span className="quota-summary">
                 <span className="quota-ring quota-ring-empty" />
-                <span className="quota-number">—</span>
+                <span className="quota-number">
+                  {balances.length
+                    ? money(balances[0].total_balance, balances[0].currency)
+                    : "—"}
+                </span>
               </span>
             )}
           </button>

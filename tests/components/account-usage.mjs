@@ -286,6 +286,39 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
     );
     assert.equal(resets.size, 1, "Claude 原生窗口到期时安排自动校准");
     assert.equal(intervals.size, 1);
+    result = {
+      rateLimits: {
+        limitId: "deepseek",
+        windows: [],
+        balances: [
+          {
+            currency: "CNY",
+            total_balance: "12.50",
+            granted_balance: "2.5",
+            topped_up_balance: "10",
+          },
+        ],
+      },
+    };
+    setResponse(({ method }) =>
+      method === "account/rateLimits/read" ? result : {},
+    );
+    await act(async () =>
+      app.set({
+        providerId: "deepseek",
+        account: { type: "provider", usageSupported: true },
+        usage: null,
+      }),
+    );
+    assert.equal(toggle().props["aria-expanded"], false);
+    assert.match(text(), /¥12\.50/);
+    await act(async () => toggle().props.onClick());
+    assert.match(text(), /账户余额/);
+    assert.match(text(), /赠金余额/);
+    assert.match(text(), /充值余额/);
+    await act(async () => app.set({ usageError: "查询失败" }));
+    assert.match(text(), /待更新/);
+    assert.match(text(), /¥12\.50/);
     const beforeClaude = count();
     await act(async () =>
       app.set({

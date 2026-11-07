@@ -203,3 +203,19 @@
   flex: none;
   cursor: pointer;
 }
+
+.codex-model-options {
+  display: grid;
+  gap: 0.4em;
+  padding-block: 0.25em 0.65em;
+}
+.codex-model-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  overflow-wrap: anywhere;
+}
+.codex-model-options input {
+  margin: 0;
+  flex: none;
+}

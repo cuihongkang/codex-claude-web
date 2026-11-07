@@ -1,3 +1,8 @@
+import {
+  supportsProviderBalance,
+  readProviderBalance,
+} from "./provider-balance.mjs";
+
 export function claudeAccountIdentity(native, provider) {
   if (provider)
     return {
@@ -6,7 +11,7 @@ export function claudeAccountIdentity(native, provider) {
       providerName: provider.name,
       name: provider.name,
       apiProvider: "configured",
-      usageSupported: false,
+      usageSupported: supportsProviderBalance(provider),
     };
   const hasToken = Boolean(native.tokenSource && native.tokenSource !== "none");
   const hasApiKey = Boolean(
@@ -120,6 +125,17 @@ export function createClaudeAccount({
   }
   async function rateLimits(params = {}) {
     const context = await contexts(params);
+    if (context.provider && supportsProviderBalance(context.provider)) {
+      const key = context.provider.id + ":" + context.provider.apiKey;
+      if (!pending.has(key))
+        pending.set(
+          key,
+          readProviderBalance(context.provider).finally(() =>
+            pending.delete(key),
+          ),
+        );
+      return pending.get(key);
+    }
     if (context.provider)
       return {
         rateLimits: null,

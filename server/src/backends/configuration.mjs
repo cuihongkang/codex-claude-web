@@ -28,6 +28,13 @@ export function validateBackend(input, config) {
     )
       throw new Error("跨主机后端必须使用 WSS");
     backend.url = url.href;
+    if (
+      input.hiddenModels !== undefined &&
+      (!Array.isArray(input.hiddenModels) ||
+        input.hiddenModels.some((id) => typeof id !== "string" || !id.trim()))
+    )
+      throw new Error("隐藏模型列表无效");
+    backend.hiddenModels = [...new Set(input.hiddenModels || [])];
   }
   return backend;
 }
@@ -63,7 +70,10 @@ export function createBackendConfiguration(config) {
     },
   );
   async function save(input) {
-    const backend = validateBackend(input, config);
+    const previous = (await storage.read()).backends.find(
+      (b) => b.id === input.id,
+    );
+    const backend = validateBackend({ ...previous, ...input }, config);
     await storage.update((data) => ({
       ...data,
       backends: [...data.backends.filter((b) => b.id !== backend.id), backend],
@@ -87,6 +97,7 @@ export function createBackendConfiguration(config) {
       backends: ["codex", "claude"].map((id) =>
         validateBackend(
           {
+            ...data.backends.find((b) => b.id === id),
             id,
             type: id,
             enabled: data.backends.find((b) => b.id === id)?.enabled ?? false,

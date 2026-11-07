@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useStore, saveBackend, rpc } from "../store.js";
+import { CodexModelSettings } from "./codex-model-settings.jsx";
 import { ProviderSettings } from "./provider-settings.jsx";
 
 export function BackendSettings() {
@@ -91,6 +92,9 @@ export function BackendSettings() {
                   cli.error ||
                   backend.error}
               </p>
+            )}
+            {backend.type === "codex" && (
+              <CodexModelSettings backend={backend} />
             )}
             {backend.type === "claude" && (
               <ProviderSettings backend={backend} />

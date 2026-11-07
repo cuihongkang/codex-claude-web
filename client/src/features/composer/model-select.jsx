@@ -11,8 +11,13 @@ const key = (choice) =>
   JSON.stringify([choice.backendId, choice.providerId, choice.model]);
 export function ModelSelect() {
   const s = useStore();
+  const hidden = s.backends.find((b) => b.id === "codex")?.hiddenModels || [];
+  const visible = (model, backendId) =>
+    backendId !== "codex" || !hidden.includes(model.model);
   const choices = (s.modelChoices || []).filter(
-    (choice) => !s.current || choice.backendId === s.backendId,
+    (choice) =>
+      (!s.current || choice.backendId === s.backendId) &&
+      visible(choice, choice.backendId),
   );
   const current = choices.find(
     (choice) =>
@@ -40,9 +45,18 @@ export function ModelSelect() {
           }
         }}
       >
-        {choices.length ? (
+        {choices.length ||
+        (s.backendId === "codex" && hidden.includes(s.model)) ? (
           <>
-            {!current && s.model && <option value={s.model}>{s.model}</option>}
+            {!current && (
+              <option value={s.model} disabled>
+                {s.model
+                  ? hidden.includes(s.model) && s.backendId === "codex"
+                    ? `当前模型已隐藏：${s.model}`
+                    : `当前模型不可用：${s.model}`
+                  : "请选择模型"}
+              </option>
+            )}
             {choices.map((choice) => (
               <option
                 key={key(choice)}
@@ -57,11 +71,13 @@ export function ModelSelect() {
             ))}
           </>
         ) : (
-          s.models.map((model) => (
-            <option key={model.id} value={model.model}>
-              {model.displayName || model.model}
-            </option>
-          ))
+          s.models
+            .filter((model) => visible(model, s.backendId))
+            .map((model) => (
+              <option key={model.id} value={model.model}>
+                {model.displayName || model.model}
+              </option>
+            ))
         )}
       </select>
       <ChevronDown size={12} />

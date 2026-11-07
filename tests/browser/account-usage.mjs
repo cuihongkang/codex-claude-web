@@ -111,6 +111,15 @@ function fixture() {
         () =>
           data.emit("lan/state", {
             ready: true,
+            backends: [
+              {
+                id: "codex",
+                type: "codex",
+                name: "Codex",
+                enabled: true,
+                ready: true,
+              },
+            ],
             defaultCwd: "/demo/claudex-web",
             activeTurns: {},
             questions: [],
@@ -144,6 +153,19 @@ function fixture() {
             },
           ],
         };
+      if (m.method === "lan/backends/list")
+        result = {
+          backends: [
+            {
+              id: "codex",
+              type: "codex",
+              name: "Codex",
+              enabled: true,
+              ready: true,
+            },
+          ],
+        };
+      if (m.method === "lan/providers/list") result = { providers: [] };
       if (m.method === "config/read") result = { config: {} };
       if (m.method === "thread/list")
         result = { data: threads, nextCursor: null };
@@ -503,9 +525,24 @@ try {
     await waitFor("document.querySelector('.modal-settings')");
     assert(
       await evaluate(
-        "!document.querySelector('.settings-account') && !document.querySelector('.settings-body progress') && !document.querySelector('.settings-body').textContent.includes('账户与用量') && ['外观','快捷键','关于'].every(text=>document.querySelector('.settings-body').textContent.includes(text))",
+        "!document.querySelector('.settings-account') && !document.querySelector('.settings-body progress') && !document.querySelector('.settings-body').textContent.includes('账户与用量') && ['外观','关于'].every(text=>document.querySelector('.settings-body').textContent.includes(text))",
       ),
     );
+    await waitFor("document.querySelector('.codex-model-settings')");
+    assert.equal(
+      await evaluate("document.querySelector('.codex-model-settings').open"),
+      false,
+    );
+    await click(".codex-model-settings > summary");
+    await waitFor("document.querySelector('.codex-model-options input')");
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.codex-model-settings').querySelector('fieldset,small') === null",
+      ),
+      true,
+    );
+    await screenshot("settings-models-expanded");
+    await click(".codex-model-settings > summary");
     await screenshot("settings-plus");
     await click('.modal-heading button[title="关闭窗口"]');
 

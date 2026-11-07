@@ -136,10 +136,17 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
     const selection = Object.hasOwn(preferences, key)
       ? preferences[key]
       : fallback;
-    const model = models.find((entry) => entry.model === selection.model);
+    const model =
+      models.find((entry) => entry.model === selection.model) ||
+      models.find((entry) => entry.model === fallback.model) ||
+      models.find((entry) => entry.isDefault) ||
+      models[0];
     return {
-      model: selection.model,
-      effort: compatibleEffort(selection.effort, model),
+      model: model?.model || "",
+      effort: compatibleEffort(
+        model?.model === selection.model ? selection.effort : fallback.effort,
+        model || { supportedReasoningEfforts: [] },
+      ),
     };
   }
 
