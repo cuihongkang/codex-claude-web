@@ -6,7 +6,7 @@
 
 ### 新增
 
-- Claude Code 设置支持关闭代理、跟随服务环境或配置 HTTP/HTTPS 代理地址与端口，供原生 WebFetch 等联网功能使用。
+- Claude Code 设置支持关闭代理、跟随服务环境或配置 HTTP 代理地址与端口，通过 CONNECT 访问 HTTPS 网页，供原生 WebFetch 等联网功能使用。
 
 - Codex 设置支持选择模型菜单中显示的模型，隐藏偏好跨页面保存。
 - DeepSeek 账户行显示 API 余额，可展开查看赠金和充值余额，自动更新并在失败后保留上次余额。

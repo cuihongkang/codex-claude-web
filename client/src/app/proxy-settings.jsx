@@ -8,7 +8,7 @@ export function ProxySettings({ backend, disabled }) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const custom = ["http", "https"].includes(mode);
+  const custom = mode === "http";
   useEffect(() => {
     setMode(backend.proxy?.mode || "system");
     setHost(backend.proxy?.host || "127.0.0.1");
@@ -53,7 +53,6 @@ export function ProxySettings({ backend, disabled }) {
             <option value="system">跟随服务环境</option>
             <option value="off">关闭代理</option>
             <option value="http">HTTP</option>
-            <option value="https">HTTPS</option>
           </select>
         </label>
         {custom && (

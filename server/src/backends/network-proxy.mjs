@@ -14,12 +14,14 @@ export function validateNetworkProxy(input) {
   if (!input || !["system", "off", "http", "https"].includes(input.mode))
     throw new Error("请选择有效的代理协议或关闭代理");
   if (["system", "off"].includes(input.mode)) return { mode: input.mode };
+  // 旧版 HTTPS 选项迁移为通过 HTTP CONNECT 访问 HTTPS 网页。
+  const mode = "http";
   const host = String(input.host || "").trim();
   const port = Number(input.port);
   if (!host || /[\s/@?#\\]/.test(host)) throw new Error("请填写有效的代理地址");
   let url;
   try {
-    url = new URL(`${input.mode}://${host}:${port}`);
+    url = new URL(`${mode}://${host}:${port}`);
   } catch {
     throw new Error("请填写有效的代理地址和端口");
   }
@@ -30,10 +32,11 @@ export function validateNetworkProxy(input) {
     port > 65535
   )
     throw new Error("代理端口须为 1～65535 的整数，地址只填写主机名或 IP");
-  return { mode: input.mode, host: url.hostname, port };
+  return { mode, host: url.hostname, port };
 }
 
 export function networkProxyEnvironment(proxy) {
+  proxy = validateNetworkProxy(proxy);
   if (!proxy || proxy.mode === "system") return {};
   const cleared = Object.fromEntries(proxyKeys.map((key) => [key, ""]));
   if (proxy.mode === "off") return { ...cleared, NODE_USE_ENV_PROXY: "0" };
