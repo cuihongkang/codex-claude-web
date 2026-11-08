@@ -4,20 +4,16 @@
 
 ## 安装发行包
 
-<!-- prerelease:start -->
-
-预发布版 [v4.0.0-beta.1](https://github.com/hjd-hitsz/claudex-web/releases/tag/v4.0.0-beta.1) 供主动选择测试通道的使用者安装，后续持续迭代。
+稳定版 [v4.0.0](https://github.com/hjd-hitsz/claudex-web/releases/tag/v4.0.0)：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/v4.0.0-beta.1/claudex-web-4.0.0-beta.1.tgz
+npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/v4.0.0/claudex-web-4.0.0.tgz
 ```
 
-<!-- prerelease:end -->
-
-稳定版 [v3.1.1](https://github.com/hjd-hitsz/claudex-web/releases/tag/v3.1.1) 保留原有 `codex-web-3.1.1.tgz` 附件及命令。本文的 `claudex-web` 命令适用于双后端测试版；准备 Node.js 24+、npm、Codex CLI、OpenSSL、Linux PAM、`pamtester`、`/usr/bin/zsh` 和 systemd 后，以运行代理后端的普通用户安装：
+准备 Node.js 24+、npm、Codex CLI、OpenSSL、Linux PAM、`pamtester`、`/usr/bin/zsh` 和 systemd 后，以运行代理后端的普通用户安装：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/v4.0.0-beta.1/claudex-web-4.0.0-beta.1.tgz
+npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/v4.0.0/claudex-web-4.0.0.tgz
 claudex-web service install
 loginctl enable-linger "$USER"
 claudex-web service status
@@ -33,8 +29,8 @@ curl --cacert "${CLAUDEX_WEB_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/claud
 从目标版本 Release 下载 `.tgz` 和同名 `.sha256` 文件，将两者放在同一目录，然后执行：
 
 ```bash
-sha256sum -c claudex-web-4.0.0-beta.1.tgz.sha256
-npm install -g ./claudex-web-4.0.0-beta.1.tgz
+sha256sum -c claudex-web-4.0.0.tgz.sha256
+npm install -g ./claudex-web-4.0.0.tgz
 claudex-web service install
 ```
 
@@ -196,7 +192,7 @@ journalctl --user -u 'claudex-web-claude-*' -n 100 --no-pager
 从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g ./claudex-web-4.0.0-beta.1.tgz
+npm install -g ./claudex-web-4.0.0.tgz
 claudex-web service install
 claudex-web service restart-when-idle
 ```
@@ -258,16 +254,16 @@ systemctl --user restart codex-app-server.service claudex-web.service
 
 Claudex Web 的命令为 `claudex-web`，网页服务为 `claudex-web.service`，默认配置目录为 `~/.config/claudex-web`；可用 `CLAUDEX_WEB_CONFIG_DIR` 指定其他位置，`CLAUDEX_WEB_BACKENDS_FILE` 指定后端配置文件。原生 Codex 与 Claude Code 的配置和历史沿用各自目录。
 
-双后端测试版使用本页顶部的预发布安装地址。已发布的 Codex Web 安装包继续使用原有名称与命令。
+Claudex Web 4.0.0 使用本页顶部的正式版安装地址。已发布的 Codex Web 安装包继续使用原有名称与命令。
 
 升级前结束运行中的任务与终端，保存文件，再执行 `systemctl --user disable --now codex-lan-web.service` 停用旧网页服务。安装新包后执行 `claudex-web service install`。首次启动在新配置目录尚未建立时复制旧 `~/.config/codex-web`；曾自定义旧目录的部署可在此次升级时设置 `CODEX_WEB_CONFIG_DIR` 指向原目录。新目录已有配置优先，旧目录保留，已有自动工作目录继续可访问。配置包含供应商凭据、证书和会话，请保护备份权限。
 
-### 从双后端测试版回到 3.x
+### 从 Claudex Web 4.x 回到 3.x
 
-升级前备份原 `codex-web` 网页配置和用户服务文件。首次迁移保留旧配置目录；测试期间对新 `claudex-web` 配置的修改保存在新目录。回到 3.x 前结束两端任务及后台终端，停用 `claudex-web.service`，从稳定版本 Release 重新安装原 `codex-web` 包，再按该版本部署说明恢复旧网页服务。Claude Code 对话继续保存在原生目录，3.x 网页展示 Codex 对话。
+升级前备份原 `codex-web` 网页配置和用户服务文件。首次迁移保留旧配置目录；4.x 对 `claudex-web` 配置的修改保存在新目录。回到 3.x 前结束两端任务及后台终端，停用 `claudex-web.service`，从稳定版本 Release 重新安装原 `codex-web` 包，再按该版本部署说明恢复旧网页服务。Claude Code 对话继续保存在原生目录，3.x 网页展示 Codex 对话。
 
 ### Claude Code 网络代理
 
-Claude Code 的网络代理使用服务器可访问的代理地址和端口，支持 HTTP、HTTPS、关闭及跟随服务环境。HTTP/HTTPS 指代理服务器自身的连接协议；目标网页仍可使用 HTTPS。服务器本机部署的代理可填写 `127.0.0.1`，远端代理填写其主机名或 IP。保存配置前结束 Claude 后端的活动任务及后台终端；保存成功后，后续会话使用新代理。
+Claude Code 的网络代理使用服务器可访问的代理地址和端口，支持 HTTP 代理、关闭及跟随服务环境。HTTP 代理通过 CONNECT 访问 HTTPS 目标；旧 HTTPS 代理选项会迁移为 HTTP。服务器本机部署的代理可填写 `127.0.0.1`，远端代理填写其主机名或 IP。保存配置前结束 Claude 后端的活动任务及后台终端；保存成功后，后续会话使用新代理。
 
 首次升级沿用服务进程的代理环境；选择关闭会清除继承的代理。本机回环地址直接连接，以便访问本地模型服务。代理影响 Claude 执行服务、模型请求及其原生联网工具；WebFetch 的域名安全检查继续开启。WebSearch 还要求上游提供实际搜索能力，或通过搜索 MCP 接入独立搜索服务。
