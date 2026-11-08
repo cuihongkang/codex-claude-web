@@ -1,3 +1,4 @@
+import { verifyResizeHandleStates } from "./resize-handle-states.mjs";
 import { verifyTerminalHeight } from "./terminal-height.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -258,6 +259,25 @@ try {
           page
             .locator(".terminal-list-container")
             .evaluate((node) => node.getBoundingClientRect().width);
+        for (const theme of ["light", "dark"]) {
+          await page.evaluate(
+            (value) => (document.documentElement.dataset.theme = value),
+            theme,
+          );
+          for (const [name, label] of [
+            ["sidebar", "调整侧栏宽度"],
+            ["terminal-height", "调整终端面板高度"],
+            ["terminal-list", "调整终端列表宽度"],
+          ]) {
+            await verifyResizeHandleStates({
+              page,
+              handle: page.getByRole("separator", { name: label, exact: true }),
+              output: join(output, "handles", theme),
+              name,
+              before: process.env.RESIZE_STYLE_BEFORE === "1",
+            });
+          }
+        }
         const initialWidth = await listWidth();
         assert(initialWidth < 130);
         const box = await sidebar.boundingBox();

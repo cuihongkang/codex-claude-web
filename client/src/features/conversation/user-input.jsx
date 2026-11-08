@@ -1,3 +1,4 @@
+import { ResizableTextarea } from "../../ui/resizable-textarea.jsx";
 import React, { useId, useState } from "react";
 import { Check, ChevronRight, MessageSquare } from "lucide-react";
 
@@ -227,7 +228,11 @@ export function UserInputForm({
                 {question.isSecret ? (
                   <input {...textInput} type="password" autoComplete="off" />
                 ) : (
-                  <textarea {...textInput} rows={3} />
+                  <ResizableTextarea
+                    {...textInput}
+                    rows={3}
+                    disabled={locked}
+                  />
                 )}
               </>
             )}

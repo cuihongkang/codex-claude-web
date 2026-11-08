@@ -373,3 +373,9 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 构建后执行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROME_PATH=/path/to/chromium node tests/browser/provider-presets.mjs`，通过隔离传输验证默认项展示、仅提供 Key 编辑、Key 保存与清空、模型菜单同步、深浅主题、80%、100%、125%、150% 与 200% 实际浏览器页面缩放及窄屏。截图保存在 `.cache/provider-presets/dual`。缩放通过隔离扩展调用浏览器页面缩放接口，并核对实际缩放值、DPR 与视口。真实 DeepSeek 推理调用需使用显式提供的有效凭据。
 
 默认供应商品牌图标必须在统一定义中提供 `icon` 标识，对应 SVG 位于 `client/src/assets/providers`，配置测试核对每个默认供应商的图标存在及默认项置顶顺序。DeepSeek 图标原样取自 [DeepSeek 官方品牌素材 ICON.svg](https://github.com/deepseek-ai/awesome-deepseek-integration/blob/main/docs/_logo%20svg/ICON.svg)，标识归 DeepSeek 所有，使用遵循该目录的品牌素材规范。浏览器回归核对实际品牌图标加载与列表顺序。
+
+### 窗口尺寸回归
+
+执行 `npm run build` 后，使用 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROME_PATH=/path/to/chromium node tests/browser/surface-resize.mjs`。回归在生产构建、模拟后端和独立浏览器数据目录中验证公共弹窗、文件详情、图片预览和批注浮窗的拖动、键盘、双击复位、触控、失焦释放、关闭重开、刷新恢复及编辑内容保留；同时核对详情宽度与底部输入区避让一致。深浅主题、桌面和窄屏覆盖 80%、100%、125%、150% 与 200% 实际浏览器页面缩放，检查 DPR、窗口与关闭按钮边界。结果与截图保存在 `.cache/surface-resize/`。项目侧栏和终端保持独立的尺寸控件，分别沿用侧栏和终端回归。测试无需模型调用，浏览器进程和临时配置在结束时清理。
+
+尺寸手柄状态由 `tests/browser/resize-handle-states.mjs` 统一验证。窗口回归和终端回归分别对侧栏、终端高度、终端列表、文件详情、弹窗、图片、批注和多行表单检查默认、悬停、键盘聚焦及指针捕获期间的实际计算样式，确认标记尺寸、透明操作区、拖动高亮与释放状态；同时执行真实拖动及键盘调整，检查字段内容和复位。终端回归继续使用隔离的真实 zsh/Python 进程。通过 `BROWSER_OUTPUT_DIR` 选择证据目录，`RESIZE_STYLE_BEFORE=1` 配合 `BROWSER_BUILD_DIR`（窗口）或 `UI_BUILD_DIR`（终端）可采集统一前构建的状态对照。

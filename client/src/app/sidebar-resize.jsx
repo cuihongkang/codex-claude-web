@@ -1,3 +1,4 @@
+import { ResizeHandle } from "../ui/resize-handle.jsx";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const WIDTH_KEY = "cx-sidebar-width";
@@ -138,7 +139,8 @@ export function ResizableSidebar({ open, children }) {
     >
       {children}
       <span ref={guide} className="sidebar-width-guide" aria-hidden="true" />
-      <div
+      <ResizeHandle
+        direction="x"
         className="sidebar-resizer"
         role="separator"
         aria-label="调整侧栏宽度"

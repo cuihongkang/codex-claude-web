@@ -41,7 +41,6 @@
   border-radius: 0.5rem;
   padding: 0.5rem;
   font: inherit;
-  resize: vertical;
 }
 .command-dialog .modal-actions {
   flex-wrap: wrap;

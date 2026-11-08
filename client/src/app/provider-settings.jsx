@@ -1,3 +1,4 @@
+import { ResizableTextarea } from "../ui/resizable-textarea.jsx";
 import React, { useEffect, useState } from "react";
 import { ProviderModelNames } from "./provider-model-names.jsx";
 import { PresetProviderForm } from "./preset-provider-form.jsx";
@@ -171,7 +172,7 @@ export function ProviderSettings({ backend }) {
           )}
           <label>
             模型标识（每行一个）
-            <textarea
+            <ResizableTextarea
               name="models"
               required
               value={editing.models.join("\n")}

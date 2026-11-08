@@ -1,3 +1,4 @@
+import { ResizableTextarea } from "../../ui/resizable-textarea.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { RefreshCw, LoaderCircle } from "lucide-react";
 import * as store from "../../store.js";
@@ -146,7 +147,7 @@ function GoalDialog({ modal }) {
           >
             <label className="field-label">
               目标
-              <textarea
+              <ResizableTextarea
                 autoFocus
                 maxLength={4000}
                 rows={4}

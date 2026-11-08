@@ -7,33 +7,7 @@
   pointer-events: none;
 }
 .sidebar-resizer {
-  position: absolute;
-  inset: 0 -0.3rem 0 auto;
-  width: 0.6rem;
-  cursor: col-resize;
-  touch-action: none;
-  z-index: 1;
-}
-.sidebar-resizer::after {
-  content: "";
-  position: absolute;
-  inset: 0 0.225rem;
-  border-radius: 0.15rem;
-  background: transparent;
-}
-.sidebar-resizer:hover::after,
-.sidebar-resizer:focus-visible::after,
-.sidebar-resizing .sidebar-resizer::after {
-  background: var(--border-strong);
-}
-.sidebar-resizer:focus-visible {
-  outline: 0.15rem solid var(--muted);
-  outline-offset: -0.15rem;
-}
-.sidebar-resizing,
-.sidebar-resizing * {
-  cursor: col-resize !important;
-  user-select: none !important;
+  inset: 0 calc(var(--resize-hit-size) / -2) 0 auto;
 }
 .sidebar-top {
   display: flex;

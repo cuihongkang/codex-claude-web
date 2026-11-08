@@ -1,0 +1,90 @@
+.resize-handle {
+  --resize-mark-length: 2.5rem;
+  --resize-hit-size: 0.75rem;
+  position: absolute;
+  z-index: 30;
+  touch-action: none;
+  user-select: none;
+  background: transparent;
+}
+.resize-handle:focus-visible {
+  outline: none;
+}
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: var(--resize-mark-length);
+  transform: translate(-50%, -50%);
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.3;
+  pointer-events: none;
+}
+.resize-handle:hover::after,
+.resize-handle:focus-visible::after {
+  opacity: 0.65;
+}
+.resize-handle[data-resizing]::after {
+  opacity: 1;
+}
+.resize-handle:focus-visible::after {
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+.resize-handle-x {
+  width: var(--resize-hit-size);
+  cursor: ew-resize;
+}
+.resize-handle-y {
+  height: var(--resize-hit-size);
+  cursor: ns-resize;
+}
+.resize-handle-y::after {
+  width: var(--resize-mark-length);
+  height: 2px;
+}
+.resize-handle-both {
+  right: 0;
+  bottom: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  cursor: nwse-resize;
+}
+.resize-handle-both::after {
+  height: 1rem;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+body:has(.resize-handle[data-resizing]) {
+  --active-resize-cursor: ew-resize;
+}
+body:has(.resize-handle-y[data-resizing]) {
+  --active-resize-cursor: ns-resize;
+}
+body:has(.resize-handle-both[data-resizing]) {
+  --active-resize-cursor: nwse-resize;
+}
+body:has(.resize-handle[data-resizing]),
+body:has(.resize-handle[data-resizing]) * {
+  cursor: var(--active-resize-cursor) !important;
+  user-select: none !important;
+}
+.resizable-textarea {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+.resizable-textarea > textarea {
+  display: block;
+  resize: none;
+  min-height: 3lh;
+  max-height: 60dvh;
+  padding-bottom: 1.5rem;
+}
+.resizable-textarea > .resize-handle {
+  bottom: 0;
+  left: 0;
+  right: 0;
+}

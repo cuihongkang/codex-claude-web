@@ -1,3 +1,4 @@
+import { ResizeHandle } from "../../ui/resize-handle.jsx";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const heightKey = "cx-terminal-height";
@@ -108,7 +109,8 @@ export function TerminalFrame({ children }) {
       }}
     >
       <span ref={guide} className="terminal-height-guide" aria-hidden="true" />
-      <div
+      <ResizeHandle
+        direction="y"
         className="terminal-height-resizer"
         role="separator"
         tabIndex={0}

@@ -1,3 +1,4 @@
+import { ResizeHandle } from "../../ui/resize-handle.jsx";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { IconButton } from "../../ui/primitives.jsx";
@@ -97,7 +98,8 @@ export function TerminalList({ ids, terminals, active, select, terminate }) {
         ref={guide}
         aria-hidden="true"
       />
-      <div
+      <ResizeHandle
+        direction="x"
         className="terminal-list-resizer"
         role="separator"
         tabIndex={0}

@@ -1,3 +1,4 @@
+import { useSurfaceResize } from "../../ui/surface-resize.jsx";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -314,6 +315,11 @@ export function ContextWorkspace() {
   const s = useStore();
   const [filesOpened, keepFiles] = useState(s.panel === "files");
   const detailsOpen = s.contextOpen === true;
+  const resize = useSurfaceResize({
+    id: "context",
+    panel: true,
+    active: detailsOpen && Boolean(s.panel),
+  });
   const agent = s.panelAgent?.parentId === s.current?.id ? s.panelAgent : null;
   useEffect(() => {
     if (s.panel === "files") keepFiles(true);
@@ -322,11 +328,13 @@ export function ContextWorkspace() {
   return (
     <>
       <aside
+        ref={resize.ref}
         id="conversation-context"
         className={"context-workspace " + (s.panel ? "showing-panel" : "")}
         data-open={detailsOpen}
         aria-label="对话详情"
       >
+        {s.panel && resize.handle}
         {s.panel ? (
           <div className="context-backbar">
             <button onClick={() => set({ panel: null })}>
