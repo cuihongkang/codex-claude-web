@@ -2,6 +2,7 @@
 export const workspaceMethods = Object.freeze([
   "fs/readDirectory",
   "fs/writeFile",
+  "fs/uploadAttachment",
   "command/exec",
   "command/exec/write",
   "command/exec/resize",

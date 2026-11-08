@@ -18,6 +18,7 @@ export async function testAttachmentDrafts(app, fixture) {
       return {
         thread: { id: params.threadId || "attachment-created", cwd: "/demo" },
       };
+    if (method === "fs/uploadAttachment") return { path: "/uploads/notes.txt" };
     if (method === "turn/start") {
       onSend();
       return fail ? { error: { message: "模拟发送失败" } } : {};
@@ -91,20 +92,22 @@ export async function testAttachmentDrafts(app, fixture) {
       submitted.map((a) => a.input),
     );
     onSend = () => {};
-    let finishRead;
     const reading = app.attachFile({
       type: "text/plain",
       name: "notes.txt",
-      text: () => new Promise((resolve) => (finishRead = resolve)),
+      size: 30,
     });
     await app.openThread("attachment-other");
-    finishRead("文件附件的完整正文");
+    readers[1].result =
+      "data:text/plain;base64," +
+      Buffer.from("文件附件的完整正文").toString("base64");
+    readers[1].onload();
     await reading;
     assert.deepEqual(app.get().attachments, [], "文件读取结果归属原对话");
     await app.openThread("attachment-created");
     const file = app.get().attachments[1];
     assert.equal(file.name, "notes.txt");
-    assert.equal(file.input.text, "附件 notes.txt\n\n文件附件的完整正文");
+    assert.equal(file.text, "文件附件的完整正文");
     app.newChat("/demo");
     await app.openThread("attachment-created");
     assert.deepEqual(app.get().attachments, [next, file]);
@@ -118,7 +121,11 @@ export async function testAttachmentDrafts(app, fixture) {
       .at(-1);
     assert.deepEqual(fileRequest.params.input.slice(-2), [
       next.input,
-      file.input,
+      {
+        type: "text",
+        text: "引用本机文件：/uploads/notes.txt\n请根据任务按需读取。",
+        text_elements: [],
+      },
     ]);
     assert.deepEqual(app.get().attachments, []);
     console.log(

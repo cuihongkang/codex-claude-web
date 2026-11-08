@@ -28,7 +28,7 @@ export function createBackendManager({
   broadcast,
   factories = {},
 }) {
-  const workspace = createWorkspace({ broadcast });
+  const workspace = createWorkspace({ broadcast, configDir: config.configDir });
   const configuration = createBackendConfiguration(config);
   const providers = createProviders(configuration);
   const instances = new Map();

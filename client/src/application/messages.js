@@ -1,3 +1,4 @@
+import { readAttachment, attachmentInputs } from "./attachments.js";
 import { referenceInputs } from "./reference-input.js";
 import { resourceTarget } from "../../../shared/backend-identity.mjs";
 import { pendingPlan, planImplementationText } from "../domain/plans.js";
@@ -143,7 +144,7 @@ export function createMessages({
               },
             ]
           : []),
-        ...attachments.map((a) => a.input),
+        ...(await attachmentInputs(attachments, rpc)),
         ...references.inputs,
       ];
       const running = get().active[thread.id];
@@ -306,32 +307,9 @@ export function createMessages({
         ...entries,
         attachment,
       ]);
-    if (file.type.startsWith("image/")) {
-      const url = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-      add({
-        id: uid(),
-        name: file.name,
-        preview: url,
-        input: { type: "image", url },
-      });
-    } else {
-      const text = await file.text();
-      add({
-        id: uid(),
-        name: file.name,
-        input: {
-          type: "text",
-          text: `附件 ${file.name}\n\n${text}`,
-          text_elements: [],
-        },
-      });
-    }
+    add(await readAttachment(file));
   }
+
   return {
     put,
     recordInputRequest,

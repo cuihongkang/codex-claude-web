@@ -4,13 +4,14 @@ import { executeCommand } from "./commands.mjs";
 import { createTerminals } from "./terminals.mjs";
 
 // 网页交互终端和主机文件操作由服务持有，原生搜索由所属后端提供。
-export function createWorkspace({ broadcast }) {
+export function createWorkspace({ broadcast, configDir }) {
   const terminals = createTerminals(broadcast);
   const methods = new Set(workspaceMethods);
   return {
     handles: (method) => methods.has(method),
     request(method, params) {
-      if (method.startsWith("fs/")) return fileRequest(method, params);
+      if (method.startsWith("fs/"))
+        return fileRequest(method, params, configDir);
       if (method === "command/exec" && !params.tty)
         return executeCommand(params);
       if (

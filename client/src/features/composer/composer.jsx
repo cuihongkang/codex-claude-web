@@ -1,7 +1,7 @@
 import { ModelSelect } from "./model-select.jsx";
 import { InputQueue } from "./input-queue.jsx";
 import { backendReady, backendCapability } from "../../domain/backends.js";
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 
 import {
   ArrowUp,
@@ -37,7 +37,9 @@ import { useAnnotationDrafts } from "../annotations/annotation-drafts.js";
 import { isCompacting } from "../../domain/compaction.js";
 import { CompactionStatus } from "./compaction-status.jsx";
 import { MarkdownEditor } from "./markdown-editor.jsx";
+import { AttachmentPreview } from "./attachment-preview.jsx";
 export function Composer() {
+  const [preview, setPreview] = useState(null);
   const s = useStore(),
     draft = useDraft(),
     area = useRef(),
@@ -118,16 +120,29 @@ export function Composer() {
           }}
         >
           <ComposerAnnotations />
+          {preview && s.attachments.includes(preview) && (
+            <AttachmentPreview
+              attachment={preview}
+              onClose={() => setPreview(null)}
+            />
+          )}
           {s.attachments.length > 0 && (
             <div className="attachment-list">
               {s.attachments.map((a) => (
                 <div className="attachment" key={a.id}>
-                  {a.preview ? (
-                    <img src={a.preview} />
-                  ) : (
-                    <Paperclip size={17} />
-                  )}
-                  <span>{a.name}</span>
+                  <button
+                    type="button"
+                    className="attachment-preview"
+                    aria-label={"预览 " + a.name}
+                    onClick={() => setPreview(a)}
+                  >
+                    {a.preview ? (
+                      <img src={a.preview} />
+                    ) : (
+                      <Paperclip size={17} />
+                    )}
+                    <span>{a.name}</span>
+                  </button>
                   <IconButton
                     icon={X}
                     title={"移除 " + a.name}
