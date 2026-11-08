@@ -63,7 +63,7 @@ export function createNotifications({
       if (!thread)
         thread = (await rpc("thread/read", { threadId, includeTurns: false }))
           .thread;
-      if (!current()) return;
+      if (!current() || thread?.source?.subAgent) return;
       await browser.show({
         key: JSON.stringify([username, threadId, turn.id]),
         title: titleOf(thread),

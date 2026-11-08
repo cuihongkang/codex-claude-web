@@ -55,6 +55,7 @@ export function subAgents(items) {
       const state = item.agentsStates?.[id];
       const eventStatus = {
         started: "running",
+        interacted: "running",
         interrupted: "interrupted",
         completed: "completed",
       }[item.kind];

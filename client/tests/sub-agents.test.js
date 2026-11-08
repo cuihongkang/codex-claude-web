@@ -74,7 +74,7 @@ test("主代理消息定位到对应轮次和活动前，刷新去重且保留�
   );
 });
 
-test("子代理按对话 ID 合并活动，保留名称、模型与明确结束状态", () => {
+test("子代理按对话 ID 合并活动，保留名称、模型并更新再次派发状态", () => {
   const activity = {
     type: "subAgentActivity",
     agentThreadId: "agent-a",
@@ -96,7 +96,7 @@ test("子代理按对话 ID 合并活动，保留名称、模型与明确结束�
     id: "agent-a",
     path: "/root/check_history",
     name: "check_history",
-    status: "completed",
+    status: "running",
     message: undefined,
     prompt: undefined,
     model: "fixture-model",
@@ -132,7 +132,7 @@ test("协作工具合并多个接收者及状态，旧记录保持可区分的�
     subAgents([
       { type: "subAgentActivity", agentThreadId: "a", kind: "interacted" },
     ])[0].status,
-    "unknown",
+    "running",
   );
 });
 
@@ -207,5 +207,15 @@ test("分页快照与读取期间的流式更新合并，省略已包含的文�
       ],
     )[0].text,
     "最终正文",
+  );
+});
+
+test("完成后再次派发任务恢复运行状态", () => {
+  assert.equal(
+    subAgents([
+      { type: "subAgentActivity", agentThreadId: "a", kind: "completed" },
+      { type: "subAgentActivity", agentThreadId: "a", kind: "interacted" },
+    ])[0].status,
+    "running",
   );
 });
