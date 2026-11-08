@@ -30,7 +30,7 @@ flowchart TD
 
 - `connect()` 启动所属传输，`ready` 表达当前就绪状态，`capabilities` 提供真实模型参数与扩展能力。
 - `receive(client, message)` 接收原生资源标识的请求或提问回答，通过注入的 `send` 返回同一请求编号的结果或错误，通过 `broadcast` 发布统一事件。管理器承担浏览器资源标识与原生标识的转换，用户正文和工具参数保持原样。
-- `state()` 返回 `lan/state` 快照，其中活动轮次、提问、整理、终端和撤销结果均使用原生标识。Claude 执行服务补充后台任务、排队输入及内部命令占用。管理器汇总快照并加入网页配置与版本信息。
+- `state()` 返回 `lan/state` 快照，其中活动轮次、提问、整理、原生命令及撤销结果均使用原生标识。网页手动终端独立使用工作区标识，由管理器合并工作区快照。Claude 执行服务补充后台任务、排队输入及内部命令占用。管理器汇总快照并加入网页配置与版本信息。
 - `releaseClient(client)` 释放该适配器中属于指定浏览器代理的连接资源。Codex 清除订阅所有者并检查空闲释放，Claude 的模型会话独立于浏览器连接，释放浏览器保持执行服务运行。管理器只调用接口，订阅集合由 Codex 自己持有。
 - `releaseUnusedThreads()` 按所属运行时的生命周期释放空闲资源；`close()` 关闭桥接连接并结算其在途请求。独立执行服务通过 `shutdown()` 原子检查实际占用并确认停止，网页桥接的 `close()` 只断开 IPC。
 - `workspaceOwner` 明确工作区路由所有者：`backend` 保留原生工作区调用，`bridge` 使用管理器持有的主机工作区服务。Codex 选择前者，Claude 选择后者。管理器按声明路由，两端原生文件搜索与文件读取继续进入所属适配器。
@@ -72,7 +72,7 @@ Claude Code 的附加能力通过后端扩展描述提供，采用显式命令�
 
 ## 已实现的模块与事实来源
 
-- `workspace/service.mjs` 提供共用文件、目录与网页交互终端。管理器依据所属后端路由 `fuzzyFileSearch`：Codex 沿用原生 app-server，Claude Code 调用 SDK 的原生 `file_suggestions` 控制请求，复用 CLI 文件索引；查询初始化预热索引并按目录、供应商配置与对话隔离，两者使用相同输入建议和结果展示。
+- `workspace/service.mjs` 提供共用文件、目录与网页交互终端。网页手动终端统一使用 `lan/terminal/*`，在后端路由之前由工作区服务处理；node-pty 持有实际 shell 和前台进程名称，终端按绝对启动目录隔离，同目录跨模型后端保留，代理的原生命令与后台任务保持原有路径。管理器依据所属后端路由 `fuzzyFileSearch`：Codex 沿用原生 app-server，Claude Code 调用 SDK 的原生 `file_suggestions` 控制请求，复用 CLI 文件索引；查询初始化预热索引并按目录、供应商配置与对话隔离，两者使用相同输入建议和结果展示。
 - `claude/sessions.mjs` 管理网页逻辑对话与原生会话的对应关系。`history-actions.mjs` 使用 SDK 原生分支保留消息前缀，依据原生 `forkedFrom.messageUuid` 重新建立轮次、补充输入和自动唤醒消息锚点，截断使用下一轮输入的 `parentUuid` 保留已完成轮次的全部输出附件；网页对话标识保持稳定。`nativeAliases` 将保留的历史分支归入同一逻辑对话，列表和删除后的恢复避免重复导入。
 - `session-worker.mjs` 在独立工作进程中使用同一原生配置目录调用 SDK 会话 API；SDK 选择原生 `parentUuid` 链，`native-records.mjs` 通过 SDK `importSessionToStore` 加载临时内存快照，按 UUID 补回投影省略的时间、系统子类型及错误字段。原生正文和工具结果是事实来源，索引补充已确认的轮次状态、计划类型、错误分类和文件变更。
 - `worker-client.mjs` 与独立 `worker-server.mjs` 通过受限本机 IPC 协作，执行服务持有 Claude 适配器、原生进程和后台任务。systemd 环境使用独立用户 service 及 cgroup，网页桥接关闭或崩溃后仍保留任务。IPC 目录 0700、socket 0600，双方核对用户归属。源码、入口路径或运行配置变化时，忙碌服务先继续执行，完全空闲后确认停止并替换，较旧桥接保持较新执行代际。

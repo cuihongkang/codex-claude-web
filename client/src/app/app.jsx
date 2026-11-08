@@ -94,7 +94,7 @@ export function App() {
         </div>
         {s.terminalOpen && (
           <Suspense fallback={<div className="loading">正在打开终端…</div>}>
-            <TerminalPanel key={s.backendId || "codex"} />
+            <TerminalPanel />
           </Suspense>
         )}
       </main>

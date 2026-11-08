@@ -235,6 +235,12 @@ npm run test:package
 
 右侧详情隔离回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium CONTEXT_RESET=1 BROWSER_OUTPUT_DIR=.cache/context-reset/after node tests/browser/annotations.mjs`。脚本以隔离 WebSocket 历史和独立浏览器配置，实际打开文件差异与变更面板并点击新建，检查默认收起、重新展开的概览、文件列表、深浅主题和手机布局。修改前的生产构建及构建信息分别保存在 `.cache/context-reset-before/dist` 与 `.cache/context-reset-before/build-info.json`，通过 `BROWSER_BEFORE=1`、`BROWSER_BUILD_DIR` 和 `BROWSER_BUILD_INFO` 指定并复现残留；截图和构建来源写入指定目录。组件回归补充文件、变更、子代理与待打开文件的清理，以及原对话未保存文件的恢复。README 及其他文档引用的现有截图展示任务对话与文件预览，本次修复的新建状态未出现在这些图片中，图片内容保持适用。
 
+## 网页交互终端回归
+
+网页手动终端通过独立的 `lan/terminal/*` 接口进入宿主工作区，由 node-pty 持有进程；模型后端、原生命令与后台任务分别按各自所有者维护。`node --test server/tests/web-terminals.test.mjs server/tests/backend-native-workspace-routing.test.mjs` 使用真实 PTY 和模拟后端，核对 Codex 与 Claude Code 标识均进入同一工作区、后端离线时仍可使用终端、连续创建五个、前台进程切换、单独结束及原生工作区路由。组件回归覆盖名称与图标更新、切换复用实例、启动目录隔离、面板开关与选中项恢复、后台目录退出隔离、Ctrl+D 及当前目录最后退出后的收起。`client/tests/terminal-workspace.test.js` 检查完整路径、中文目录及路径规范化，同目录切换后端和不同目录分别验证。
+
+构建完成后运行 `PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROME_PATH=/path/to/chromium node tests/browser/terminal.mjs`。浏览器使用临时目录、真实 zsh 和 Python、隔离账户与模拟目录请求，验证五终端、zsh → Python → zsh、不同文件夹对话的隔离及返回恢复、同文件夹对话共用、列表拖动与键盘调宽、面板上边缘拖动调高、尺寸隐藏与刷新恢复、拖动期间卸载清理、双击复位、隐藏与刷新恢复、深浅主题、窄屏侧栏收放，以及 80%、125%、150%、200% 实际页面缩放和 DPR。测试环境需安装 zsh 与 Python。截图和构建来源写入 `.cache/terminal-appearance/after`；旧构建通过 `BROWSER_BEFORE=1 UI_BUILD_DIR=/path/to/dist UI_BUILD_INFO=/path/to/build-info.json BROWSER_OUTPUT_DIR=/path/to/before` 生成修改前对照。临时浏览器配置和 PTY 在退出时清理。
+
 ## 从源码运行后台服务
 
 在项目根目录执行：

@@ -1,4 +1,10 @@
-import { resourceId } from "../../../../shared/backend-identity.mjs";
+import { TerminalFrame } from "./terminal-frame.jsx";
+import {
+  terminalWorkspace,
+  terminalSelectionKey,
+  workspaceTerminalIds,
+} from "../../../../shared/terminal-workspace.mjs";
+import { TerminalList } from "./terminal-list.jsx";
 import React, { useState, useEffect, useRef } from "react";
 
 import { X, Plus, TerminalSquare, Trash2 } from "lucide-react";
@@ -10,21 +16,17 @@ import {
   set,
   rpc,
   report,
-  basename,
   b64encode,
   uid,
   onEvent,
 } from "../../store.js";
 import { IconButton } from "../../ui/primitives.jsx";
-export function TerminalPanel() {
-  const s = useStore(),
-    host = useRef(),
+function TerminalSession({ processId, active, cwd }) {
+  const host = useRef(),
     term = useRef(),
     fit = useRef(),
-    pid = useRef(localStorage.getItem("cx-terminal")),
+    pid = useRef(processId),
     observer = useRef();
-  const [connected, connectedSet] = useState(false),
-    [sessionName, setSessionName] = useState("zsh");
   useEffect(() => {
     const typography = () => {
       const style = getComputedStyle(host.current);
@@ -69,7 +71,7 @@ export function TerminalPanel() {
     fit.current = f;
     const stop = onEvent((m) => {
       if (
-        m.method === "command/exec/outputDelta" &&
+        m.method === "lan/terminalOutput" &&
         m.params.processId === pid.current
       )
         t.write(
@@ -82,12 +84,11 @@ export function TerminalPanel() {
       ) {
         t.reset();
         t.write(m.params.terminals[pid.current].buffer || "");
-        connectedSet(m.params.terminals[pid.current].running);
       }
     });
     t.onData((data) => {
       if (pid.current)
-        rpc("command/exec/write", {
+        rpc("lan/terminal/write", {
           processId: pid.current,
           deltaBase64: b64encode(data),
         }).catch(report);
@@ -99,7 +100,7 @@ export function TerminalPanel() {
         t.options.lineHeight = lineHeight;
       f.fit();
       if (pid.current)
-        rpc("command/exec/resize", {
+        rpc("lan/terminal/resize", {
           processId: pid.current,
           size: { cols: t.cols, rows: t.rows },
         }).catch(() => {});
@@ -108,7 +109,6 @@ export function TerminalPanel() {
     const existing = get().terminals?.[pid.current];
     if (existing?.running) {
       t.write(existing.buffer || "");
-      connectedSet(existing.running);
     } else spawn(t, f);
     return () => {
       stop();
@@ -116,64 +116,80 @@ export function TerminalPanel() {
       t.dispose();
     };
   }, []);
-  function spawn(t = term.current, f = fit.current) {
-    pid.current = resourceId(get().backendId || "codex", "terminal-" + uid());
-    const sessionId = pid.current;
-    localStorage.setItem("cx-terminal", pid.current);
-    t.reset();
+  function spawn(t, f) {
     f.fit();
-    connectedSet(true);
-    setSessionName(basename(get().cwd) + " — 终端");
-    rpc(
-      "command/exec",
-      {
-        command: ["/bin/sh", "-c", 'exec "${SHELL:-/bin/sh}" -l'],
-        env: { TERM: "xterm-256color", COLORTERM: "truecolor" },
-        cwd: get().cwd,
-        processId: pid.current,
-        tty: true,
-        size: { cols: t.cols, rows: t.rows },
-        disableTimeout: true,
-        disableOutputCap: true,
-      },
-      0,
-    )
-      .then(() => {
-        if (pid.current === sessionId) connectedSet(false);
-      })
-      .catch((e) => {
-        if (pid.current !== sessionId) return;
-        connectedSet(false);
-        t.write("\r\n" + e.message + "\r\n");
-      });
+    rpc("lan/terminal/create", {
+      cwd,
+      processId: pid.current,
+      size: { cols: t.cols, rows: t.rows },
+    }).catch((error) => t.write("\r\n" + error.message + "\r\n"));
+  }
+  useEffect(() => {
+    if (active) {
+      fit.current?.fit();
+      term.current?.focus();
+    }
+  }, [active]);
+  return <div hidden={!active} ref={host} className="terminal-view" />;
+}
+
+export function TerminalPanel() {
+  const s = useStore();
+  const cwd = terminalWorkspace(s.cwd);
+  if (!s.terminalOpen) return null;
+  return <FolderTerminals key={cwd} cwd={cwd} />;
+}
+
+function FolderTerminals({ cwd }) {
+  const s = useStore();
+  const [sessions, setSessions] = useState(() => {
+    const running = workspaceTerminalIds(get().terminals || {}, cwd);
+    return running.length ? running : [newId()];
+  });
+  const [selected, select] = useState(() => {
+    const saved =
+      localStorage.getItem(terminalSelectionKey(cwd)) ||
+      localStorage.getItem("cx-terminal");
+    return sessions.includes(saved) ? saved : sessions[0];
+  });
+  const ids = sessions.filter((id) => s.terminals[id]?.running !== false);
+  const active = ids.includes(selected) ? selected : ids.at(-1);
+  useEffect(() => {
+    if (!ids.length) set({ terminalOpen: false });
+  }, [ids.length]);
+  useEffect(() => {
+    if (active) {
+      localStorage.setItem(terminalSelectionKey(cwd), active);
+      localStorage.setItem("cx-terminal", active);
+    }
+  }, [active, cwd]);
+  function newId() {
+    return "web-terminal-" + uid();
+  }
+  function terminate(id) {
+    return rpc("lan/terminal/terminate", { processId: id }).catch(report);
   }
   return (
-    <div className="terminal-panel">
+    <TerminalFrame>
       <div className="terminal-header">
         <span>
           <TerminalSquare size={14} />
-          终端 <small>{sessionName}</small>
+          终端
         </span>
         <div>
           <IconButton
             icon={Plus}
-            title="重新启动终端"
+            title="新建终端"
             onClick={() => {
-              if (connected)
-                rpc("command/exec/terminate", { processId: pid.current }).catch(
-                  report,
-                );
-              spawn();
+              const id = newId();
+              setSessions([...ids, id]);
+              select(id);
             }}
           />
           <IconButton
             icon={Trash2}
             title="结束终端进程"
-            onClick={() =>
-              rpc("command/exec/terminate", { processId: pid.current }).catch(
-                report,
-              )
-            }
+            onClick={() => terminate(active)}
           />
           <IconButton
             icon={X}
@@ -182,7 +198,27 @@ export function TerminalPanel() {
           />
         </div>
       </div>
-      <div ref={host} className="terminal-view" />
-    </div>
+      <div className="terminal-body">
+        <div className="terminal-sessions">
+          {ids.map((id) => (
+            <TerminalSession
+              key={id}
+              processId={id}
+              active={id === active}
+              cwd={cwd}
+            />
+          ))}
+        </div>
+        {ids.length > 1 && (
+          <TerminalList
+            ids={ids}
+            terminals={s.terminals}
+            active={active}
+            select={select}
+            terminate={terminate}
+          />
+        )}
+      </div>
+    </TerminalFrame>
   );
 }

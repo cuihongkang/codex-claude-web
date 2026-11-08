@@ -1,3 +1,4 @@
+import { terminalSelectionKey } from "../../../shared/terminal-workspace.mjs";
 import { newDraftKey } from "../infrastructure/backend-storage.js";
 import { resourceTarget } from "../../../shared/backend-identity.mjs";
 import { isCompacting, mergeCompactions } from "../domain/compaction.js";
@@ -120,7 +121,9 @@ export function createConnection({
         questions: m.params.questions,
         terminals: m.params.terminals || {},
       });
-      const terminalId = localStorage.getItem("cx-terminal");
+      const terminalId =
+        localStorage.getItem(terminalSelectionKey(get().cwd)) ||
+        localStorage.getItem("cx-terminal");
       if (m.params.terminals?.[terminalId]?.running === false)
         events.closeTerminal(terminalId);
       emit(m);

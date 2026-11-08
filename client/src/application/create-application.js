@@ -113,6 +113,7 @@ export function createApplication() {
     const global =
       method === "thread/list" ||
       method.startsWith("lan/backends/") ||
+      method.startsWith("lan/terminal/") ||
       method.startsWith("lan/providers/");
     return transport.rpc(
       method,

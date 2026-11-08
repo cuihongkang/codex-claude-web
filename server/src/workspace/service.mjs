@@ -13,7 +13,10 @@ export function createWorkspace({ broadcast }) {
       if (method.startsWith("fs/")) return fileRequest(method, params);
       if (method === "command/exec" && !params.tty)
         return executeCommand(params);
-      if (method.startsWith("command/exec"))
+      if (
+        method.startsWith("command/exec") ||
+        method.startsWith("lan/terminal/")
+      )
         return terminals.request(method, params);
       throw new Error(`未知工作区操作：${method}`);
     },

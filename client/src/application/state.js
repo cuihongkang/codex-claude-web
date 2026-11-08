@@ -1,3 +1,7 @@
+import {
+  terminalWorkspace,
+  workspaceTerminalIds,
+} from "../../../shared/terminal-workspace.mjs";
 import { saved, persist } from "../infrastructure/storage.js";
 import { isCompacting } from "../domain/compaction.js";
 import {
@@ -6,6 +10,7 @@ import {
 } from "../domain/backend-visibility.js";
 export function createAppState() {
   const modes = saved("cx-thread-modes", {});
+  const terminalVisibility = new Map();
   let state = {
     auth: null,
     authError: "",
@@ -89,6 +94,21 @@ export function createAppState() {
     return () => listeners.delete(listener);
   };
   function set(patch) {
+    if (
+      patch.cwd !== undefined &&
+      terminalWorkspace(patch.cwd) !== terminalWorkspace(state.cwd)
+    ) {
+      terminalVisibility.set(terminalWorkspace(state.cwd), state.terminalOpen);
+      if (patch.terminalOpen === undefined)
+        patch = {
+          ...patch,
+          terminalOpen: Boolean(
+            terminalVisibility.get(terminalWorkspace(patch.cwd)) &&
+            workspaceTerminalIds(patch.terminals ?? state.terminals, patch.cwd)
+              .length,
+          ),
+        };
+    }
     const backends = patch.backends ?? state.backends;
     if (patch.backends || patch.threads)
       patch = {

@@ -151,7 +151,7 @@
     margin: 0.307692rem 1.538462rem;
   }
   .terminal-panel {
-    height: 230px;
+    --terminal-height-default: 17.692308rem;
   }
   .modal {
     max-height: 86dvh;
@@ -339,7 +339,7 @@
     font-size: 0.846154rem;
   }
   .terminal-panel {
-    height: 220px;
+    --terminal-height-default: 16.923077rem;
   }
   .toast {
     max-width: 90%;

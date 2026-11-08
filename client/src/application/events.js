@@ -1,3 +1,8 @@
+import {
+  terminalWorkspace,
+  terminalSelectionKey,
+  workspaceTerminalIds,
+} from "../../../shared/terminal-workspace.mjs";
 import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
 import { b64decode } from "../domain/format.js";
@@ -14,9 +19,26 @@ export function createEvents({
   notifications,
 }) {
   function closeTerminal(processId) {
-    if (localStorage.getItem("cx-terminal") !== processId) return;
-    localStorage.removeItem("cx-terminal");
-    set({ terminalOpen: false });
+    const terminal = get().terminals[processId];
+    if (!terminal) return;
+    const key = terminalSelectionKey(terminal.cwd);
+    if (
+      localStorage.getItem(key) !== processId &&
+      localStorage.getItem("cx-terminal") !== processId
+    )
+      return;
+    const next = workspaceTerminalIds(get().terminals, terminal.cwd).find(
+      (id) => id !== processId,
+    );
+    if (next) localStorage.setItem(key, next);
+    else localStorage.removeItem(key);
+    if (terminalWorkspace(terminal.cwd) !== terminalWorkspace(get().cwd))
+      return;
+    if (next) localStorage.setItem("cx-terminal", next);
+    else {
+      localStorage.removeItem("cx-terminal");
+      set({ terminalOpen: false });
+    }
   }
   function handle({ method, params: p = {} }) {
     if (method === "lan/executionStatus") {
@@ -64,10 +86,29 @@ export function createEvents({
       set({
         terminals: {
           ...get().terminals,
-          [p.processId]: { buffer: "", running: true },
+          [p.processId]: {
+            buffer: "",
+            running: true,
+            processName: p.processName,
+            owner: p.owner,
+            cwd: p.cwd,
+          },
         },
       });
-    if (method === "command/exec/outputDelta" && get().terminals[p.processId]) {
+    if (method === "lan/terminalUpdated" && get().terminals[p.processId])
+      set({
+        terminals: {
+          ...get().terminals,
+          [p.processId]: {
+            ...get().terminals[p.processId],
+            processName: p.processName,
+          },
+        },
+      });
+    if (
+      ["command/exec/outputDelta", "lan/terminalOutput"].includes(method) &&
+      get().terminals[p.processId]
+    ) {
       const t = get().terminals[p.processId];
       set({
         terminals: {

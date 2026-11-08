@@ -93,7 +93,7 @@ try {
           );
           builder.onLoad({ filter: /.*/, namespace: "fixture" }, (args) => ({
             contents: args.path.endsWith("/xterm")
-              ? `export class Terminal {constructor(options){this.options=options;this.cols=80;this.rows=24;globalThis.testTerminals.push(this)} loadAddon(){} open(){} write(){} reset(){} dispose(){} onData(fn){this.input=fn}}`
+              ? `export class Terminal {constructor(options){this.options=options;this.cols=80;this.rows=24;globalThis.testTerminals.push(this)} loadAddon(){} open(){} write(){} reset(){} dispose(){} focus(){} onData(fn){this.input=fn}}`
               : `export class FitAddon {fit(){}}`,
           }));
         },

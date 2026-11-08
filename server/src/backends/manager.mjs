@@ -263,6 +263,8 @@ export function createBackendManager({
     const method = message.method,
       params = message.params || {};
     const reply = (result) => send(client, { id: message.id, result });
+    if (method?.startsWith("lan/terminal/"))
+      return reply(await workspace.request(method, params));
     const fallback =
       params.threadId != null
         ? "codex"
