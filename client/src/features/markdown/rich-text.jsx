@@ -42,7 +42,13 @@ const htmlSchema = {
   },
   protocols: {
     ...defaultSchema.protocols,
-    href: [...defaultSchema.protocols.href, "file", "sandbox"],
+    href: [
+      ...defaultSchema.protocols.href,
+      "file",
+      "sandbox",
+      "thread",
+      "skill",
+    ],
     src: [...defaultSchema.protocols.src, "file", "sandbox", "data"],
   },
   strip: [...defaultSchema.strip, "style", "iframe", "object", "embed"],

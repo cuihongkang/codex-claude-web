@@ -1,3 +1,5 @@
+import { referenceInputs } from "./reference-input.js";
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
 import { pendingPlan, planImplementationText } from "../domain/plans.js";
 import { newDraftKey } from "../infrastructure/backend-storage.js";
 import { createMessageEditing } from "./message-editing.js";
@@ -108,6 +110,7 @@ export function createMessages({
         get().threadAccess.status !== "ready")
     )
       return false;
+    const submission = get();
     const epoch = navigation.opening;
     const attachmentDraft = navigation.getAttachmentDraft();
     set({ busy: true, error: "" });
@@ -123,44 +126,51 @@ export function createMessages({
       )
         return false;
       if (replace) await editing.prepare(replace);
+      const references = await referenceInputs(
+        text,
+        resourceTarget(thread.id).backendId,
+        rpc,
+      );
       const input = [
         ...(text.trim() || annotations.length
           ? [
               {
                 type: "text",
                 text: annotations.length
-                  ? annotationMessage(annotations, text)
-                  : text,
+                  ? annotationMessage(annotations, references.text)
+                  : references.text,
                 text_elements: [],
               },
             ]
           : []),
         ...attachments.map((a) => a.input),
+        ...references.inputs,
       ];
       const running = get().active[thread.id];
-      put({
-        id: "optimistic-" + uid(),
-        type: "userMessage",
-        turnId: running,
-        content: input,
-        optimistic: true,
-        ...(questionId ? { questionId } : {}),
-      });
+      if (get().current?.id === thread.id)
+        put({
+          id: "optimistic-" + uid(),
+          type: "userMessage",
+          turnId: running,
+          content: input,
+          optimistic: true,
+          ...(questionId ? { questionId } : {}),
+        });
       const params = {
         threadId: thread.id,
         input,
-        model: get().model || undefined,
-        providerId: get().providerId,
-        effort: get().effort || undefined,
+        model: submission.model || undefined,
+        providerId: submission.providerId,
+        effort: submission.effort || undefined,
         serviceTier: resolveServiceTier(
-          get().serviceTier,
-          get().models.find((m) => m.model === get().model),
+          submission.serviceTier,
+          submission.models.find((m) => m.model === submission.model),
         ),
         collaborationMode: {
-          mode: implementation ? "default" : get().mode,
+          mode: implementation ? "default" : submission.mode,
           settings: {
-            model: get().model,
-            reasoning_effort: get().effort || null,
+            model: submission.model,
+            reasoning_effort: submission.effort || null,
           },
         },
       };

@@ -181,6 +181,8 @@ sequenceDiagram
 
 Codex 原生适配全部位于 `backends/codex/`。`adapter.mjs` 组合原生传输与公共网页操作；`upstream.mjs` 持有 app-server 握手、请求编号、超时及重连；`subscriptions.mjs` 持有原生订阅、写入恢复及空闲释放；`requests.mjs` 与 `events.mjs` 分别处理原生请求和事件；`compaction-recovery.mjs` 通过原生历史核对整理结果。Codex 的原生命令执行和标题生成沿用原有调用链。
 
+Codex 适配器在原生新建、恢复和分支参数中加入 `claudex_references` 只读 MCP 配置，保留原有会话配置并沿用实际后端地址，不修改原生全局配置。原生 CLI 持有 `reference-mcp.mjs` 子进程，它直接连接同一 app-server，提供带游标的 `read_thread` 用户与助手正文读取，网页断开不影响读取。引用按 `thread://` 目标提交并提示代理通过该工具读取；读取结果作为历史参考数据。单元测试覆盖配置合并、分页、后端隔离与错误，`tests/integration/codex-reference-tools.mjs` 用真实 CLI 验证 MCP 注册和调用，隔离模拟历史数据并保持模型调用为零。
+
 Codex 的取消订阅确认与会话卸载分别处理。原生响应为 `unsubscribed` 时，释放过程继续等待 `thread/closed`，依赖该对话的请求等待同一释放过程后再恢复；关闭通知可先于确认到达。`notLoaded` 和 `notSubscribed` 直接结束本连接的释放。断线或桥接关闭使等待失败并清理状态，等待超时保留实际错误供重试。
 
 公共桥接通过参数取得后端能力；两个原生适配器各自依赖所属后端和公共服务。架构检查禁止公共桥接依赖具体后端、两个原生适配器互相依赖，以及 HTTP 处理器直接依赖桥接或后端实现。
@@ -234,6 +236,10 @@ Claude 网页桥接重启或异常退出时，独立执行服务继续持有模�
 `features/workspace` 把文件树、目录选择、文件编辑、差异、终端和对话详情拆成独立模块。编辑器与文件变更装饰分别封装；显示的删除装饰与实际保存正文分开处理。`context-panel.jsx` 组合概览和子代理详情，主对话切换统一清理选择，编辑缓冲区继续按原主对话保存。
 
 `app` 将输入框和错误提示作为底部插槽传入对话布局。对话布局统一提供消息、底部输入和右侧详情的几何边界；桌面展开详情时输入区域避让右侧面板，详情占满工作区高度。文件下载入口归文件面板工具栏，媒体预览组件负责内容展示及加载重试。
+
+`domain/skill-suggestions.js` 拥有技能建议的模糊匹配与排序规则，`@`、`/` 和技能面板共用该规则。
+
+`domain/inline-references.js` 管理引用链接与类型解析，`domain/composer-references.js` 定义同后端候选与 Claude 会话正文快照。`document-references.jsx` 拥有文件、目录、技能和会话的原子行内节点，使用 Markdown 链接持久保存名称和目标；输入与消息回显共用 `ui/inline-reference.jsx` 和 `ui/path-icon.jsx`。编辑器在单次事务中替换查询、关闭建议并移动光标，整项删除与撤销由文档历史管理。`application/reference-input.js` 在发送用例的正文快照上生成原生 skill/mention；Claude 技能交给原生命令，Claude 会话引用复用完整分页历史。引用随正文删除和恢复，图片附件继续使用既有附件草稿。
 
 `features/composer` 管理输入交互；`features/commands/composer-commands.js` 是快捷命令的独立注册表，菜单、按钮和键盘提交走同一解析和执行入口。`domain/commands` 只负责工具命令描述的分类与解析，命令支持范围见[命令覆盖记录](cli-command-coverage.md)。
 

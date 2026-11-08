@@ -50,6 +50,12 @@ export function messageUrlTransform(value, key, node) {
   if (
     node.tagName === "a" &&
     key === "href" &&
+    /^(?:thread|skill):\/\/[^/?#\s]+$/.test(value)
+  )
+    return value;
+  if (
+    node.tagName === "a" &&
+    key === "href" &&
     (/^file:\/\/(?:localhost)?\//i.test(value) || value.startsWith("sandbox:/"))
   )
     return value;

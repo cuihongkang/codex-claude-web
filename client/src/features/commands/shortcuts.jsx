@@ -1,5 +1,9 @@
+import { matchingSkills as findSkills } from "../../domain/skill-suggestions.js";
+import { pathIcon } from "../../ui/path-icon.jsx";
+import { referenceMarkdown } from "../../domain/inline-references.js";
 import React, { useState, useEffect, useRef } from "react";
-import { fileReferenceInput } from "../../domain/user-message.js";
+import { referenceThreads } from "../../domain/composer-references.js";
+
 import {
   FileCode,
   Folder,
@@ -20,7 +24,7 @@ import {
   Trash2,
 } from "lucide-react";
 import * as store from "../../store.js";
-import { backendReady } from "../../domain/backends.js";
+import { backendReady, currentBackendId } from "../../domain/backends.js";
 
 import {
   composerCommands,
@@ -64,8 +68,15 @@ export function useComposerShortcuts(area) {
     [loading, setLoading] = useState(false),
     [error, setError] = useState("");
   const list = useRef(),
-    generation = useRef(0);
+    generation = useRef(0),
+    dismissed = useRef(null);
   function detect(text, position) {
+    if (
+      dismissed.current?.text === text &&
+      dismissed.current.position === position
+    )
+      return;
+    dismissed.current = null;
     const before = text.slice(0, position),
       match = before.match(/(^|\s)([@/])([^\s@]*)$/);
     setTrigger(
@@ -151,18 +162,17 @@ export function useComposerShortcuts(area) {
     setTrigger(null);
   }, [s.current?.id]);
   const q = trigger?.query.toLowerCase() || "";
-  const matchingSkills = s.skills
-    .filter((skill) =>
-      (skill.name + " " + skill.description).toLowerCase().includes(q),
-    )
-    .map((skill) => ({
-      id: "skill:" + (skill.path || skill.name),
-      kind: "skill",
-      label: skill.name,
-      description: skill.shortDescription || skill.description,
-      icon: Sparkles,
-      skill,
-    }));
+  const matchingSkills = findSkills(s.skills, q).map((skill) => ({
+    id: "skill:" + (skill.path || skill.name),
+    kind: "skill",
+    label: skill.interface?.displayName || skill.name,
+    description:
+      skill.interface?.shortDescription ||
+      skill.shortDescription ||
+      skill.description,
+    icon: Sparkles,
+    skill,
+  }));
   const items =
     trigger?.kind === "/"
       ? [
@@ -199,10 +209,25 @@ export function useComposerShortcuts(area) {
               description: file.path.startsWith(s.cwd + "/")
                 ? file.path.slice(s.cwd.length + 1)
                 : file.path,
-              icon: file.directory ? Folder : FileCode,
+              icon: file.directory
+                ? Folder
+                : pathIcon(file.path, { literal: true }),
               file,
             })),
             ...matchingSkills,
+            ...referenceThreads(
+              s.threads,
+              currentBackendId(s),
+              s.current?.id,
+              q,
+            ).map((thread) => ({
+              id: "thread:" + thread.id,
+              kind: "thread",
+              label: thread.name || thread.title || thread.preview || thread.id,
+              description: "引用已保存的会话正文",
+              icon: SquarePen,
+              thread,
+            })),
           ]
         : [];
   const selected = Math.min(index, Math.max(0, items.length - 1));
@@ -224,33 +249,61 @@ export function useComposerShortcuts(area) {
       runComposerCommand(commandText).catch(store.report);
       return;
     }
-    let replacement = "";
-    if (item.kind === "file") {
-      const file = item.file;
-      replacement = "@" + file.name + " ";
-      store.addAttachment({
-        id: store.uid(),
-        name: file.name,
-        input: fileReferenceInput(file),
-      });
-    }
-    if (item.kind === "skill" && item.skill.native) {
-      store.setDraft(
-        `/${item.skill.name} ${text.slice(0, t.start)}${text.slice(t.end)}`,
-      );
+    if (item.kind === "skill" && t.kind === "/") {
+      if (item.skill.native)
+        store.setDraft(
+          `/${item.skill.name} ${text.slice(0, t.start)}${text.slice(t.end)}`,
+        );
+      else {
+        store.addAttachment({
+          id: store.uid(),
+          name: item.skill.name,
+          input: {
+            type: "skill",
+            name: item.skill.name,
+            path: item.skill.path,
+          },
+        });
+        store.setDraft(text.slice(0, t.start) + text.slice(t.end));
+      }
       setTrigger(null);
       setIndex(0);
       area.current?.focus();
       return;
     }
-    if (item.kind === "skill" && !item.skill.native) {
-      store.addAttachment({
-        id: store.uid(),
+    let reference;
+    if (item.kind === "thread")
+      reference = {
+        kind: "thread",
+        name: item.label,
+        path: "thread://" + item.thread.id,
+        threadId: item.thread.id,
+      };
+    if (item.kind === "file")
+      reference = {
+        kind: item.file.directory ? "directory" : "file",
+        name: item.file.name,
+        path:
+          item.file.path +
+          (item.file.directory && !item.file.path.endsWith("/") ? "/" : ""),
+      };
+    if (item.kind === "skill")
+      reference = {
+        kind: "skill",
         name: item.skill.name,
-        input: { type: "skill", name: item.skill.name, path: item.skill.path },
-      });
+        path:
+          item.skill.path || "skill://" + encodeURIComponent(item.skill.name),
+        native: item.skill.native,
+      };
+    if (area.current?.insertReference) {
+      setTrigger(null);
+      setIndex(0);
+      area.current.insertReference(reference, t.start, t.end);
+      return;
     }
-    store.setDraft(text.slice(0, t.start) + replacement + text.slice(t.end));
+    const replacement = referenceMarkdown(reference) + " ";
+    const next = text.slice(0, t.start) + replacement + text.slice(t.end);
+    store.setDraft(next);
     setTrigger(null);
     setIndex(0);
     requestAnimationFrame(() => {
@@ -261,13 +314,19 @@ export function useComposerShortcuts(area) {
       );
     });
   }
+  function close() {
+    dismissed.current = trigger
+      ? { text: store.get().draft, position: trigger.end }
+      : null;
+    setTrigger(null);
+  }
   function keydown(e) {
     if (!trigger || e.nativeEvent.isComposing || e.ctrlKey || e.metaKey)
       return false;
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
-      setTrigger(null);
+      close();
       return true;
     }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -289,7 +348,9 @@ export function useComposerShortcuts(area) {
     <div className="shortcut-popover">
       <div className="shortcut-heading">
         <span>
-          {trigger.kind === "@" ? "引用文件、目录或技能" : "快捷命令与技能"}
+          {trigger.kind === "@"
+            ? "引用文件、目录、技能或会话"
+            : "快捷命令与技能"}
         </span>
         <small>{trigger.kind === "@" ? store.basename(s.cwd) : "/"}</small>
       </div>
@@ -353,7 +414,7 @@ export function useComposerShortcuts(area) {
     open: !!trigger,
     activeId: items.length ? "shortcut-option-" + selected : undefined,
     detect,
-    close: () => setTrigger(null),
+    close,
     keydown,
   };
 }

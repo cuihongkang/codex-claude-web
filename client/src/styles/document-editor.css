@@ -183,3 +183,35 @@
   height: 2rem;
   border-radius: 0.3rem;
 }
+.document-reference {
+  display: inline;
+  white-space: normal;
+  cursor: default;
+}
+.inline-reference {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.23em;
+  max-width: 100%;
+  color: var(--link);
+  border-radius: 0.2em;
+  vertical-align: baseline;
+  overflow-wrap: anywhere;
+}
+.inline-reference > svg {
+  align-self: center;
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+}
+.inline-reference > :is(a, span) {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.inline-reference > a:hover {
+  text-decoration: underline;
+}
+.document-reference.ProseMirror-selectednode {
+  background: var(--hover);
+}

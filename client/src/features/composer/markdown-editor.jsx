@@ -59,6 +59,8 @@ export function MarkdownEditor({
         rendered.current = latest.current.value;
         exposed.current = {
           focus: () => instance.focus(),
+          insertReference: (reference, start, end) =>
+            instance.insertReference(reference, start, end),
           setSelectionRange: (start, end) => instance.setCursor(start, end),
           get value() {
             return rendered.current;

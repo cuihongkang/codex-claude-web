@@ -1,3 +1,4 @@
+import { referenceToolParams } from "./reference-tools.mjs";
 import { join } from "node:path";
 import { codexCapabilities } from "../../../../shared/backend-capabilities.mjs";
 import { readAgentMessages } from "../../agent-messages.mjs";
@@ -47,6 +48,9 @@ export function createCodexAdapter({
       broadcast(state());
     },
   });
+  const nativeCall = transport.call;
+  transport.call = (method, params, options) =>
+    nativeCall(method, referenceToolParams(method, params, config), options);
   const threadNaming = createThreadNaming({
     call: transport.call,
     generate: (params) =>
@@ -129,7 +133,10 @@ export function createCodexAdapter({
       if (!message.method) return receive(client, message);
       const { providerId, ...params } = message.params || {};
       if (providerId) throw new Error("Codex 使用现有账户与模型配置");
-      return receive(client, { ...message, params });
+      return receive(client, {
+        ...message,
+        params: referenceToolParams(message.method, params, config),
+      });
     },
     connect: transport.connect,
     releaseUnusedThreads: subscriptions.releaseUnusedThreads,

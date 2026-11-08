@@ -1,3 +1,8 @@
+import { InlineReference } from "../../ui/inline-reference.jsx";
+import { inlineReference } from "../../domain/inline-references.js";
+import { openThread } from "../../store.js";
+import { textReferences } from "../../domain/inline-references.js";
+import { pathIcon } from "../../ui/path-icon.jsx";
 import React from "react";
 import { RichText } from "../markdown/rich-text.jsx";
 import { FileCode, Paperclip, Folder, Sparkles } from "lucide-react";
@@ -34,7 +39,20 @@ export function Content({ content, cwd }) {
               </span>
             )}
           </div>
-        ) : c.type === "skill" ? (
+        ) : c.type === "mention" &&
+          c.path?.startsWith("thread://") &&
+          !textReferences(parsed.text).some(
+            (ref) => ref.kind === "thread" && ref.path === c.path,
+          ) ? (
+          <InlineReference
+            key={i}
+            reference={inlineReference(c.path, c.name)}
+            onOpen={() => openThread(c.path.slice(9))}
+          />
+        ) : c.type === "skill" &&
+          !textReferences(parsed.text).some(
+            (ref) => ref.kind === "skill" && ref.path === c.path,
+          ) ? (
           <span key={i} className="skill-tag">
             <Sparkles size={14} />
             {c.name}
@@ -45,7 +63,7 @@ export function Content({ content, cwd }) {
   );
 }
 export function FileReference({ file }) {
-  const Icon = file.directory ? Folder : FileCode;
+  const Icon = file.directory ? Folder : pathIcon(file.path, { literal: true });
   const label = (
     <>
       <Icon size={14} aria-hidden="true" />

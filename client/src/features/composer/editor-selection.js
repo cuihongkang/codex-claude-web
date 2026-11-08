@@ -1,5 +1,24 @@
 import { TextSelection } from "@milkdown/kit/prose/state";
 
+export function syncDocumentSelection(view) {
+  if (!view.hasFocus() || view.composing) return;
+  const selection = view.dom.ownerDocument.getSelection();
+  if (
+    !selection ||
+    !view.dom.contains(selection.anchorNode) ||
+    !view.dom.contains(selection.focusNode)
+  )
+    return;
+  const anchor = view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+  const head = view.posAtDOM(selection.focusNode, selection.focusOffset);
+  const next = TextSelection.between(
+    view.state.doc.resolve(anchor),
+    view.state.doc.resolve(head),
+  );
+  if (!next.eq(view.state.selection))
+    view.dispatch(view.state.tr.setSelection(next));
+}
+
 function sourceOffset(view, serialize, position) {
   const marker = "CODEXCURSOR" + crypto.randomUUID().replaceAll("-", "");
   const marked = view.state.tr.insertText(marker, position).doc;
@@ -7,6 +26,7 @@ function sourceOffset(view, serialize, position) {
 }
 
 export function documentCursor(view, serialize, end = false) {
+  syncDocumentSelection(view);
   return sourceOffset(
     view,
     serialize,
@@ -14,7 +34,7 @@ export function documentCursor(view, serialize, end = false) {
   );
 }
 
-function documentPosition(view, serialize, position) {
+export function documentPosition(view, serialize, position) {
   const points = [];
   view.state.doc.descendants((node, offset) => {
     if (node.isText) points.push({ from: offset, to: offset + node.nodeSize });
