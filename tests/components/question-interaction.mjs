@@ -84,7 +84,13 @@ export async function testQuestionInteraction(app, fixture) {
       false,
     );
     const form = view.root.findByType("form");
-    const plainEnter = event({ target: { tagName: "TEXTAREA" } });
+    assert.equal(form.findAllByType("legend").length, 0);
+    assert.equal(form.findAllByProps({ className: "request-hint" }).length, 0);
+    assert.equal(form.findAllByProps({ className: "answer-label" }).length, 0);
+    const plainEnter = event({
+      shiftKey: true,
+      target: { tagName: "TEXTAREA" },
+    });
     await act(async () => form.props.onKeyDown(plainEnter));
     assert(!plainEnter.prevented);
     const composing = event({
@@ -93,7 +99,9 @@ export async function testQuestionInteraction(app, fixture) {
     });
     await act(async () => form.props.onKeyDown(composing));
     assert(!requests.some((m) => m.id === request.id));
-    await act(async () => form.props.onKeyDown(event({ ctrlKey: true })));
+    await act(async () =>
+      form.props.onKeyDown(event({ target: { tagName: "TEXTAREA" } })),
+    );
     assert.deepEqual(
       requests.find((m) => m.id === request.id),
       {

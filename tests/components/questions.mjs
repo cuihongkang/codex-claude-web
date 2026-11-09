@@ -236,7 +236,8 @@ export async function testQuestions(app, requests, setResponse, emit) {
       view.root.findByType("textarea").props.value,
       "尚未提交的环境信息",
     );
-    assert(visible().includes("这轮任务已结束"));
+    assert(!visible().includes("这轮任务已结束"));
+    assert(visible().includes("补充回答"));
     await act(async () =>
       view.root.findByType("form").props.onSubmit({ preventDefault() {} }),
     );
