@@ -258,3 +258,24 @@
   height: 2.384615rem;
   border-radius: 50%;
 }
+
+.supplemental-message > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.supplemental-message > summary::-webkit-details-marker {
+  display: none;
+}
+.supplemental-message .supplemental-preview {
+  min-width: 0;
+  max-width: none;
+  flex: 1;
+  color: var(--fg);
+  font-weight: 600;
+}
+.supplemental-message > summary > svg {
+  flex: none;
+}
+.supplemental-message[open] > summary .summary-chevron {
+  transform: rotate(90deg);
+}

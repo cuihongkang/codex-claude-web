@@ -28,6 +28,7 @@ export function conversationGroups(items, requests = [], turns = []) {
       lastInTurn.set(item.turnId, item.id);
   const groups = [];
   const processes = new Map();
+  const userTurns = new Set();
   function processFor(item) {
     let process = processes.get(item.turnId);
     // 无轮次信息的历史活动仅合并相邻记录，避免跨任务聚合。
@@ -83,7 +84,16 @@ export function conversationGroups(items, requests = [], turns = []) {
       processFor(item).questions.push({ type: "message", id: item.id, item });
     } else if (item.type === "userMessage" || item.type === "plan" || answer) {
       groups.push({ type: "message", id: item.id, item });
-      const process = item.turnId && processes.get(item.turnId);
+      const supplemental =
+        item.type === "userMessage" &&
+        item.turnId &&
+        userTurns.has(item.turnId);
+      if (item.type === "userMessage" && item.turnId)
+        userTurns.add(item.turnId);
+      const process = supplemental
+        ? processFor(item)
+        : item.turnId && processes.get(item.turnId);
+      if (supplemental) process.items.push(item);
       if (item.type === "userMessage" && process) {
         groups.splice(groups.indexOf(process), 1);
         groups.push(process);

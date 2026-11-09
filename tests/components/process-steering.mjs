@@ -103,6 +103,17 @@ export async function testProcessSteering(app, fixture) {
       "process",
     ]);
     assert.equal(history(), originalHistory);
+    assert.deepEqual(
+      history()
+        .findAllByProps({ className: "supplemental-preview" })
+        .map((node) => node.children.join("")),
+      ["请考虑通用能力。", "同时检查内存占用。"],
+    );
+    assert.equal(
+      history().findAllByProps({ className: "activity supplemental-message" })
+        .length,
+      2,
+    );
     assert.equal(
       history().findAllByProps({ className: "user-bubble" }).length,
       0,
@@ -158,6 +169,14 @@ export async function testProcessSteering(app, fixture) {
     assert.equal(
       view.root.findAllByProps({ className: "process-history" }).length,
       1,
+    );
+    await act(async () =>
+      history().props.onToggle({ currentTarget: { open: true } }),
+    );
+    assert.equal(
+      history().findAllByProps({ className: "activity supplemental-message" })
+        .length,
+      2,
     );
     await act(async () => view.unmount());
     fixture.responseFor = previousResponse;

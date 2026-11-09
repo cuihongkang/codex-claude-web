@@ -45,7 +45,7 @@ test("中途引导消息独立显示，同轮过程汇总到最后一条引导�
   );
   assert.deepEqual(
     groups[3].items.map((entry) => entry.id),
-    ["progress", "tool", "thought"],
+    ["progress", "steer", "tool", "next-steer", "thought"],
   );
 });
 test("生成中的引导消息立即将已有过程移到消息下方并保持分组 ID", () => {
@@ -60,7 +60,8 @@ test("生成中的引导消息立即将已有过程移到消息下方并保持�
     during.map((g) => g.id),
     ["user", "pending-steer", before[1].id],
   );
-  assert.deepEqual(during[2].items, before[1].items);
+  assert.deepEqual(during[2].items.slice(0, -1), before[1].items);
+  assert.equal(during[2].items.at(-1).id, "pending-steer");
 });
 test("每轮过程各自汇总，前一轮的引导和过程保留在该轮最终回答上方", () => {
   const groups = conversationGroups([
@@ -207,7 +208,7 @@ test("同轮多批问题各自收纳，普通引导后过程与待答卡片保�
   );
   assert.deepEqual(
     groups[2].items.map((entry) => entry.id),
-    ["progress", "question", "tool"],
+    ["progress", "question", "steer", "tool"],
   );
 });
 
