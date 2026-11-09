@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -7,17 +7,68 @@ import {
   Pin,
   Plus,
 } from "lucide-react";
-import { basename, newChat, toggleProjectPin } from "../store.js";
+import {
+  basename,
+  newChat,
+  toggleProjectPin,
+  moveThreadToFolder,
+  report,
+} from "../store.js";
 import { IconButton } from "../ui/primitives.jsx";
 
 export function ProjectGroup({ path, pinned = false, children }) {
   const [open, expand] = useState(pinned);
+  const [dragOver, setDragOver] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [showAll, revealAll] = useState(false);
+  useEffect(() => {
+    if (!dragOver) return;
+    const clear = () => setDragOver(false);
+    window.addEventListener("dragend", clear);
+    window.addEventListener("drop", clear);
+    return () => {
+      window.removeEventListener("dragend", clear);
+      window.removeEventListener("drop", clear);
+    };
+  }, [dragOver]);
   const conversations = React.Children.toArray(children);
   const label = path ? basename(path) : "未分类";
   return (
     <div className="project-group">
-      <div className="project-heading">
+      <div
+        className={"project-heading" + (dragOver ? " drop-target" : "")}
+        aria-busy={moving}
+        onDragOver={(event) => {
+          if (
+            moving ||
+            !event.dataTransfer.types.includes("application/x-claudex-thread")
+          )
+            return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setDragOver(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setDragOver(false);
+        }}
+        onDrop={async (event) => {
+          setDragOver(false);
+          const id = event.dataTransfer.getData("application/x-claudex-thread");
+          if (!id || moving) return;
+          event.preventDefault();
+          setMoving(true);
+          try {
+            await moveThreadToFolder(id, path);
+            expand(true);
+            revealAll(true);
+          } catch (error) {
+            report(error);
+          } finally {
+            setMoving(false);
+          }
+        }}
+      >
         <button
           title={path || "未指定项目的对话"}
           aria-expanded={open}

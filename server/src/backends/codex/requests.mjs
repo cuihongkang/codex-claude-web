@@ -142,7 +142,7 @@ export function createRequestHandler({
         compactions.start(threadId, id);
       if (threadId && loadedThreadMethods.has(message.method)) {
         try {
-          await resumeForWrite(threadId);
+          await resumeForWrite(threadId, { cwd: message.params?.cwd });
         } catch (error) {
           if (message.method === "thread/compact/start")
             compactions.reject(threadId, id, error.message);

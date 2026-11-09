@@ -245,6 +245,40 @@ export function createThreadCatalog({
     await loadThreads();
     notice("已创建对话分支");
   }
+  function applyThreadFolder(thread) {
+    const known =
+      get().threads.find((entry) => entry.id === thread.id) ||
+      (get().current?.id === thread.id ? get().current : null);
+    if ((known?.folderRevision || 0) > (thread.folderRevision || 0)) return;
+    const update = (entry) =>
+      entry?.id === thread.id
+        ? {
+            ...entry,
+            folderPath: thread.folderPath,
+            folderRevision: thread.folderRevision,
+            cwd: thread.cwd,
+          }
+        : entry;
+    const pins = get().pins.filter((id) => id !== thread.id);
+    persist("cx-pins", pins);
+    set({
+      pins,
+      threads: get().threads.map(update),
+      current: update(get().current),
+      ...(get().current?.id === thread.id && {
+        cwd: thread.cwd,
+        projectless: !thread.folderPath,
+        projectlessCwd: null,
+      }),
+    });
+  }
+  async function moveThreadToFolder(id, folderPath) {
+    const { thread } = await rpc("lan/thread/move", {
+      threadId: id,
+      folderPath,
+    });
+    if (!records.deletedThreads.has(id)) applyThreadFolder(thread);
+  }
   function pin(id) {
     const pins = get().pins.includes(id)
       ? get().pins.filter((x) => x !== id)
@@ -286,6 +320,8 @@ export function createThreadCatalog({
     deleteThread,
     fork,
     pin,
+    moveThreadToFolder,
+    applyThreadFolder,
     addProject,
     toggleProjectPin,
   };

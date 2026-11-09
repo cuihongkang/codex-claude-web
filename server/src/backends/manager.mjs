@@ -1,3 +1,4 @@
+import { createThreadFolders } from "../thread-folders.mjs";
 import { createCliInstallation } from "./cli-installation.mjs";
 import { join } from "node:path";
 import { readProjectlessDirectories } from "../thread-projects.mjs";
@@ -28,6 +29,7 @@ export function createBackendManager({
   broadcast,
   factories = {},
 }) {
+  const folders = createThreadFolders(config.configDir);
   const workspace = createWorkspace({ broadcast, configDir: config.configDir });
   const configuration = createBackendConfiguration(config);
   const providers = createProviders(configuration);
@@ -134,6 +136,7 @@ export function createBackendManager({
     }
   }
   async function connect() {
+    await folders.read();
     const data = await configuration.read();
     await Promise.all(data.backends.map(install));
     initialized = true;
@@ -161,7 +164,10 @@ export function createBackendManager({
           send(client, {
             ...message,
             ...(message.result && {
-              result: mapResult(message.result, entry.backend.id, method),
+              result: folders.result(
+                mapResult(message.result, entry.backend.id, method),
+                method,
+              ),
             }),
           });
         },
@@ -178,7 +184,13 @@ export function createBackendManager({
         deliver(message) {
           clearTimeout(timer);
           if (message.error) reject(new Error(message.error.message));
-          else resolve(mapResult(message.result, entry.backend.id, method));
+          else
+            resolve(
+              folders.result(
+                mapResult(message.result, entry.backend.id, method),
+                method,
+              ),
+            );
         },
       };
       Promise.resolve(
@@ -260,6 +272,7 @@ export function createBackendManager({
     return { backends: publicBackends() };
   }
   async function receive(client, message) {
+    await folders.read();
     const method = message.method,
       params = message.params || {};
     const reply = (result) => send(client, { id: message.id, result });
@@ -273,6 +286,16 @@ export function createBackendManager({
       params.threadId ?? params.processId ?? (!method ? message.id : null),
       fallback,
     );
+    if (method === "lan/thread/move") {
+      const entry = instance(target.backendId);
+      const { thread } = await call(entry, "thread/read", {
+        threadId: target.nativeId,
+        includeTurns: false,
+      });
+      const moved = await folders.move(thread, params.folderPath);
+      broadcast({ method: "thread/folder/updated", params: { thread: moved } });
+      return reply({ thread: moved });
+    }
     if (method === "lan/projectless/read")
       return reply({
         directories: await readProjectlessDirectories(
@@ -345,7 +368,9 @@ export function createBackendManager({
     await entry.adapter.receive(recipient, {
       ...message,
       ...(!method && { id: target.nativeId }),
-      ...(method && { params: nativeParams(params, entry.backend.id) }),
+      ...(method && {
+        params: nativeParams(folders.params(method, params), entry.backend.id),
+      }),
     });
   }
   function releaseClient(client) {

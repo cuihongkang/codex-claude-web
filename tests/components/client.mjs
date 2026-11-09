@@ -1,3 +1,4 @@
+import { testThreadFolderDrag } from "./thread-folder-drag.mjs";
 import { testInputQueue } from "./input-queue.mjs";
 import { testFolderPicker } from "./folder-picker.mjs";
 import { testPlans } from "./plans.mjs";
@@ -270,6 +271,7 @@ await testFolderPicker(app, fixture);
 await testServiceTierControls(app, fixture);
 await testReasoningControls(app, fixture);
 await testProjectFolders(app, fixture);
+await testThreadFolderDrag(app, fixture);
 await testProjectlessCreation(app, fixture);
 await testDraftSubmission(app, fixture);
 await testAttachmentDrafts(app, fixture);

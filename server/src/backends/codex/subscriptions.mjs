@@ -9,12 +9,13 @@ export function createSubscriptions({
     resuming = new Map(),
     closing = new Map();
   const unwrittenThreads = new Set();
-  async function resumeForWrite(threadId) {
+  async function resumeForWrite(threadId, { cwd } = {}) {
     if (subscriptions.has(threadId)) return;
     if (!resuming.has(threadId)) {
       const resume = transport
         .call("thread/resume", {
           threadId,
+          ...(cwd && { cwd }),
           excludeTurns: true,
           approvalPolicy: "never",
           sandbox: "danger-full-access",

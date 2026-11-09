@@ -15,6 +15,7 @@ export function sortThreads(threads) {
 }
 
 export function threadGroupPath(thread, projects, directories, root) {
+  if (typeof thread.folderPath === "string") return thread.folderPath;
   if (!thread.cwd) return "";
   if (thread.projectId || projects.includes(thread.cwd)) return thread.cwd;
   const roots = Array.isArray(root) ? root : [root];

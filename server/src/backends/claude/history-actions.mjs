@@ -13,7 +13,7 @@ export async function forkHistory(readSession, session, retained) {
       initialized: false,
     };
   const messages = await readSession("getSessionMessages", sourceId, {
-    dir: session.cwd,
+    dir: session.historySearchAll ? undefined : session.cwd,
   });
   const anchors = new Map(
     Object.values(session.turns || {}).flatMap((turn) =>
@@ -44,13 +44,13 @@ export async function forkHistory(readSession, session, retained) {
   if (next && !next.parentUuid)
     throw new Error("Claude 原生历史缺少分支链边界");
   const { sessionId } = await readSession("forkSession", sourceId, {
-    dir: session.cwd,
+    dir: session.historySearchAll ? undefined : session.cwd,
     // A turn may end on an attachment omitted by the SDK's message projection.
     // Its next prompt retains the exact native chain boundary.
     ...(next && { upToMessageId: next.parentUuid }),
   });
   const forked = await readSession("getSessionMessages", sessionId, {
-    dir: session.cwd,
+    dir: session.historySearchAll ? undefined : session.cwd,
   });
   const original = messages.slice(0, boundary);
   const copiedIds = new Map(

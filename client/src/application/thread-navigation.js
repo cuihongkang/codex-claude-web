@@ -149,7 +149,7 @@ export function createThreadNavigation({
         }),
         providerId: thread.providerId || "",
         attachments: getAttachmentDraft(id).attachments,
-        cwd: r.cwd || r.thread.cwd,
+        cwd: thread.cwd || r.cwd,
         projectless,
         projectlessCwd: null,
         model: thread.model || models.defaults.model,

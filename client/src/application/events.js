@@ -70,6 +70,10 @@ export function createEvents({
       messages.handleReverted(p.threadId);
       return;
     }
+    if (method === "thread/folder/updated") {
+      catalog.applyThreadFolder(p.thread);
+      return;
+    }
     if (method === "thread/deleted") {
       catalog.forgetThread(p.threadId);
       return;

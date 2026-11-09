@@ -105,7 +105,7 @@ export function createGoals({
       ? await readSession(
           "getNativeGoalStatus",
           session.nativeSessionId || id,
-          { dir: session.cwd },
+          { dir: session.historySearchAll ? undefined : session.cwd },
         )
       : null;
     await change(id, (g) => ({
@@ -230,7 +230,7 @@ export function createGoals({
     const native = await readSession(
       "getNativeGoalStatus",
       session.nativeSessionId || id,
-      { dir: session.cwd },
+      { dir: session.historySearchAll ? undefined : session.cwd },
     );
     const current =
       native?.condition === goal.objective &&

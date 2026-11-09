@@ -138,6 +138,13 @@ export function ThreadRow({ thread }) {
     >
       <button
         className="thread-link"
+        draggable
+        onDragStart={(event) => {
+          setTooltip(null);
+          show(false);
+          event.dataTransfer.setData("application/x-claudex-thread", thread.id);
+          event.dataTransfer.effectAllowed = "move";
+        }}
         aria-describedby={tooltip ? tooltipId : undefined}
         onMouseEnter={showTitle}
         onMouseLeave={() => setTooltip(null)}

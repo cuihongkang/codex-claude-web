@@ -52,6 +52,7 @@ export const {
   pin,
   addProject,
   toggleProjectPin,
+  moveThreadToFolder,
   addAttachment,
   attachFile,
   cancelMessageEdit,

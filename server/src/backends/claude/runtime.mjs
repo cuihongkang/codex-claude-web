@@ -75,7 +75,15 @@ export function createClaudeRuntime({
           pending: session.queue?.length,
         },
       );
-      return { ...session, queue: [...(session.queue || []), turn] };
+      return {
+        ...session,
+        ...(params.cwd &&
+          params.cwd !== session.cwd && {
+            cwd: params.cwd,
+            historySearchAll: true,
+          }),
+        queue: [...(session.queue || []), turn],
+      };
     });
     if (compact) compactions.start(threadId, turn.id);
     emit("lan/inputQueue/updated", { threadId });
@@ -207,6 +215,7 @@ export function createClaudeRuntime({
       );
       if (
         process?.ended ||
+        (process && process.cwd !== session.cwd) ||
         process?.nativeSessionId !== (session.nativeSessionId || threadId) ||
         process?.providerKey !== JSON.stringify(provider) ||
         process?.review !== queued.review

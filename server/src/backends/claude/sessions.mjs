@@ -74,12 +74,12 @@ export function createClaudeSessions({
           s.parentNativeId || s.parentId,
           s.agentId,
           {
-            dir: s.cwd,
+            dir: s.historySearchAll ? undefined : s.cwd,
           },
         )
       : s.initialized
         ? await readSession("getSessionMessages", s.nativeSessionId || id, {
-            dir: s.cwd,
+            dir: s.historySearchAll ? undefined : s.cwd,
             includeSystemMessages: true,
           })
         : [];
@@ -275,7 +275,7 @@ export function createClaudeSessions({
             "renameSession",
             s.nativeSessionId || s.id,
             p.name,
-            { dir: s.cwd },
+            { dir: s.historySearchAll ? undefined : s.cwd },
           );
         await update(s.id, { name: p.name });
         notify("thread/name/updated", { threadId: s.id, threadName: p.name });
@@ -283,7 +283,7 @@ export function createClaudeSessions({
         const deleted = method === "thread/delete";
         if (deleted && s.initialized)
           await readSession("deleteSession", s.nativeSessionId || s.id, {
-            dir: s.cwd,
+            dir: s.historySearchAll ? undefined : s.cwd,
           });
         await update(
           s.id,

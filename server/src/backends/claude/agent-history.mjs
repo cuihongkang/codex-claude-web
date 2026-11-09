@@ -2,7 +2,9 @@ import { historyTurns } from "./messages.mjs";
 
 export async function recoverAgents(parent, records, readSession) {
   const nativeId = parent.nativeSessionId || parent.id;
-  const ids = await readSession("listSubagents", nativeId, { dir: parent.cwd });
+  const ids = await readSession("listSubagents", nativeId, {
+    dir: parent.historySearchAll ? undefined : parent.cwd,
+  });
   const agents = { ...parent.agents };
   for (const agentId of ids) {
     const id = `agent/${parent.id}/${agentId}`;
@@ -10,7 +12,7 @@ export async function recoverAgents(parent, records, readSession) {
       "getSubagentMessages",
       nativeId,
       agentId,
-      { dir: parent.cwd },
+      { dir: parent.historySearchAll ? undefined : parent.cwd },
     );
     if (!messages.length) continue;
     const toolId = messages[0].parent_tool_use_id;
