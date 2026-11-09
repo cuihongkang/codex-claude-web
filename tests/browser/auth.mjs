@@ -18,7 +18,7 @@ const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE));
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const output = join(root, ".cache/auth-browser");
 await mkdir(output, { recursive: true });
-const directory = await mkdtemp(join(tmpdir(), "codex-web-auth-browser-"));
+const directory = await mkdtemp(join(tmpdir(), "claudex-web-auth-browser-"));
 const auth = await authenticationFixture(directory);
 const backend = new WebSocketServer({ host: "127.0.0.1", port: 0 });
 await once(backend, "listening");
@@ -34,7 +34,7 @@ let denyResume = false;
 const demoFiles = new Map();
 for (const path of [
   "README.md",
-  "client/src/assets/codex-web.svg",
+  "client/src/assets/claudex-web.svg",
   "docs/images/desktop-light.png",
   "docs/images/desktop-dark.png",
   "docs/images/mobile.png",
@@ -173,6 +173,7 @@ const start = async (before = false) => {
         HOST: "127.0.0.1",
         PORT: "0",
         CODEX_HOME: directory,
+        CLAUDEX_WEB_CONFIG_DIR: directory,
         DEFAULT_CWD: "/demo/project",
         STATIC_DIR: join(
           root,
@@ -281,7 +282,7 @@ try {
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("link", { name: "下载证书", exact: true }).click();
     const download = await downloadPromise;
-    assert.equal(download.suggestedFilename(), "codex-web.cer");
+    assert.equal(download.suggestedFilename(), "claudex-web.cer");
     const certificate = new X509Certificate(
       await readFile(await download.path()),
     );
@@ -492,7 +493,7 @@ try {
       .click();
     const cookies = await context.cookies();
     const session = cookies.find(
-      (cookie) => cookie.name === "__Host-codex-web-session",
+      (cookie) => cookie.name === "__Host-claudex-web-session",
     );
     assert(session.secure && session.httpOnly && session.sameSite === "Strict");
     assert(session.expires > Date.now() / 1000 + 29 * 86400);

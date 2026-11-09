@@ -45,7 +45,7 @@ export function ClaudeSidebar() {
   return (
     <section className="claude-sidebar" aria-label="Claude 会话">
       <div className="sidebar-section-title">
-        <span>Claude</span>
+        <span>Claude 插件会话</span>
         <div>
           <IconButton
             icon={RefreshCw}

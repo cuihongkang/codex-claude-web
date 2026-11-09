@@ -2,7 +2,9 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { Settings } from "lucide-react";
 import { useStore, set, refreshUsage } from "../../store.js";
 import {
+  quotaSnapshot,
   quotaCreditsText,
+  quotaExtraUsageText,
   quotaLabel,
   quotaPlan,
   quotaRemaining,
@@ -10,6 +12,8 @@ import {
   quotaShortLabel,
   quotaWindows,
 } from "../../domain/account-usage.js";
+
+import { currentBackendId, backendReady } from "../../domain/backends.js";
 
 function UsageMeters({ usage }) {
   const [now, setNow] = useState(Date.now);
@@ -27,7 +31,7 @@ function UsageMeters({ usage }) {
   }, []);
   return quotaWindows(usage).map((window, index) => {
     const remaining = quotaRemaining(window);
-    const label = quotaLabel(window.windowDurationMins);
+    const label = quotaLabel(window.windowDurationMins, window.label);
     return (
       <div
         className="usage-meter"
@@ -63,6 +67,15 @@ function UsageMeters({ usage }) {
 
 export function AccountFooter() {
   const s = useStore();
+  const backendId = currentBackendId(s);
+  const codex = backendId === "codex";
+  const connected = s.connected && backendReady(s);
+  const quotaEnabled = codex
+    ? !s.account || s.account.type === "chatgpt"
+    : s.account?.usageSupported === true;
+  const provider = s.providers?.find(
+    (provider) => provider.id === s.providerId,
+  );
   const [expanded, setExpanded] = useState(false);
   const footer = useRef(null);
   const toggle = useRef(null);
@@ -76,9 +89,18 @@ export function AccountFooter() {
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
   }, [expanded]);
-  useEffect(() => setExpanded(false), [s.account?.email, s.account?.type]);
+  useEffect(
+    () => setExpanded(false),
+    [
+      s.account?.email,
+      s.account?.type,
+      backendId,
+      s.providerId,
+      !codex && s.cwd,
+    ],
+  );
   useEffect(() => {
-    if (!s.connected) return;
+    if (!connected || !quotaEnabled) return;
     const refresh = () => {
       if (document.visibilityState !== "hidden") refreshUsage();
     };
@@ -91,10 +113,10 @@ export function AccountFooter() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [s.connected]);
+  }, [connected, quotaEnabled, backendId, s.providerId, s.cwd]);
 
   useEffect(() => {
-    if (!s.connected) return;
+    if (!connected || !quotaEnabled) return;
     const resets = quotaWindows(s.usage)
       .map((window) => window.resetsAt * 1000 + 1000)
       .filter((reset) => reset > Date.now());
@@ -106,15 +128,32 @@ export function AccountFooter() {
       Math.min(Math.min(...resets) - Date.now(), 2147483647),
     );
     return () => clearTimeout(timer);
-  }, [s.connected, s.usage]);
+  }, [connected, s.usage, quotaEnabled, backendId, s.providerId, s.cwd]);
 
   const windows = quotaWindows(s.usage);
   const hasWindows = windows.length > 0;
+  const balances = quotaSnapshot(s.usage)?.balances || [];
+  const money = (value, currency) =>
+    Number(value).toLocaleString("zh-CN", {
+      style: "currency",
+      currency,
+      currencyDisplay: "narrowSymbol",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   const credits = quotaCreditsText(s.usage);
+  const extraUsage = quotaExtraUsageText(s.usage);
   const plan = quotaPlan(s.account, s.usage);
-  const apiAccount = s.account && s.account.type !== "chatgpt";
+  const name = codex
+    ? s.account?.email?.split("@")[0] || plan || "Codex"
+    : provider?.name || s.account?.email?.split("@")[0] || "Claude Code";
+  const apiAccount = s.account && !quotaEnabled;
   const stale =
-    (s.usageError || !s.connected) && (hasWindows || credits !== null);
+    (s.usageError || !connected) &&
+    (hasWindows ||
+      balances.length > 0 ||
+      credits !== null ||
+      extraUsage !== null);
   return (
     <div
       className="account-card"
@@ -128,7 +167,7 @@ export function AccountFooter() {
         }
       }}
     >
-      {expanded && (
+      {expanded && quotaEnabled && (
         <section
           id={detailsId}
           className="account-quota"
@@ -148,29 +187,64 @@ export function AccountFooter() {
             {plan && <span className="account-plan">{plan}</span>}
           </div>
           <UsageMeters usage={s.usage} />
+          {balances.map((balance) => (
+            <div key={balance.currency}>
+              <div className="quota-credits">
+                <span>账户余额</span>
+                <b>{money(balance.total_balance, balance.currency)}</b>
+              </div>
+              <div className="quota-credits">
+                <span>赠金余额</span>
+                <span>{money(balance.granted_balance, balance.currency)}</span>
+              </div>
+              <div className="quota-credits">
+                <span>充值余额</span>
+                <span>
+                  {money(balance.topped_up_balance, balance.currency)}
+                </span>
+              </div>
+            </div>
+          ))}
+          {quotaSnapshot(s.usage)?.balanceAvailable === false && (
+            <p role="status">当前余额无法用于 API 调用</p>
+          )}
+          {s.usageError && (
+            <button onClick={() => refreshUsage()} disabled={s.usageLoading}>
+              重试读取
+            </button>
+          )}
           {credits !== null && (
             <div className="quota-credits">
               <span>剩余点数</span>
               <b>{credits}</b>
             </div>
           )}
-          {!hasWindows && credits === null && (
-            <p
-              className="quota-empty"
-              role="status"
-              title={s.usageError || undefined}
-            >
-              {apiAccount
-                ? "当前使用 API 账户"
-                : !s.connected
-                  ? "连接后自动读取额度"
-                  : s.usageError
-                    ? "额度暂时不可用"
-                    : s.usageLoading || !s.usage
-                      ? "正在读取额度…"
-                      : "暂无额度数据"}
-            </p>
+          {extraUsage !== null && (
+            <div className="quota-credits">
+              <span>额外用量</span>
+              <b>{extraUsage}</b>
+            </div>
           )}
+          {!hasWindows &&
+            !balances.length &&
+            credits === null &&
+            extraUsage === null && (
+              <p
+                className="quota-empty"
+                role="status"
+                title={s.usageError || undefined}
+              >
+                {apiAccount
+                  ? "当前使用 API 账户"
+                  : !s.connected
+                    ? "连接后自动读取额度"
+                    : s.usageError
+                      ? "额度暂时不可用"
+                      : s.usageLoading || !s.usage
+                        ? "正在读取额度…"
+                        : "暂无额度数据"}
+              </p>
+            )}
         </section>
       )}
       <div className="account-row">
@@ -182,18 +256,16 @@ export function AccountFooter() {
           }}
           aria-label="账户与设置"
         >
-          <span className="avatar">
-            {(s.account?.email || "C").slice(0, 1).toUpperCase()}
-          </span>
+          <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>
           <span>
-            <b>{s.account?.email?.split("@")[0] || plan || "Codex"}</b>
+            <b>{name}</b>
             <small>
-              <i className={s.connected ? "online" : ""} />
-              {s.connected ? "已连接" : "正在连接…"}
+              <i className={connected ? "online" : ""} />
+              {connected ? "已连接" : "正在连接…"}
             </small>
           </span>
         </button>
-        {!apiAccount && (
+        {quotaEnabled && !apiAccount && (
           <button
             ref={toggle}
             className="quota-toggle"
@@ -236,7 +308,12 @@ export function AccountFooter() {
                         opacity={remaining === 0 ? 0 : 1}
                       />
                     </svg>
-                    <span>{quotaShortLabel(window.windowDurationMins)}</span>
+                    <span>
+                      {quotaShortLabel(
+                        window.windowDurationMins,
+                        window.shortLabel,
+                      )}
+                    </span>
                   </span>
                   <span className="quota-number">{Math.round(remaining)}%</span>
                 </span>
@@ -245,7 +322,11 @@ export function AccountFooter() {
             {!hasWindows && (
               <span className="quota-summary">
                 <span className="quota-ring quota-ring-empty" />
-                <span className="quota-number">—</span>
+                <span className="quota-number">
+                  {balances.length
+                    ? money(balances[0].total_balance, balances[0].currency)
+                    : "—"}
+                </span>
               </span>
             )}
           </button>

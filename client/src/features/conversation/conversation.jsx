@@ -1,3 +1,4 @@
+import { ExecutionStatus } from "./execution-status.jsx";
 import React, {
   useState,
   useEffect,
@@ -5,7 +6,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import codexWebIcon from "../../assets/codex-web.svg";
+import claudexWebIcon from "../../assets/claudex-web.svg";
 import {
   ArrowDown,
   GitBranch,
@@ -170,10 +171,10 @@ export function Conversation({ children, footer }) {
       <div className="conversation-layout">
         <div className="welcome">
           <div className="welcome-symbol">
-            <img src={codexWebIcon} width={56} height={56} alt="" />
+            <img src={claudexWebIcon} width={56} height={56} alt="" />
           </div>
           <h1>今天想完成什么？</h1>
-          <p>从一个想法开始，把工作交给 Codex。</p>
+          <p>从一个想法开始，选择模型一起完成。</p>
           <div className="suggestions">
             {[
               {
@@ -283,7 +284,7 @@ export function Conversation({ children, footer }) {
               <details className="plan-card" open={!!active}>
                 <summary>
                   <ListChecks size={16} />
-                  计划 ·{" "}
+                  执行进度 ·{" "}
                   {plan.plan.filter((p) => p.status === "completed").length}/
                   {plan.plan.length}
                 </summary>
@@ -304,10 +305,13 @@ export function Conversation({ children, footer }) {
               </details>
             )}
             {active && !compacting && (
-              <div className="working-status">
-                <span className="pulse-dot" />
-                Codex 正在工作
-              </div>
+              <ExecutionStatus
+                status={
+                  s.executionStatuses?.[s.current?.id]?.turnId === active
+                    ? s.executionStatuses[s.current.id]
+                    : null
+                }
+              />
             )}
           </div>
         </div>

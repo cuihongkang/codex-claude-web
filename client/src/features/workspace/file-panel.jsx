@@ -16,6 +16,7 @@ import {
   ArrowUpRight,
   Download,
 } from "lucide-react";
+import { readWorkspaceFile } from "../../infrastructure/workspace-files.js";
 import { CodeEditor } from "./code-editor.jsx";
 import { isMarkdownFile } from "./editor-language.js";
 import { fileChangeHighlights } from "../../domain/file-changes.js";
@@ -140,14 +141,17 @@ export function FilePanel() {
       return;
     }
     try {
-      const r = await rpc("fs/readFile", { path: p });
+      const bytes = await readWorkspaceFile({
+        path: p,
+        backendId: s.backendId,
+        cwd: s.cwd,
+        providerId: s.providerId,
+        threadId: s.current?.id,
+        rpc,
+      });
       if (request !== opening.current || get().current?.id !== s.current?.id)
         return;
-      const body = decodeTextFile(
-        Uint8Array.from(atob(r.dataBase64), (character) =>
-          character.charCodeAt(0),
-        ),
-      );
+      const body = decodeTextFile(bytes);
       setFileKind(body === null ? "download" : null);
       setFileThreadId(s.current?.id);
       setFile(p);

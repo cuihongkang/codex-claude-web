@@ -1,9 +1,9 @@
+import { ExecutionError } from "../features/conversation/execution-error.jsx";
 import React, { lazy, Suspense, useEffect } from "react";
-import { X, Check, LoaderCircle } from "lucide-react";
+import { Check, LoaderCircle } from "lucide-react";
 import { useStore, get, set, setReadingThread, newChat } from "../store.js";
 import { Conversation } from "../features/conversation/conversation.jsx";
 import { Composer } from "../features/composer/composer.jsx";
-import { IconButton } from "../ui/primitives.jsx";
 import { ContextWorkspace } from "../features/workspace/context-panel.jsx";
 import { ClaudeWorkspace, newClaude } from "../claude.jsx";
 import { openClaude, startClaudeConnection } from "../claude-store.js";
@@ -129,16 +129,7 @@ export function App() {
                 <Conversation
                   footer={
                     <div className="conversation-footer" key="composer">
-                      {s.error && (
-                        <div className="error-banner">
-                          <span>{s.error}</span>
-                          <IconButton
-                            icon={X}
-                            title="关闭错误提示"
-                            onClick={() => set({ error: "" })}
-                          />
-                        </div>
-                      )}
+                      <ExecutionError />
                       <Composer />
                     </div>
                   }

@@ -64,11 +64,16 @@
 .welcome {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   flex-direction: column;
   padding: 2.692308rem 1.923077rem 5rem;
+}
+.welcome > * {
+  flex-shrink: 0;
 }
 .welcome-symbol {
   width: 4.307692rem;
@@ -145,7 +150,10 @@
   min-width: 0;
 }
 .conversation-layout > .welcome {
-  margin-right: var(--context-space, 0);
+  margin-right: calc(
+    var(--context-space, 0px) + var(--navigation-space, 36px) + 2 *
+      var(--navigation-inset, 10px)
+  );
 }
 .conversation {
   overflow: auto;

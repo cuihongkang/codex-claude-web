@@ -194,7 +194,7 @@ function launch() {
   return p;
 }
 const server = https.createServer(
-  await readTls({ codexHome: home }),
+  await readTls({ codexHome: home, configDir: join(home, "web-config") }),
   async (req, res) => {
     if (serveDemoSession(req, res)) return;
     try {
@@ -894,8 +894,8 @@ try {
     );
     await page.getByRole("button", { name: "显示侧栏" }).click();
     await page
-      .getByRole("combobox", { name: "筛选会话后端" })
-      .selectOption("codex");
+      .getByRole("combobox", { name: "筛选会话入口" })
+      .selectOption("workspace");
     await page
       .getByRole("button")
       .filter({ hasText: "接口重构 · Codex" })

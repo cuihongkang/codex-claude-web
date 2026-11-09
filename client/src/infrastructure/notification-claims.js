@@ -1,7 +1,7 @@
 // IndexedDB 的唯一主键写入在同源页面之间串行，刷新后仍保留轮次去重记录。
 export async function claimCompletion(key) {
   const database = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("codex-web-notifications", 1);
+    const request = indexedDB.open("claudex-web-notifications", 1);
     request.onupgradeneeded = () =>
       request.result.createObjectStore("completions");
     request.onsuccess = () => resolve(request.result);

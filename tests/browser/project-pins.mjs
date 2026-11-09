@@ -1,3 +1,4 @@
+import { testThreadFolderDragBrowser } from "./thread-folder-drag.mjs";
 import { serveDemoSession } from "../helpers/browser-session.mjs";
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -10,6 +11,7 @@ import { testSidebarDensity } from "./sidebar-density.mjs";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const before = process.env.BROWSER_BEFORE === "1";
 const visibilityBefore = process.env.PIN_VISIBILITY_BEFORE === "1";
+const threadDrag = process.env.THREAD_FOLDER_DRAG === "1";
 const density = process.env.SIDEBAR_DENSITY === "1";
 const densityBefore = process.env.SIDEBAR_DENSITY_BEFORE === "1";
 const compactSidebar = !before && !visibilityBefore && !densityBefore;
@@ -24,7 +26,7 @@ const buildSource = join(
         : "client/dist",
 );
 const buildDirectory = await mkdtemp(
-  join(tmpdir(), "codex-web-project-pins-build-"),
+  join(tmpdir(), "claudex-web-project-pins-build-"),
 );
 await cp(buildSource, buildDirectory, { recursive: true });
 const buildInfo = JSON.parse(
@@ -56,7 +58,7 @@ const output = join(
 const evidenceDirectory = output;
 await mkdir(output, { recursive: true });
 assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文件");
-function fixture(density) {
+function fixture(density, threadDrag) {
   if (!localStorage.getItem("pins-fixture")) {
     localStorage.clear();
     localStorage.setItem("cx-theme", JSON.stringify("light"));
@@ -74,6 +76,13 @@ function fixture(density) {
     { id: "atlas-b", cwd: "/demo/Atlas", name: "检查项目结构", createdAt: 2 },
     { id: "beacon", cwd: "/demo/Beacon", name: "整理本周笔记", createdAt: 1 },
   ];
+  if (threadDrag)
+    threads.push({
+      id: "backend:claude:atlas-c",
+      cwd: "/demo/Atlas",
+      name: "Claude 项目迁移",
+      createdAt: 0,
+    });
   if (density) {
     threads[0].createdAt = 3000;
     threads[1].createdAt = 2999;
@@ -94,6 +103,10 @@ function fixture(density) {
       { id: "unclassified", cwd: "", name: "未分类最新对话", createdAt: 10000 },
     );
   }
+  const assignments = JSON.parse(
+    localStorage.getItem("fixture-folders") || "{}",
+  );
+  for (const thread of threads) Object.assign(thread, assignments[thread.id]);
   const archived = new Set(
     JSON.parse(localStorage.getItem("fixture-archived") || "[]"),
   );
@@ -102,6 +115,7 @@ function fixture(density) {
     static OPEN = 1;
     readyState = 1;
     constructor() {
+      window.pinSocket = this;
       setTimeout(
         () =>
           this.onmessage({
@@ -134,6 +148,21 @@ function fixture(density) {
           nextCursor:
             !m.params.cursor && visible.length > 60 ? "density-next" : null,
         };
+      }
+      if (threadDrag && m.method === "lan/thread/move") {
+        const thread = threads.find((t) => t.id === m.params.threadId);
+        Object.assign(thread, {
+          folderPath: m.params.folderPath,
+          cwd: m.params.folderPath || thread.cwd,
+          folderRevision: (thread.folderRevision || 0) + 1,
+        });
+        assignments[thread.id] = {
+          folderPath: thread.folderPath,
+          cwd: thread.cwd,
+          folderRevision: thread.folderRevision,
+        };
+        localStorage.setItem("fixture-folders", JSON.stringify(assignments));
+        result = { thread };
       }
       if (m.method === "lan/projectless/read") result = { directories: {} };
       if (m.method === "thread/archive" || m.method === "thread/unarchive") {
@@ -183,7 +212,7 @@ const server = http.createServer(async (request, response) => {
         .toString()
         .replace(
           "<head>",
-          `<head><script>(${fixture.toString()})(${JSON.stringify(density)})</script>`,
+          `<head><script>(${fixture.toString()})(${JSON.stringify(density)}, ${JSON.stringify(threadDrag)})</script>`,
         );
     response
       .writeHead(200, {
@@ -197,7 +226,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-readme-browser-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-readme-browser-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [
@@ -362,7 +391,18 @@ try {
     evidence.push({ name, ...layout });
     await screenshot(name);
   };
-  if (density) {
+  if (threadDrag) {
+    await testThreadFolderDragBrowser({
+      call,
+      page,
+      evaluate,
+      click,
+      waitFor,
+      screenshot,
+      server,
+      ws,
+    });
+  } else if (density) {
     await testSidebarDensity({
       page,
       evaluate,

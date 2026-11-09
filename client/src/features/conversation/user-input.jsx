@@ -1,3 +1,4 @@
+import { ResizableTextarea } from "../../ui/resizable-textarea.jsx";
 import React, { useId, useState } from "react";
 import { Check, ChevronRight, MessageSquare } from "lucide-react";
 
@@ -151,21 +152,14 @@ export function UserInputForm({
           event.keyCode === 229
         )
           return;
-        if (event.ctrlKey) submit(event);
-        else if (event.target.tagName === "INPUT") event.preventDefault();
+        if (event.shiftKey && event.target.tagName === "TEXTAREA") return;
+        return submit(event);
       }}
     >
       <div className="request-title">
         <MessageSquare size={18} />
         {isCompleted ? "补充回答" : "需要你的回答"}
       </div>
-      <p className="request-hint">
-        {isCompleted
-          ? "这轮任务已结束，仍可提交补充回答。"
-          : isBlocking
-            ? "提交回答后，Codex 将继续处理。"
-            : "Codex 会继续处理，你可以随时补充回答。"}
-      </p>
       {questions.map((question) => {
         const answer = answers[question.id];
         const hasOptions = !!question.options?.length;
@@ -181,8 +175,12 @@ export function UserInputForm({
             update(question.id, { text: event.target.value }),
         };
         return (
-          <fieldset className="question" key={question.id} disabled={locked}>
-            <legend>{question.header || "问题"}</legend>
+          <fieldset
+            className="question"
+            key={question.id}
+            disabled={locked}
+            aria-label={question.question}
+          >
             <p>{question.question}</p>
             {question.options?.map((option, index) => (
               <label
@@ -221,34 +219,36 @@ export function UserInputForm({
             )}
             {allowOther && (!hasOptions || answer.choice === "other") && (
               <>
-                <label className="answer-label" htmlFor={inputId}>
-                  {question.isSecret ? "私密回答" : "你的回答"}
-                </label>
                 {question.isSecret ? (
                   <input {...textInput} type="password" autoComplete="off" />
                 ) : (
-                  <textarea {...textInput} rows={3} />
+                  <ResizableTextarea
+                    {...textInput}
+                    rows={1}
+                    disabled={locked}
+                  />
                 )}
               </>
             )}
           </fieldset>
         );
       })}
-      {error && <p role="alert">{error}</p>}
       <div className="request-actions">
-        <small className="request-hint" role="status">
-          {submitted
-            ? "回答已发送"
-            : disabled
-              ? "当前暂时无法提交，请稍后重试"
-              : "Ctrl+Enter 提交 · Enter 换行"}
-        </small>
         <button
           type="submit"
           className="primary"
           disabled={locked || incomplete}
+          title={error || undefined}
         >
-          {submitting ? "正在提交…" : submitted ? "已提交回答" : "提交回答"}
+          {submitting ? (
+            "正在提交…"
+          ) : submitted ? (
+            "已提交回答"
+          ) : error ? (
+            <span role="alert">重试</span>
+          ) : (
+            "提交回答"
+          )}
         </button>
       </div>
     </form>

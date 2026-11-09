@@ -1,23 +1,23 @@
 <p align="center">
-  <img src="client/src/assets/codex-web.svg" width="88" height="88" alt="Codex Web 图标">
+  <img src="client/src/assets/claudex-web.svg" width="88" height="88" alt="Claudex Web 图标">
 </p>
 
-<h1 align="center">Codex Web</h1>
+<h1 align="center">Claudex Web</h1>
 
 <p align="center">
-  <strong>在浏览器中，继续你的 Codex 工作。</strong><br>
-  从电脑到手机和平板，随时查看对话、跟进任务、掌握账户额度、阅读文件与变更。
+  <strong>在浏览器中，继续你的 Codex 与 Claude Code 工作。</strong><br>
+  从电脑到手机和平板，随时查看对话、审阅计划并批准执行、跟进任务、掌握账户额度、阅读文件与变更。
 </p>
 
 <p align="center">
   <a href="#快速开始">快速开始</a> ·
   <a href="docs/deployment.md">部署指南</a> ·
-  <a href="https://github.com/hjd-hitsz/codex-web/releases">版本更新</a>
+  <a href="https://github.com/hjd-hitsz/claudex-web/releases">版本更新</a>
 </p>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/desktop-dark.png">
-  <img src="docs/images/desktop-light.png" alt="Codex Web 桌面界面：项目列表、账户额度圆环、任务对话、文件变更汇总与 Markdown 文件预览" width="1440">
+  <img src="docs/images/desktop-light.png" alt="Claudex Web 桌面界面：项目列表、账户额度圆环、任务对话、文件变更汇总与 Markdown 文件预览" width="1440">
 </picture>
 
 <p align="center"><sub>桌面界面 · 演示数据</sub></p>
@@ -26,28 +26,34 @@
 <summary>查看手机界面</summary>
 
 <p align="center">
-  <img src="docs/images/mobile.png" alt="Codex Web 手机界面：任务对话、文件变更汇总与消息输入框" width="320">
-  <img src="docs/images/mobile-sidebar.png" alt="Codex Web 手机侧栏：项目对话列表与账户额度圆环" width="320">
+  <img src="docs/images/mobile.png" alt="Claudex Web 手机界面：任务对话、文件变更汇总与消息输入框" width="320">
+  <img src="docs/images/mobile-sidebar.png" alt="Claudex Web 手机侧栏：项目对话列表与账户额度圆环" width="320">
 </p>
 
 </details>
 
-## 本地扩展：Claude + Codex
+Claudex Web 提供 Codex 与 Claude Code 双后端：现有 ChatGPT 模型继续使用 Codex，其他供应商的模型通过 Claude Code 使用。输入区统一选择模型，Claude 对话可在空闲时切换供应商继续。配置方法见[部署指南](docs/deployment.md#claude-code-与模型配置)。
 
-本地功能分支增加 Claude CLI 会话：统一侧栏、后端筛选、历史浏览、持续对话、工具授权与停止。原有 Codex 功能继续可用。详见[本机 Claude 会话](docs/deployment.md#本机-claude-会话本地扩展版)。此功能尚未包含在上游 v3.1.1 发行包中，应使用本分支构建安装。
+本分支另外保留 **Claude 插件会话** 入口，可与本机 VS Code Claude Code 插件共享同一个运行中的进程，并提供 Auto／Manual 权限模式。设置方法见[插件共享部署说明](docs/deployment.md#与-vs-code-claude-插件共享同一进程)。
 
 ## 快速开始
+
+稳定版 [v4.0.0](https://github.com/hjd-hitsz/claudex-web/releases/tag/v4.0.0)：
+
+```bash
+npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/v4.0.0/claudex-web-4.0.0.tgz
+```
 
 准备一台 Linux 电脑，安装 Node.js 24+、npm、Git、OpenSSL、Linux PAM、`pamtester` 和 `/usr/bin/zsh`，并完成 Codex CLI 登录。Codex CLI 需支持 `codex app-server`，后台运行使用 systemd 用户服务。
 
 ### 1. 安装并启动
 
-在安装 Codex 的电脑上，以运行 Codex 的普通用户执行：
+以运行代理后端的普通用户安装 Claudex Web，然后启动服务：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
-codex-web service install
-codex-web service status
+npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/v4.0.0/claudex-web-4.0.0.tgz
+claudex-web service install
+claudex-web service status
 ```
 
 npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务会自动启动，已有 Codex 配置继续保留。
@@ -63,7 +69,7 @@ npm 全局命令所在目录需在 `PATH` 中。安装完成后，网页服务�
 
 输入消息后，按 **Ctrl+Enter** 发送，**Enter** 换行。
 
-对话完成通知默认开启，首次使用时在“设置 → 通知”点击“允许系统通知”并完成浏览器授权。本轮任务成功完成时，通知显示对话标题；点击可返回对应对话。提醒开关保存在当前浏览器中，手动关闭后刷新仍保持关闭，同一浏览器打开多个页面时每轮提醒一次。接收提醒时需保持至少一个已登录的 Codex Web 页面与服务连接；通知展示还需在系统设置中允许浏览器通知。权限被阻止或环境不支持时，设置页会显示对应状态。
+对话完成通知默认开启。首次使用时在“设置 → 通知”允许系统通知并授权；任务成功完成后，通知显示对话标题，点击即可返回对应对话。权限被阻止或环境不支持时，设置页会显示对应状态。
 
 <details>
 <summary>开机启动与退出系统登录后继续运行</summary>
@@ -85,10 +91,10 @@ loginctl enable-linger "$USER"
 执行以下命令可创建用户配置并显示其位置，已有配置会保留：
 
 ```bash
-codex-web config init
+claudex-web config init
 ```
 
-通常可直接使用初始配置。需要修改时，编辑命令显示的 `.env` 文件；默认位置为 `~/.config/codex-web/.env`，升级后保留。
+通常可直接使用初始配置。需要修改时，编辑命令显示的 `.env` 文件；默认位置为 `~/.config/claudex-web/.env`，升级后保留。
 
 常用配置项：
 
@@ -96,16 +102,16 @@ codex-web config init
 - `PORT`：网页端口，初始为 `8766`。
 - `DEFAULT_CWD`：首次使用时的默认工作目录，未设置时使用当前用户的主目录。
 
-修改配置前先结束当前任务和网页终端，保存后执行 `codex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置见[部署与维护](docs/deployment.md#配置)。
+修改配置前先结束当前任务和网页终端，保存后执行 `claudex-web service restart`；前台运行时重新启动网页进程。端口变更后使用新端口访问。完整配置见[部署与维护](docs/deployment.md#配置)。
 
 ## 升级
 
 升级时，从目标版本的 Release 获取安装地址。当前版本的安装与服务更新命令为：
 
 ```bash
-npm install -g https://github.com/hjd-hitsz/codex-web/releases/download/v3.1.1/codex-web-3.1.1.tgz
-codex-web service install
-codex-web service restart-when-idle
+npm install -g https://github.com/hjd-hitsz/claudex-web/releases/download/v4.0.0/claudex-web-4.0.0.tgz
+claudex-web service install
+claudex-web service restart-when-idle
 ```
 
 最后一个命令会等待当前任务和上下文整理结束后再重启，等待期间保持命令运行。升级后刷新网页，在“设置 → 关于”查看版本。
@@ -120,8 +126,6 @@ codex-web service restart-when-idle
 
 ## 许可证
 
-Copyright (C) 2026 Codex Web contributors.
+Copyright (C) 2026 Claudex Web contributors.
 
-Codex Web 采用 [GNU General Public License v3.0](LICENSE)（SPDX：`GPL-3.0-only`）发布。你可以按 GNU GPL 第 3 版的条款使用、复制、修改和分发本项目。担保与责任限制见许可证正文，第三方依赖沿用各自的许可证。
-
-本地 Claude 扩展支持一键回到最新消息、长会话流畅输入、按会话保存草稿、浏览器会话缓存与稳定的刷新恢复及运行中补充消息的顺序恢复、自动摘要与系统消息的折叠显示、手机模型下拉选择、会话内模型与思考强度设置，以及通过 VS Code 插件的进程启动器共享同一会话，配置见 [部署说明](docs/deployment.md#与-vs-code-claude-插件共享同一进程)。
+Claudex Web 采用 [GNU General Public License v3.0](LICENSE)（SPDX：`GPL-3.0-only`）发布。你可以按 GNU GPL 第 3 版的条款使用、复制、修改和分发本项目。担保与责任限制见许可证正文，第三方依赖沿用各自的许可证。

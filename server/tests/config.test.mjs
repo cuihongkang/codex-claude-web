@@ -11,7 +11,7 @@ test("默认目录跟随当前用户，静态目录定位到项目构建目录",
   assert.equal(config.codexHome, join(homedir(), ".codex"));
   assert.equal(
     config.projectlessRoot,
-    join(homedir(), ".codex", "codex-web", "workspaces"),
+    join(homedir(), ".config", "claudex-web", "workspaces"),
   );
   assert.equal(
     config.staticDir,
@@ -26,6 +26,8 @@ test("环境变量覆盖绑定地址、端口和后端地址", () => {
     CODEX_APP_SERVER_URL: "ws://127.0.0.1:9875",
     DEFAULT_CWD: "/tmp",
     CODEX_HOME: "/tmp/custom-codex",
+    CLAUDEX_WEB_CONFIG_DIR: "/tmp/custom-web",
+    CLAUDE_CONFIG_DIR: "/tmp/custom-claude",
     STATIC_DIR: "/tmp/public",
   });
   assert.equal(config.port, 9876);
@@ -33,10 +35,7 @@ test("环境变量覆盖绑定地址、端口和后端地址", () => {
   assert.equal(config.upstreamUrl, "ws://127.0.0.1:9875");
   assert.equal(config.defaultCwd, "/tmp");
   assert.equal(config.codexHome, "/tmp/custom-codex");
-  assert.equal(
-    config.projectlessRoot,
-    "/tmp/custom-codex/codex-web/workspaces",
-  );
+  assert.equal(config.projectlessRoot, "/tmp/custom-web/workspaces");
   assert.equal(config.staticDir, "/tmp/public");
 });
 test("错误端口和协议在启动时报告", () => {

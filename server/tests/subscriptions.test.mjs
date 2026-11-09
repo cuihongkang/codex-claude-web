@@ -63,10 +63,21 @@ for (const method of ["thread/start", "thread/resume", "thread/fork"]) {
         threadId: "source",
         config: { model: "fixture-model", thread_unload_delay_secs: 1800 },
       });
-      assert.deepEqual(
-        app.requests.find((request) => request.method === method).params.config,
-        { model: "fixture-model", thread_unload_delay_secs: 0 },
+      const { "mcp_servers.claudex_references": referenceTool, ...config } =
+        app.requests.find((request) => request.method === method).params.config;
+      assert.deepEqual(config, {
+        model: "fixture-model",
+        thread_unload_delay_secs: 0,
+      });
+      assert.equal(referenceTool.command, process.execPath);
+      assert(
+        referenceTool.args[0].endsWith("/backends/codex/reference-mcp.mjs"),
       );
+      assert.match(
+        referenceTool.env.CLAUDEX_REFERENCE_UPSTREAM,
+        /^ws:\/\/127\.0\.0\.1:\d+\/?$/,
+      );
+      assert.equal(referenceTool.enabled, true);
       if (method === "thread/start") {
         assert.equal(app.unsubscribed().length, 0);
         await app.rpc(client, "turn/start", { threadId: thread.id, input: [] });
@@ -179,7 +190,7 @@ test(
 );
 
 test(
-  "取消订阅期间重新打开对话，等待释放响应后恢复",
+  "取消订阅期间重新打开对话，确认响应后立即恢复，其他订阅者无需关闭",
   { timeout: 10000 },
   async (t) => {
     const app = await bridge(
@@ -198,10 +209,15 @@ test(
         .length,
       1,
     );
-    app.respond(request, { status: "unsubscribed" });
+    app.respond(request, { status: "unsubscribed" }, { closed: false });
     await reopened;
     await close(second);
     await waitFor(() => app.unsubscribed().length === 2);
+    app.respond(
+      app.unsubscribed()[1],
+      { status: "unsubscribed" },
+      { closed: false },
+    );
   },
 );
 

@@ -15,7 +15,7 @@ const output =
 await mkdir(output, { recursive: true });
 assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文件");
 const buildDirectory = await mkdtemp(
-  join(tmpdir(), "codex-web-annotation-build-"),
+  join(tmpdir(), "claudex-web-annotation-build-"),
 );
 await cp(
   process.env.BROWSER_BUILD_DIR || join(root, "client/dist"),
@@ -201,7 +201,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-command-browser-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-command-browser-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [
@@ -403,6 +403,19 @@ async function runScenario() {
       screenshot,
       output,
       buildInfo,
+    });
+    return;
+  }
+  if (process.env.ANNOTATION_WRAPPING === "1") {
+    const { verifyAnnotationWrapping } =
+      await import("./annotation-wrapping.mjs");
+    await verifyAnnotationWrapping({
+      select,
+      fill,
+      evaluate,
+      pause,
+      screenshot,
+      output,
     });
     return;
   }

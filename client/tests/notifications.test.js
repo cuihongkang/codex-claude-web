@@ -211,3 +211,18 @@ test("只有实际活动轮次完成触发通知，历史、重复完成与手�
   completed("compact");
   assert.equal(calls.length, 1);
 });
+
+test("子代理完成不发送系统通知", async () => {
+  const f = fixture();
+  await f.notifications.setEnabled(true);
+  f.set({
+    threads: [
+      {
+        id: "child",
+        source: { subAgent: { thread_spawn: { parent_thread_id: "a" } } },
+      },
+    ],
+  });
+  await f.notifications.completed("child", { id: "done", status: "completed" });
+  assert.equal(f.sent.length, 0);
+});

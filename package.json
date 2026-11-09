@@ -1,14 +1,14 @@
 {
-  "name": "codex-web",
-  "version": "3.1.1",
+  "name": "claudex-web",
+  "version": "4.0.0",
   "type": "module",
-  "description": "基于本机 Codex app-server 的浏览器客户端",
+  "description": "Codex 与 Claude Code 的浏览器工作台",
   "license": "GPL-3.0-only",
   "engines": {
     "node": ">=24"
   },
   "bin": {
-    "codex-web": "bin/codex-web.mjs"
+    "claudex-web": "bin/claudex-web.mjs"
   },
   "files": [
     "build-info.json",
@@ -29,8 +29,8 @@
     "server"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @codex-web/client",
-    "build": "npm run build --workspace @codex-web/client",
+    "dev": "npm run dev --workspace @claudex-web/client",
+    "build": "npm run build --workspace @claudex-web/client",
     "icons:generate": "node scripts/generate-icons.mjs",
     "prepack": "npm run build",
     "start": "node --env-file-if-exists=.env server/src/server.mjs",
@@ -47,17 +47,22 @@
     "architecture:check": "node scripts/architecture.mjs",
     "check": "npm run version:check && npm run architecture:check && npm run format:check && npm test && npm run test:package",
     "service:install": "node --env-file-if-exists=.env scripts/install-services.mjs",
-    "service:restart": "systemctl --user restart codex-lan-web.service",
-    "service:status": "systemctl --user status codex-lan-web.service codex-app-server.service --no-pager",
-    "service:restart-when-idle": "node --env-file-if-exists=.env scripts/restart-when-idle.mjs"
+    "service:restart": "systemctl --user restart claudex-web.service",
+    "service:status": "systemctl --user status claudex-web.service codex-app-server.service --no-pager",
+    "service:restart-when-idle": "node --env-file-if-exists=.env scripts/restart-when-idle.mjs",
+    "test:backends": "node scripts/test-backends.mjs",
+    "test:backends:live": "node tests/integration/dual-backends-live.mjs",
+    "test:codex:live": "node tests/integration/codex-native-lifecycle.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
     "prettier": "3.9.10",
-    "react-test-renderer": "19.3.1",
-    "react": "19.3.1"
+    "react": "19.3.1",
+    "react-test-renderer": "19.3.1"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.318",
+    "node-pty": "1.1.0",
     "ws": "8.22.0"
   }
 }

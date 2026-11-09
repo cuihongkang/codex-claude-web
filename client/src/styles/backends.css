@@ -1,0 +1,261 @@
+.backend-settings summary {
+  cursor: pointer;
+  padding-block: 0.5em;
+}
+.provider-settings {
+  display: grid;
+  justify-items: start;
+  gap: 0.5em;
+  margin-top: 0.65em;
+  min-width: 0;
+}
+.provider-settings > .backend-form {
+  width: 100%;
+}
+.backend-card {
+  border-block-end: 1px solid var(--border);
+  padding-block: 0.65em;
+}
+.backend-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+}
+.backend-heading small {
+  overflow-wrap: anywhere;
+}
+.provider-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+.provider-brand-symbol {
+  width: 1.5em;
+  height: 1.5em;
+  object-fit: contain;
+  flex: none;
+}
+.backend-form {
+  display: grid;
+  gap: 0.65em;
+  margin-block: 0.75em;
+}
+.backend-form label {
+  display: grid;
+  gap: 0.25em;
+}
+.backend-form input,
+.backend-form select,
+.backend-form textarea {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  padding: 0.4em;
+  border: 1px solid var(--border);
+  border-radius: 0.4em;
+  color: inherit;
+  background: var(--bg);
+}
+.backend-form .backend-checkbox {
+  display: flex;
+  align-items: center;
+}
+.backend-checkbox input {
+  width: auto;
+}
+.backend-form button {
+  margin-inline-end: 0.5em;
+}
+.modal .proxy-settings {
+  padding: 0;
+  margin-block: 0.5em;
+}
+.proxy-settings + .provider-settings {
+  margin-top: 0.5em;
+}
+.proxy-row,
+.backend-form .proxy-protocol {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+.proxy-row {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.proxy-row button {
+  flex: none;
+  white-space: nowrap;
+}
+.proxy-protocol {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+.proxy-protocol select {
+  width: auto;
+  max-width: 9em;
+}
+.proxy-row .proxy-address {
+  flex: 1 1 7em;
+  width: 0;
+}
+.proxy-row .proxy-port {
+  width: 5.5em;
+}
+.proxy-row button {
+  margin: 0;
+}
+.composer-tools > select {
+  font: inherit;
+  max-width: 10em;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+.backend-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 0.35em;
+  font-size: 0.923077rem;
+  line-height: var(--ui-line-height);
+  white-space: nowrap;
+  color: var(--fg);
+}
+.backend-badge > .backend-symbol,
+.backend-badge > svg {
+  width: 1.25em;
+  height: 1.25em;
+  flex: none;
+}
+.topbar > .backend-badge {
+  padding: 0.25em 0.5em;
+  border: 1px solid var(--border);
+  border-radius: 0.5em;
+  background: var(--subtle);
+}
+.thread-link > .backend-badge {
+  flex: none;
+  overflow: visible;
+}
+.backend-symbol {
+  display: block;
+  background: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+.input-queue {
+  font-size: 0.85em;
+  margin-block-end: 0.5em;
+}
+.input-queue > div {
+  display: flex;
+  gap: 0.5em;
+  align-items: start;
+}
+.input-queue span {
+  flex: 1;
+  overflow-wrap: anywhere;
+  max-height: 4em;
+  overflow: auto;
+}
+
+.backend-settings button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0.4em;
+  padding: 0.25em 0.5em;
+  cursor: pointer;
+}
+.backend-settings button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.provider-model-names {
+  display: grid;
+  gap: 0.4em;
+  min-width: 0;
+}
+.provider-model-heading {
+  color: var(--muted);
+  font-size: 0.923077rem;
+}
+.provider-model-name {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.6em;
+  overflow: hidden;
+}
+.backend-settings .provider-model-name > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75em;
+  padding: 0.65em 0.8em;
+  list-style: none;
+}
+.provider-model-name > summary::-webkit-details-marker {
+  display: none;
+}
+.provider-model-name > summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.provider-model-name > summary > svg {
+  color: var(--muted);
+}
+.provider-model-name[open] > summary {
+  background: var(--subtle);
+}
+.provider-model-name-fields {
+  padding: 0.8em;
+  border-top: 1px solid var(--border);
+}
+.provider-model-name-fields p {
+  font-size: 0.846154rem;
+  color: var(--muted);
+  margin: 0.75em 0 0;
+}
+.provider-model-name-fields p span {
+  display: block;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.backend-version {
+  color: var(--muted);
+  font-size: 0.923077rem;
+  margin-block: 0.5em;
+  overflow-wrap: anywhere;
+}
+.backend-heading > input[type="checkbox"] {
+  margin: 0;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  cursor: pointer;
+}
+
+.codex-model-options {
+  display: grid;
+  gap: 0.4em;
+  padding-block: 0.25em 0.65em;
+}
+.codex-model-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  overflow-wrap: anywhere;
+}
+.codex-model-options input {
+  margin: 0;
+  flex: none;
+}

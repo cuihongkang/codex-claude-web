@@ -141,7 +141,7 @@ export async function testMarkdownHtml(app, requests, setResponse) {
       "utf8",
     );
     await render(readme, "/html-fixture");
-    assert.equal(view.root.findByType("h1").props.children, "Codex Web");
+    assert.equal(view.root.findByType("h1").props.children, "Claudex Web");
     assert.equal(view.root.findAllByType("details").length, 2);
     assert(view.root.findByType("picture"));
     assert(!JSON.stringify(view.toJSON()).includes('<p align="center">'));

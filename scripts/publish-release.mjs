@@ -13,6 +13,8 @@ import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkRelease } from "./version.mjs";
 
+import { releaseVersion, releaseFlags } from "./release-version.mjs";
+
 const root = fileURLToPath(new URL("../", import.meta.url));
 const gh = (...args) =>
   execFileSync("gh", args, {
@@ -39,7 +41,9 @@ function checkAssets(release, names) {
 }
 
 export function releaseNotesBody(markdown, tag) {
-  const heading = `# Codex Web ${tag}\n`;
+  const heading = markdown.startsWith(`# Codex Web ${tag}\n`)
+    ? `# Codex Web ${tag}\n`
+    : `# Claudex Web ${tag}\n`;
   assert.ok(markdown.startsWith(heading), `${tag} 发布说明标题需要匹配版本`);
   const body = markdown.slice(heading.length).trim();
   assert.match(body, /^- \S/, `${tag} Release 正文需要直接以变更列表开始`);
@@ -50,11 +54,11 @@ export function syncReleaseNotes(repo, run = gh, dir = root) {
   const releases = JSON.parse(
     run("api", `repos/${repo}/releases?per_page=100`, "--paginate", "--slurp"),
   ).flat();
-  const temporary = mkdtempSync(join(tmpdir(), "codex-web-release-notes-"));
+  const temporary = mkdtempSync(join(tmpdir(), "claudex-web-release-notes-"));
   try {
     for (const release of releases) {
       const tag = release.tag_name;
-      if (!/^v\d+\.\d+\.\d+$/.test(tag)) continue;
+      if (!releaseVersion.test(tag.slice(1))) continue;
       const source = join(dir, `docs/releases/${tag}.md`);
       if (!existsSync(source)) continue;
       const body = releaseNotesBody(readFileSync(source, "utf8"), tag);
@@ -78,7 +82,7 @@ export function readReleaseSchedule(dir = root) {
     schedule && typeof schedule === "object" && !Array.isArray(schedule),
   );
   for (const [tag, publishAt] of Object.entries(schedule)) {
-    assert.match(tag, /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+    assert.ok(tag.startsWith("v") && releaseVersion.test(tag.slice(1)));
     assert.ok(
       typeof publishAt === "string" &&
         /T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/.test(publishAt) &&
@@ -114,8 +118,9 @@ export function publishRelease(
       repo,
       "--verify-tag",
       "--draft",
+      ...releaseFlags(tag),
       "--title",
-      `Codex Web ${tag}`,
+      `Claudex Web ${tag}`,
       "--notes-file",
       notes,
     );
@@ -128,19 +133,19 @@ export function publishRelease(
     "--repo",
     repo,
     "--title",
-    `Codex Web ${tag}`,
+    `Claudex Web ${tag}`,
     "--notes-file",
     notes,
     "--draft=false",
-    "--latest",
+    ...releaseFlags(tag),
   );
   return "published";
 }
 
 export function verifyReleaseAssets(repo, tag, run = gh) {
-  const dir = mkdtempSync(join(tmpdir(), "codex-web-release-verify-"));
+  const dir = mkdtempSync(join(tmpdir(), "claudex-web-release-verify-"));
   try {
-    const filename = `codex-web-${tag.slice(1)}.tgz`;
+    const filename = `claudex-web-${tag.slice(1)}.tgz`;
     run(
       "release",
       "download",
@@ -178,7 +183,7 @@ export function verifyReleaseAssets(repo, tag, run = gh) {
       { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
     const info = JSON.parse(
-      execFileSync(join(prefix, "bin/codex-web"), ["version", "--json"], {
+      execFileSync(join(prefix, "bin/claudex-web"), ["version", "--json"], {
         encoding: "utf8",
       }),
     );
@@ -206,11 +211,19 @@ export function publishScheduledRelease(
   if (now < Date.parse(publishAt)) return "pending";
   const release = findRelease(repo, tag, run);
   assert.ok(release, `${tag} 的发布草稿尚未准备完成`);
-  const filename = `codex-web-${tag.slice(1)}.tgz`;
+  const filename = `claudex-web-${tag.slice(1)}.tgz`;
   checkAssets(release, [filename, `${filename}.sha256`]);
   if (!release.draft) return "published";
   verify(repo, tag, run);
-  run("release", "edit", tag, "--repo", repo, "--draft=false", "--latest");
+  run(
+    "release",
+    "edit",
+    tag,
+    "--repo",
+    repo,
+    "--draft=false",
+    ...releaseFlags(tag),
+  );
   return "published";
 }
 
@@ -232,7 +245,7 @@ if (
     }
     process.exit(0);
   }
-  const dir = mkdtempSync(join(tmpdir(), "codex-web-release-"));
+  const dir = mkdtempSync(join(tmpdir(), "claudex-web-release-"));
   try {
     const version = checkRelease();
     const [pack] = JSON.parse(

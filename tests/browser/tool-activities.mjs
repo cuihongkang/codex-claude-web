@@ -139,7 +139,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-tools-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-tools-"));
 assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文件");
 const child = spawn(
   process.env.CHROME_PATH,

@@ -7,6 +7,7 @@ export function FolderPicker({ onChoose, initial = get().cwd }) {
   const [path, setPath] = useState(initial),
     [input, setInput] = useState(initial),
     [entries, setEntries] = useState([]),
+    [showHidden, setShowHidden] = useState(false),
     [loading, setLoading] = useState(false),
     [err, setErr] = useState("");
   const load = async (p) => {
@@ -50,23 +51,33 @@ export function FolderPicker({ onChoose, initial = get().cwd }) {
           onClick={() => load(input)}
         />
       </div>
+      <label className="directory-options">
+        <input
+          type="checkbox"
+          checked={showHidden}
+          onChange={(e) => setShowHidden(e.target.checked)}
+        />
+        显示隐藏文件夹
+      </label>
       {err && <div className="inline-error">{err}</div>}
       <div className="directory-list">
         {loading ? (
           <div className="loading">读取目录…</div>
         ) : (
-          entries.map((e) => (
-            <button
-              key={e.fileName}
-              onClick={() =>
-                load((path === "/" ? "" : path) + "/" + e.fileName)
-              }
-            >
-              <Folder size={17} />
-              <span>{e.fileName}</span>
-              <ChevronRight size={14} />
-            </button>
-          ))
+          entries
+            .filter((e) => showHidden || !e.fileName.startsWith("."))
+            .map((e) => (
+              <button
+                key={e.fileName}
+                onClick={() =>
+                  load((path === "/" ? "" : path) + "/" + e.fileName)
+                }
+              >
+                <Folder size={17} />
+                <span>{e.fileName}</span>
+                <ChevronRight size={14} />
+              </button>
+            ))
         )}
       </div>
       <div className="modal-actions">

@@ -1,3 +1,5 @@
+import { createBackends } from "./backends.js";
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
 import { createAppState } from "./state.js";
 import { createRpcClient } from "../infrastructure/rpc-client.js";
 import { createModelPreferences } from "./models.js";
@@ -66,9 +68,30 @@ export function createApplication() {
     set({ theme });
     persist("cx-theme", theme);
   }
+  let skillsRevision = 0;
   async function loadSkills() {
-    const r = await rpc("skills/list", { cwds: [get().cwd] });
-    set({ skills: r.data.flatMap((e) => e.skills || []) });
+    const revision = ++skillsRevision;
+    const { cwd, backendId, providerId, current } = get();
+    const result = await rpc("skills/list", {
+      cwds: [cwd],
+      cwd,
+      backendId,
+      providerId,
+      ...(current?.id && { threadId: current.id }),
+    });
+    if (
+      revision !== skillsRevision ||
+      get().cwd !== cwd ||
+      get().backendId !== backendId ||
+      get().providerId !== providerId ||
+      get().current?.id !== current?.id
+    )
+      return;
+    set({
+      skills: result.data.flatMap((entry) => entry.skills || []),
+      nativeCommands: result.commands || [],
+      nativeAgents: result.agents || [],
+    });
   }
   const transport = createRpcClient({
     isConnected: () => get().connected,
@@ -80,8 +103,34 @@ export function createApplication() {
       connection.onResponse(request, message, error),
     onClose: (event, socket) => connection.onClose(event, socket),
   });
-  const { rpc } = transport;
+  const rpc = (method, params = {}, timeout) => {
+    if (!get().backends.length) return transport.rpc(method, params, timeout);
+    const backendId =
+      params.backendId ||
+      (params.threadId
+        ? resourceTarget(params.threadId).backendId
+        : get().backendId);
+    const global =
+      method === "thread/list" ||
+      method.startsWith("lan/backends/") ||
+      method.startsWith("lan/terminal/") ||
+      method.startsWith("lan/providers/");
+    return transport.rpc(
+      method,
+      { ...(!global && { backendId }), ...params },
+      timeout,
+    );
+  };
   const models = createModelPreferences({ get, set, rpc, transport, report });
+  const backends = createBackends({
+    transport,
+    get,
+    set,
+    rpc,
+    models,
+    report,
+    onSelectionChanged: () => account.handle({ method: "account/updated" }),
+  });
   const records = createThreadRecords({ get, set, rpc });
   const navigation = createThreadNavigation({
     get,
@@ -91,6 +140,8 @@ export function createApplication() {
     models,
     records,
     getConnectionRevision: () => connection.revision,
+    activateBackend: backends.activateBackend,
+    selectProvider: backends.selectProvider,
   });
   const catalog = createThreadCatalog({
     get,
@@ -102,6 +153,7 @@ export function createApplication() {
     notice,
   });
   const messages = createMessages({
+    setThreadMode: store.setThreadMode,
     get,
     set,
     rpc,
@@ -156,6 +208,7 @@ export function createApplication() {
     emit,
     report,
     loadSkills,
+    activateBackend: backends.activateBackend,
     getSession: () => session,
   });
   const session = createSession({ get, set, transport, connection });
@@ -176,6 +229,7 @@ export function createApplication() {
     refreshUsage: account.refreshUsage,
     setCompletionNotifications: notifications.setEnabled,
     startNotifications: notifications.start,
+    ...backends,
     ...navigation,
     ...catalog,
     ...messages,

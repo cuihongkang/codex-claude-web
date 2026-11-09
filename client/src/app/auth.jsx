@@ -9,7 +9,7 @@ import {
   get,
   startNotifications,
 } from "../store.js";
-import codexWebIcon from "../assets/codex-web.svg";
+import claudexWebIcon from "../assets/claudex-web.svg";
 import { CertificateHelp } from "./certificate-help.jsx";
 
 export function AuthenticationGate({ children }) {
@@ -70,8 +70,8 @@ export function AuthenticationGate({ children }) {
     <main className="login-page">
       <section className="login-card" aria-labelledby="login-title">
         <div className="login-brand">
-          <img src={codexWebIcon} width="40" height="40" alt="" />
-          <span>Codex Web</span>
+          <img src={claudexWebIcon} width="40" height="40" alt="" />
+          <span>Claudex Web</span>
         </div>
         <h1 id="login-title">
           {waiting ? "正在检查登录状态" : "登录你的工作空间"}

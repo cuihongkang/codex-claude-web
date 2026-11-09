@@ -1,14 +1,31 @@
+import {
+  terminalWorkspace,
+  workspaceTerminalIds,
+} from "../../../shared/terminal-workspace.mjs";
 import { saved, persist } from "../infrastructure/storage.js";
 import { isCompacting } from "../domain/compaction.js";
+import {
+  backendEnabled,
+  visibleBackendThreads,
+} from "../domain/backend-visibility.js";
 export function createAppState() {
+  const modes = saved("cx-thread-modes", {});
+  const terminalVisibility = new Map();
   let state = {
     provider: saved("cx-provider", "codex"),
     auth: null,
     authError: "",
     connected: false,
+    backends: [],
+    backendId: saved("cx-backend", "codex"),
+    providers: [],
+    nativeCommands: [],
+    nativeAgents: [],
+    providerId: "",
     booting: true,
     serverVersion: null,
     threads: [],
+    threadListErrors: [],
     archived: false,
     search: "",
     current: null,
@@ -16,6 +33,8 @@ export function createAppState() {
     turns: {},
     turnTimings: {},
     active: {},
+    executionStatuses: {},
+    messageEditRequest: null,
     unreadCompletions: {},
     compactions: saved("cx-compactions", {}),
     questions: [],
@@ -29,6 +48,7 @@ export function createAppState() {
     projectless: saved("cx-projectless", false),
     projectlessCwd: null,
     projectlessRoot: "",
+    projectlessRoots: [],
     projects: saved("cx-projects", []),
     projectOrder: null,
     projectlessDirectories: {},
@@ -76,7 +96,57 @@ export function createAppState() {
   };
   function set(patch) {
     if (patch.provider) persist("cx-provider", patch.provider);
+    if (
+      patch.cwd !== undefined &&
+      terminalWorkspace(patch.cwd) !== terminalWorkspace(state.cwd)
+    ) {
+      terminalVisibility.set(terminalWorkspace(state.cwd), state.terminalOpen);
+      if (patch.terminalOpen === undefined)
+        patch = {
+          ...patch,
+          terminalOpen: Boolean(
+            terminalVisibility.get(terminalWorkspace(patch.cwd)) &&
+            workspaceTerminalIds(patch.terminals ?? state.terminals, patch.cwd)
+              .length,
+          ),
+        };
+    }
+    const backends = patch.backends ?? state.backends;
+    if (patch.backends || patch.threads)
+      patch = {
+        ...patch,
+        threads: visibleBackendThreads(
+          patch.threads ?? state.threads,
+          backends,
+        ),
+      };
+    if (patch.backends || patch.modelChoices)
+      patch = {
+        ...patch,
+        modelChoices: (patch.modelChoices ?? state.modelChoices ?? []).filter(
+          (choice) => backendEnabled(backends, choice.backendId),
+        ),
+      };
     const previousThreadId = state.current?.id;
+    if (
+      Object.hasOwn(patch, "current") &&
+      patch.current?.id !== previousThreadId
+    ) {
+      const id = patch.current?.id;
+      patch = {
+        ...patch,
+        mode: patch.mode ?? modes[id] ?? "default",
+      };
+    }
+    if (Object.hasOwn(patch, "mode")) {
+      const id = Object.hasOwn(patch, "current")
+        ? patch.current?.id
+        : previousThreadId;
+      if (id) {
+        modes[id] = patch.mode;
+        persist("cx-thread-modes", modes);
+      }
+    }
     if (
       Object.hasOwn(patch, "current") &&
       patch.current?.id !== previousThreadId &&
@@ -124,6 +194,13 @@ export function createAppState() {
   return {
     get: () => state,
     set,
+    setThreadMode(id, mode) {
+      if (state.current?.id === id) set({ mode });
+      else {
+        modes[id] = mode;
+        persist("cx-thread-modes", modes);
+      }
+    },
     sharedSnapshot: () => sharedState,
     draftSnapshot: () => state.draft,
     subscribe: (listener) => subscribe(sharedListeners, listener),

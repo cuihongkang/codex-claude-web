@@ -110,7 +110,19 @@ try {
         (r) => r.method === "thread/items/list" && r.params.threadId === "long",
       ).length,
   );
-  assert.equal(parsed, 33, "自动读取全部 33 页");
+  assert.equal(parsed, before ? 33 : 1, "首屏使用消息分页");
+  if (!before)
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.historyFixture.requests.filter(
+            (r) =>
+              r.method === "thread/turns/list" && r.params.itemsView === "full",
+          ).length,
+      ),
+      15,
+      "完整恢复 15 轮",
+    );
   evidence.push({ scenario: "首次切换", firstPaint, fullMs, pages: parsed });
   const firstLoadRenders = await page.evaluate(
     () => window.historyFixture.richTextRenders,
@@ -152,7 +164,7 @@ try {
       window.historyFixture.hold = true;
     });
     await longThread.click();
-    const composer = page.getByRole("textbox", { name: "消息", exact: true });
+    const composer = page.locator(".composer .ProseMirror");
     await composer.waitFor();
     await composer.fill("后台读取期间保留草稿");
     assert.equal(await page.locator(".assistant-message").count(), 1);
@@ -177,7 +189,7 @@ try {
       Math.abs(position - after) < 3,
       `补齐早期历史保留阅读位置：${position} → ${after}`,
     );
-    assert.equal(await composer.inputValue(), "后台读取期间保留草稿");
+    assert.equal(await composer.innerText(), "后台读取期间保留草稿");
     await page.getByRole("button", { name: "对话目录", exact: true }).click();
     await page
       .locator(".conversation-navigation-entries button")

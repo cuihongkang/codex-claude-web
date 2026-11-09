@@ -1,3 +1,5 @@
+import { appendReasoningSummary } from "./reasoning-summary.js";
+
 const actions = {
   started: "启动子代理",
   interacted: "更新子代理",
@@ -53,6 +55,7 @@ export function subAgents(items) {
       const state = item.agentsStates?.[id];
       const eventStatus = {
         started: "running",
+        interacted: "running",
         interrupted: "interrupted",
         completed: "completed",
       }[item.kind];
@@ -93,9 +96,12 @@ export function applyAgentEvent(items, method, params) {
       aggregatedOutput: (item.aggregatedOutput || "") + params.delta,
     };
   else if (method === "item/reasoning/summaryTextDelta") {
-    const summary = [...(item?.summary || [])];
-    summary[params.summaryIndex] =
-      (summary[params.summaryIndex] || "") + params.delta;
+    const summary = appendReasoningSummary(
+      item?.summary,
+      params.summaryIndex,
+      params.delta,
+      params.summaryTitle,
+    );
     item = { ...item, id, turnId: params.turnId, type: "reasoning", summary };
   }
   if (item) entries.set(id, item);
@@ -180,7 +186,13 @@ export function mergeAgentHistory(items, events) {
       if (update.summary) {
         item.summary = [...(snapshot.summary || [])];
         update.summary.forEach((delta, index) => {
-          item.summary[index] = mergeStreamText(item.summary[index], delta);
+          const previous = item.summary[index];
+          const text = mergeStreamText(
+            typeof previous === "string" ? previous : previous?.text,
+            typeof delta === "string" ? delta : delta.text,
+          );
+          const title = delta?.title || previous?.title;
+          item.summary[index] = title ? { title, text } : text;
         });
       }
     }

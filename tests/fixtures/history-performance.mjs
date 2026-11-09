@@ -124,8 +124,26 @@ export function historyPerformanceFixture() {
         result = { data: threads, nextCursor: null };
       if (["thread/read", "thread/resume"].includes(method))
         result = { thread: threads[Number(long)] };
-      if (method === "thread/turns/list")
-        result = { data: long ? turns.toReversed() : [], nextCursor: null };
+      if (method === "thread/turns/list") {
+        const offset = Number(params.cursor || 0);
+        const records = long ? turns.toReversed() : [];
+        result = {
+          data: records.slice(offset, offset + params.limit).map((turn) =>
+            params.itemsView === "full"
+              ? {
+                  ...turn,
+                  items: entries
+                    .filter((entry) => entry.turnId === turn.id)
+                    .map((entry) => entry.item),
+                }
+              : turn,
+          ),
+          nextCursor:
+            offset + params.limit < records.length
+              ? String(offset + params.limit)
+              : null,
+        };
+      }
       if (method === "thread/items/list") {
         const offset = Number(params.cursor || 0);
         const records = long ? entries.toReversed() : [];
@@ -141,9 +159,21 @@ export function historyPerformanceFixture() {
       if (method === "lan/projectless/read") result = { directories: {} };
       const respond = () =>
         this.onmessage({ data: JSON.stringify({ id: request.id, result }) });
-      if (data.hold && method === "thread/items/list" && params.cursor)
+      if (
+        data.hold &&
+        ((method === "thread/items/list" && params.cursor) ||
+          (method === "thread/turns/list" && params.itemsView === "full"))
+      )
         data.pending.push(respond);
-      else setTimeout(respond, long && method === "thread/items/list" ? 50 : 0);
+      else
+        setTimeout(
+          respond,
+          long &&
+            (method === "thread/items/list" ||
+              (method === "thread/turns/list" && params.itemsView === "full"))
+            ? 50
+            : 0,
+        );
     }
   };
 }

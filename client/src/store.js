@@ -10,6 +10,13 @@ export {
 export { persist } from "./infrastructure/storage.js";
 const application = createApplication();
 export const {
+  activateBackend,
+  selectModelChoice,
+  selectProvider,
+  refreshBackends,
+  saveBackend,
+  saveProvider,
+  removeProvider,
   setReadingThread,
   openSubAgent,
   selectModel,
@@ -33,6 +40,7 @@ export const {
   loadHistory,
   ensureThread,
   sendMessage,
+  approvePlan,
   stop,
   rename,
   archive,
@@ -45,6 +53,7 @@ export const {
   pin,
   addProject,
   toggleProjectPin,
+  moveThreadToFolder,
   addAttachment,
   attachFile,
   cancelMessageEdit,

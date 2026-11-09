@@ -254,7 +254,7 @@ const server = http.createServer(async (req, res) => {
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文件");
-const profile = await mkdtemp(join(tmpdir(), "codex-web-quota-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-quota-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [
@@ -448,7 +448,7 @@ try {
       );
     await screenshot(name + "-recovered");
     const after = await evaluate(
-      "({message:[...document.querySelectorAll('.assistant-message')].at(-1)?.textContent, draft:document.querySelector('[aria-label=消息]').value, input:originalInput===document.querySelector('[aria-label=消息]'), process:originalProcess===document.querySelector('.process-history'), expanded:document.querySelector('.process-history')?.open, removed:[...removed], sockets:recoveryFixture.sockets.length})",
+      "({message:[...document.querySelectorAll('.assistant-message')].at(-1)?.textContent, draft:(()=>{const input=document.querySelector('[aria-label=消息]');return input.isContentEditable?input.innerText.trim():input.value})(), input:originalInput===document.querySelector('[aria-label=消息]'), process:originalProcess===document.querySelector('.process-history'), expanded:document.querySelector('.process-history')?.open, removed:[...removed], sockets:recoveryFixture.sockets.length})",
     );
     if (!before) {
       assert(after.input && after.process && after.expanded);

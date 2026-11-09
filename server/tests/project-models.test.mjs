@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createProjectModels } from "../src/project-models.mjs";
 
 test("项目设置写入磁盘，重新创建存储后恢复，连续写入保留各项目和最新选择", async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-models-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-models-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const store = createProjectModels(directory);
   assert.deepEqual(await store.read(), {});
@@ -17,7 +17,7 @@ test("项目设置写入磁盘，重新创建存储后恢复，连续写入保�
     store.set({ cwd: "", model: "model-a", effort: "low" }),
   ]);
   const persisted = JSON.parse(
-    await readFile(join(directory, "codex-web", "project-models.json"), "utf8"),
+    await readFile(join(directory, "project-models.json"), "utf8"),
   );
   assert.deepEqual(persisted, {
     "/demo/a": { model: "model-c", effort: "xhigh" },
@@ -39,7 +39,7 @@ test("项目设置写入磁盘，重新创建存储后恢复，连续写入保�
 });
 
 test("输入及磁盘损坏保留原文件，写入失败后支持重试", async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-models-error-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-models-error-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const store = createProjectModels(directory);
   await assert.rejects(
@@ -47,7 +47,7 @@ test("输入及磁盘损坏保留原文件，写入失败后支持重试", async
     /无效/,
   );
   await store.set({ cwd: "/demo/a", model: "m", effort: "high" });
-  const path = join(directory, "codex-web", "project-models.json");
+  const path = join(directory, "project-models.json");
   await writeFile(path, "broken-json");
   await assert.rejects(
     store.set({ cwd: "/demo/b", model: "m", effort: "low" }),
@@ -58,4 +58,26 @@ test("输入及磁盘损坏保留原文件，写入失败后支持重试", async
   assert.deepEqual(await store.read(), {
     "/demo/b": { model: "m", effort: "low" },
   });
+});
+
+test("网页目录迁移读取旧项目选择，首次修改保存完整偏好且保留旧文件", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "project-model-migration-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const legacy = {
+    "/demo/a": { model: "gpt", effort: "high" },
+    "": { model: "gpt", effort: "low" },
+  };
+  const path = join(root, "project-models.json");
+  await writeFile(path, JSON.stringify(legacy));
+  const target = join(root, "new-web");
+  const store = createProjectModels(target, root);
+  assert.deepEqual(await store.read(), legacy);
+  await store.set({ cwd: "/demo/b", model: "gpt-b", effort: "medium" });
+  assert.deepEqual(await createProjectModels(target).read(), {
+    ...legacy,
+    "/demo/b": { model: "gpt-b", effort: "medium" },
+  });
+  assert.deepEqual(JSON.parse(await readFile(path, "utf8")), legacy);
+  await writeFile(join(target, "project-models.json"), "{}");
+  assert.deepEqual(await store.read(), {});
 });

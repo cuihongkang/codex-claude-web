@@ -49,7 +49,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-command-browser-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-command-browser-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [
@@ -140,7 +140,7 @@ try {
     );
     console.error(
       await evaluate(
-        `JSON.stringify({text:document.body.innerText.slice(-1000),draft:document.querySelector('textarea[aria-label="消息"]')?.value,active:document.activeElement?.tagName,width:innerWidth,scale:visualViewport.scale})`,
+        `JSON.stringify({text:document.body.innerText.slice(-1000),draft:document.querySelector('.composer [aria-label="消息"]')?.value,requests:window.commandFixture?.requests.slice(-8),sendDisabled:document.querySelector('.send-button')?.disabled,active:document.activeElement?.tagName,width:innerWidth,scale:visualViewport.scale})`,
       ),
     );
     throw new Error("等待超时：" + expression);
@@ -175,7 +175,7 @@ try {
     );
   };
   const type = async (text) => {
-    await click('textarea[aria-label="消息"]');
+    await click('.composer [aria-label="消息"]');
     assert.equal(
       await evaluate(`document.activeElement?.getAttribute('aria-label')`),
       "消息",
@@ -197,7 +197,7 @@ try {
     await page("Input.insertText", { text });
     assert.equal(
       await evaluate(
-        `document.querySelector('textarea[aria-label="消息"]').value`,
+        `(()=>{const input=document.querySelector('.composer [aria-label="消息"]');return input.isContentEditable?input.innerText.trim():input.value})()`,
       ),
       text,
     );
@@ -235,7 +235,7 @@ try {
     url: `http://127.0.0.1:${server.address().port}/`,
   });
   await waitFor(
-    `document.querySelector('textarea[aria-label="消息"]') && document.querySelector('.breadcrumb > span')?.textContent==='核对快捷命令'`,
+    `document.querySelector('.composer [aria-label="消息"]') && document.querySelector('.breadcrumb > span')?.textContent==='核对快捷命令'`,
   );
   const reloadProof = await testCompactionReload({
     page,

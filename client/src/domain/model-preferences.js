@@ -12,7 +12,10 @@ const effortOrder = [
 // 保留可用强度；缺失档位按强度顺序选择最近值，等距时使用较低档。
 export function compatibleEffort(effort, model) {
   const options = model?.supportedReasoningEfforts || [];
-  if (!options.length) return effort || model?.defaultReasoningEffort || "";
+  if (!options.length)
+    return Array.isArray(model?.supportedReasoningEfforts)
+      ? ""
+      : effort || model?.defaultReasoningEffort || "";
   if (options.some((option) => option.reasoningEffort === effort))
     return effort;
   if (!effort)

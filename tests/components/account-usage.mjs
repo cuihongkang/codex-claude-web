@@ -274,6 +274,91 @@ export async function testAccountUsage(app, requests, setResponse, emit) {
       view.root.findAllByProps({ className: "quota-toggle" }).length,
       0,
     );
+    await act(async () =>
+      app.set({
+        current: { id: "backend:claude:native" },
+        backendId: "claude",
+        providerId: "",
+        backends: [{ id: "claude", ready: true }],
+        account: { type: "claude", usageSupported: true },
+        usage: snapshot(),
+      }),
+    );
+    assert.equal(resets.size, 1, "Claude 原生窗口到期时安排自动校准");
+    assert.equal(intervals.size, 1);
+    result = {
+      rateLimits: {
+        limitId: "deepseek",
+        windows: [],
+        balances: [
+          {
+            currency: "CNY",
+            total_balance: "12.50",
+            granted_balance: "2.5",
+            topped_up_balance: "10",
+          },
+        ],
+      },
+    };
+    setResponse(({ method }) =>
+      method === "account/rateLimits/read" ? result : {},
+    );
+    await act(async () =>
+      app.set({
+        providerId: "deepseek",
+        account: { type: "provider", usageSupported: true },
+        usage: null,
+      }),
+    );
+    assert.equal(toggle().props["aria-expanded"], false);
+    assert.match(text(), /¥12\.50/);
+    await act(async () => toggle().props.onClick());
+    assert.match(text(), /账户余额/);
+    assert.match(text(), /赠金余额/);
+    assert.match(text(), /充值余额/);
+    await act(async () => app.set({ usageError: "查询失败" }));
+    assert.match(text(), /待更新/);
+    assert.match(text(), /¥12\.50/);
+    const beforeClaude = count();
+    await act(async () =>
+      app.set({
+        current: { id: "backend:claude:session" },
+        backendId: "claude",
+        account: null,
+        usage: null,
+        providers: [
+          { id: "local", name: "LM Studio" },
+          { id: "other", name: "Other" },
+        ],
+        providerId: "local",
+        backends: [{ id: "claude", ready: true }],
+      }),
+    );
+    assert.match(text(), /LM Studio/);
+    assert.doesNotMatch(text(), /Codex/);
+    assert.equal(
+      view.root.findAllByProps({ className: "quota-toggle" }).length,
+      0,
+    );
+    assert.equal(intervals.size, 0);
+    assert.equal(resets.size, 0);
+    assert.equal(count(), beforeClaude);
+    await act(async () => app.set({ providerId: "other" }));
+    assert.match(text(), /Other/);
+    await act(async () =>
+      app.set({ providers: [], backends: [{ id: "claude", ready: false }] }),
+    );
+    assert.match(text(), /Claude Code/);
+    assert.match(text(), /正在连接/);
+    await act(async () =>
+      app.set({
+        current: null,
+        backendId: "codex",
+        backends: [],
+        account: { type: "apiKey" },
+      }),
+    );
+    assert.match(text(), /API Key/);
   } finally {
     await act(async () => view?.unmount());
     assert.equal(intervals.size, 0);

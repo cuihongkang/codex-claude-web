@@ -1,4 +1,5 @@
 import { NotificationSettings as ClaudeNotificationSettings } from "../notifications.jsx";
+import { BackendSettings } from "./backend-settings.jsx";
 import React from "react";
 import { Check, Sun, Moon, Monitor } from "lucide-react";
 import { useStore, set, selectModel, setTheme } from "../store.js";
@@ -15,6 +16,8 @@ export function SettingsDialog() {
       <LogoutButton />
       <h3>通知</h3>
       <NotificationSettings />
+      <ClaudeNotificationSettings />
+      <BackendSettings />
       <h3>外观</h3>
       <div className="theme-options">
         {[
@@ -32,22 +35,6 @@ export function SettingsDialog() {
             {s.theme === v && <Check size={14} />}
           </button>
         ))}
-      </div>
-      <ClaudeNotificationSettings />
-      <h3>快捷键</h3>
-      <div className="shortcut-list">
-        <span>
-          搜索对话<kbd>Ctrl / ⌘ K</kbd>
-        </span>
-        <span>
-          新对话<kbd>Ctrl / ⌘ Shift O</kbd>
-        </span>
-        <span>
-          显示终端<kbd>Ctrl / ⌘ `</kbd>
-        </span>
-        <span>
-          消息换行<kbd>Enter</kbd>
-        </span>
       </div>
       <h3>关于</h3>
       <VersionDetails />

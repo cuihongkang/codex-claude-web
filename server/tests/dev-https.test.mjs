@@ -18,7 +18,7 @@ test(
   "Vite 通过已验证的 HTTPS/WSS 代理保留登录 Cookie 与来源",
   { timeout: 15000 },
   async (t) => {
-    const directory = await mkdtemp(join(tmpdir(), "codex-web-dev-tls-"));
+    const directory = await mkdtemp(join(tmpdir(), "claudex-web-dev-tls-"));
     await authenticationFixture(directory);
     const certificate = join(directory, "domain.pem"),
       key = join(directory, "domain-key.pem");
@@ -73,12 +73,14 @@ test(
     const old = {
       PORT: process.env.PORT,
       CODEX_HOME: process.env.CODEX_HOME,
+      CLAUDEX_WEB_CONFIG_DIR: process.env.CODEX_HOME,
       TLS_CERT: process.env.TLS_CERT,
       TLS_KEY: process.env.TLS_KEY,
     };
     Object.assign(process.env, {
       PORT: String(backend.address().port),
       CODEX_HOME: directory,
+      CLAUDEX_WEB_CONFIG_DIR: directory,
       TLS_CERT: certificate,
       TLS_KEY: key,
     });

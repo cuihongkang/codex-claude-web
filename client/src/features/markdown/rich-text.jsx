@@ -21,20 +21,34 @@ import {
 } from "../annotations/message-annotations.jsx";
 import { MarkdownPicture } from "./markdown-picture.jsx";
 
+import { remarkFileReferences } from "../../domain/user-message-references.js";
+
 const DirectoryContext = createContext(undefined);
 
 const htmlSchema = {
   ...defaultSchema,
-  tagNames: [...defaultSchema.tagNames, "annotation-ref"],
+  tagNames: [
+    ...defaultSchema.tagNames,
+    "annotation-ref",
+    "file-ref",
+    "file-reference-list",
+  ],
   attributes: {
     ...defaultSchema.attributes,
     code: [["className", /^language-./, "math-inline", "math-display"]],
     source: ["srcSet", "media", "type", "sizes"],
     "annotation-ref": ["index"],
+    "file-ref": ["index"],
   },
   protocols: {
     ...defaultSchema.protocols,
-    href: [...defaultSchema.protocols.href, "file", "sandbox"],
+    href: [
+      ...defaultSchema.protocols.href,
+      "file",
+      "sandbox",
+      "thread",
+      "skill",
+    ],
     src: [...defaultSchema.protocols.src, "file", "sandbox", "data"],
   },
   strip: [...defaultSchema.strip, "style", "iframe", "object", "embed"],
@@ -74,14 +88,25 @@ function mathDelimiters(text) {
 }
 
 export const RichText = memo(
-  function RichText({ text, annotations = [], cwd }) {
+  function RichText({
+    text,
+    annotations = [],
+    cwd,
+    references = [],
+    renderReference: Reference,
+  }) {
     return (
       <div className="markdown">
         <DirectoryContext.Provider value={cwd}>
           <AnnotationContext.Provider value={annotations}>
             <Markdown
               urlTransform={messageUrlTransform}
-              remarkPlugins={[remarkGfm, remarkMath, remarkAnnotations]}
+              remarkPlugins={[
+                remarkGfm,
+                remarkMath,
+                remarkAnnotations,
+                [remarkFileReferences, { references }],
+              ]}
               rehypePlugins={[
                 rehypeRaw,
                 [rehypeSanitize, htmlSchema],
@@ -95,6 +120,13 @@ export const RichText = memo(
                 img: MarkdownImage,
                 picture: Picture,
                 "annotation-ref": AnnotationReference,
+                "file-reference-list": ({ children }) => (
+                  <div className="user-reference-list">{children}</div>
+                ),
+                "file-ref": ({ index }) =>
+                  Reference && references[index] ? (
+                    <Reference file={references[index]} />
+                  ) : null,
               }}
             >
               {mathDelimiters(text)}
@@ -107,6 +139,9 @@ export const RichText = memo(
   (previous, next) =>
     previous.text === next.text &&
     previous.cwd === next.cwd &&
+    previous.renderReference === next.renderReference &&
+    JSON.stringify(previous.references || []) ===
+      JSON.stringify(next.references || []) &&
     JSON.stringify(previous.annotations || []) ===
       JSON.stringify(next.annotations || []),
 );

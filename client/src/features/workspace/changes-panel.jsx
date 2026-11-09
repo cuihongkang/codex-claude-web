@@ -106,7 +106,7 @@ export function ChangesPanel() {
           <DiffBlock diff={text} />
         ) : (
           <Empty icon={GitPullRequest} title="没有待查看的变更">
-            Codex 修改文件后，可以在这里检查差异。
+            代理修改文件后，可以在这里检查差异。
           </Empty>
         )}
       </div>

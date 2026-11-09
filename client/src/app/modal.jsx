@@ -1,3 +1,4 @@
+import { ResizableWindow } from "../ui/surface-resize.jsx";
 import React, { useEffect } from "react";
 
 import { X } from "lucide-react";
@@ -51,7 +52,9 @@ export function Modal() {
         if (e.target === e.currentTarget) set({ modal: null });
       }}
     >
-      <section
+      <ResizableWindow
+        key={type + (s.modal.view || "")}
+        resizeId={type + (s.modal.view ? ":" + s.modal.view : "")}
         className={"modal modal-" + type}
         role="dialog"
         aria-modal="true"
@@ -96,7 +99,7 @@ export function Modal() {
             }}
           />
         )}
-      </section>
+      </ResizableWindow>
     </div>
   );
 }

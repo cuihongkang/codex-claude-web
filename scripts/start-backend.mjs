@@ -1,16 +1,22 @@
+import { createBackendConfiguration } from "../server/src/backends/configuration.mjs";
 import { spawn } from "node:child_process";
 import { readConfig } from "../server/src/config.mjs";
 
+const config = readConfig();
+const { backends } = await createBackendConfiguration(config).read();
+const backend = backends.find((b) => b.id === "codex" && b.enabled);
+if (!backend) throw new Error("Codex 后端未启用");
 const child = spawn(
-  "codex",
+  backend.executable || "codex",
   [
+    ...(backend.args || []),
     "-c",
     "thread_unload_delay_secs=0",
     "app-server",
     "--listen",
-    readConfig().upstreamUrl,
+    backend.url,
   ],
-  { stdio: "inherit" },
+  { stdio: "inherit", env: { ...process.env, CODEX_HOME: backend.dataDir } },
 );
 child.on("error", (error) => {
   console.error(error.message);

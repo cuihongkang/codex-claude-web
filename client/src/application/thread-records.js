@@ -20,6 +20,16 @@ export function createThreadRecords({ get, set, rpc }) {
     set({ unreadCompletions });
   }
   function preserveThreadName(thread, revision) {
+    const known =
+      get().threads.find((entry) => entry.id === thread.id) ||
+      (get().current?.id === thread.id ? get().current : null);
+    if ((known?.folderRevision || 0) > (thread.folderRevision || 0))
+      thread = {
+        ...thread,
+        folderPath: known.folderPath,
+        folderRevision: known.folderRevision,
+        cwd: known.cwd,
+      };
     const update = threadNames.get(thread.id);
     return update?.revision > revision
       ? { ...thread, name: update.name }

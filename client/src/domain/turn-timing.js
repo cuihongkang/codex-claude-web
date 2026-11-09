@@ -1,4 +1,6 @@
 export function turnElapsedMs(timing, working, now) {
+  if (working && Number.isFinite(timing?.startedAt))
+    return Math.max(0, now - timing.startedAt * 1000);
   if (Number.isFinite(timing?.durationMs))
     return Math.max(0, timing.durationMs);
   if (!Number.isFinite(timing?.startedAt)) return null;

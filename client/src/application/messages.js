@@ -1,3 +1,8 @@
+import { readAttachment, attachmentInputs } from "./attachments.js";
+import { referenceInputs } from "./reference-input.js";
+import { resourceTarget } from "../../../shared/backend-identity.mjs";
+import { pendingPlan, planImplementationText } from "../domain/plans.js";
+import { newDraftKey } from "../infrastructure/backend-storage.js";
 import { createMessageEditing } from "./message-editing.js";
 import { resolveServiceTier } from "../domain/service-tier.js";
 import { inputRequestItem } from "../domain/question-state.js";
@@ -10,6 +15,7 @@ import {
 
 import { uid } from "../domain/format.js";
 export function createMessages({
+  setThreadMode,
   get,
   set,
   rpc,
@@ -76,7 +82,12 @@ export function createMessages({
   }
   function setDraft(draft) {
     set({ draft });
-    localStorage.setItem("cx-draft-" + (get().current?.id || "new"), draft);
+    localStorage.setItem(
+      get().current
+        ? "cx-draft-" + get().current.id
+        : newDraftKey(get().backendId),
+      draft,
+    );
   }
   async function sendMessage(
     text = get().draft,
@@ -87,6 +98,7 @@ export function createMessages({
       questionAnswers,
       annotations = [],
       replace,
+      implementation,
     } = {},
   ) {
     if (
@@ -99,6 +111,7 @@ export function createMessages({
         get().threadAccess.status !== "ready")
     )
       return false;
+    const submission = get();
     const epoch = navigation.opening;
     const attachmentDraft = navigation.getAttachmentDraft();
     set({ busy: true, error: "" });
@@ -106,44 +119,59 @@ export function createMessages({
     try {
       if (replace && get().current?.id !== replace.threadId) return false;
       thread = await navigation.ensureThread();
+      if (
+        implementation &&
+        (epoch !== navigation.opening ||
+          get().current?.id !== implementation.threadId ||
+          currentPlan()?.id !== implementation.itemId)
+      )
+        return false;
       if (replace) await editing.prepare(replace);
+      const references = await referenceInputs(
+        text,
+        resourceTarget(thread.id).backendId,
+        rpc,
+      );
       const input = [
         ...(text.trim() || annotations.length
           ? [
               {
                 type: "text",
                 text: annotations.length
-                  ? annotationMessage(annotations, text)
-                  : text,
+                  ? annotationMessage(annotations, references.text)
+                  : references.text,
                 text_elements: [],
               },
             ]
           : []),
-        ...attachments.map((a) => a.input),
+        ...(await attachmentInputs(attachments, rpc)),
+        ...references.inputs,
       ];
       const running = get().active[thread.id];
-      put({
-        id: "optimistic-" + uid(),
-        type: "userMessage",
-        turnId: running,
-        content: input,
-        optimistic: true,
-        ...(questionId ? { questionId } : {}),
-      });
+      if (get().current?.id === thread.id)
+        put({
+          id: "optimistic-" + uid(),
+          type: "userMessage",
+          turnId: running,
+          content: input,
+          optimistic: true,
+          ...(questionId ? { questionId } : {}),
+        });
       const params = {
         threadId: thread.id,
         input,
-        model: get().model || undefined,
-        effort: get().effort || undefined,
+        model: submission.model || undefined,
+        providerId: submission.providerId,
+        effort: submission.effort || undefined,
         serviceTier: resolveServiceTier(
-          get().serviceTier,
-          get().models.find((m) => m.model === get().model),
+          submission.serviceTier,
+          submission.models.find((m) => m.model === submission.model),
         ),
         collaborationMode: {
-          mode: get().mode,
+          mode: implementation ? "default" : submission.mode,
           settings: {
-            model: get().model,
-            reasoning_effort: get().effort || null,
+            model: submission.model,
+            reasoning_effort: submission.effort || null,
           },
         },
       };
@@ -160,9 +188,18 @@ export function createMessages({
           ? { threadId: thread.id, expectedTurnId: running, input }
           : params,
       );
+      if (implementation) setThreadMode(thread.id, "default");
+      const observedTurn = r.turn && get().turnTimings[thread.id]?.[r.turn.id];
+      const alreadyFinished =
+        observedTurn &&
+        (observedTurn.completedAt != null ||
+          ["completed", "failed", "interrupted"].includes(observedTurn.status));
+      const alreadyStarted =
+        observedTurn?.status === "inProgress" && r.turn?.status === "queued";
       if (r.turn) {
         const turn = {
           ...r.turn,
+          ...((alreadyFinished || alreadyStarted) && observedTurn),
           startedAt:
             r.turn.startedAt ??
             get().turnTimings[thread.id]?.[r.turn.id]?.startedAt ??
@@ -197,7 +234,11 @@ export function createMessages({
         const question = get().items.find((item) => item.id === questionId);
         if (question) put({ ...question, questionAnswers });
       }
-      if (r.turn?.status === "inProgress")
+      if (
+        ["queued", "inProgress"].includes(r.turn?.status) &&
+        !alreadyFinished &&
+        (!get().active[thread.id] || get().active[thread.id] === r.turn.id)
+      )
         set({ active: { ...get().active, [thread.id]: r.turn.id } });
       if (get().current?.id === thread.id)
         set({ threadAccess: { threadId: thread.id, status: "ready" } });
@@ -219,6 +260,28 @@ export function createMessages({
       if (replace) editing.release(replace);
       set({ busy: false });
     }
+  }
+  function currentPlan() {
+    const s = get();
+    const threadId = s.current?.id;
+    const turns = [
+      ...Object.entries(s.turnTimings[threadId] || {}).map(([id, turn]) => ({
+        id,
+        ...turn,
+      })),
+      ...(s.turns[threadId] || []),
+    ];
+    const plan = pendingPlan(s.items, turns, s.active[threadId]);
+    return plan;
+  }
+  async function approvePlan(itemId) {
+    const plan = currentPlan();
+    const threadId = get().current?.id;
+    if (!get().connected || !plan || plan.id !== itemId) return false;
+    return sendMessage(planImplementationText(plan), [], {
+      clearDraft: false,
+      implementation: { threadId, itemId },
+    });
   }
   async function stop() {
     const id = get().current?.id;
@@ -244,38 +307,16 @@ export function createMessages({
         ...entries,
         attachment,
       ]);
-    if (file.type.startsWith("image/")) {
-      const url = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-      add({
-        id: uid(),
-        name: file.name,
-        preview: url,
-        input: { type: "image", url },
-      });
-    } else {
-      const text = await file.text();
-      add({
-        id: uid(),
-        name: file.name,
-        input: {
-          type: "text",
-          text: `附件 ${file.name}\n\n${text}`,
-          text_elements: [],
-        },
-      });
-    }
+    add(await readAttachment(file));
   }
+
   return {
     put,
     recordInputRequest,
     respond,
     setDraft,
     sendMessage,
+    approvePlan,
     stop,
     review,
     addAttachment,

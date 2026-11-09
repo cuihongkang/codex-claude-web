@@ -14,7 +14,7 @@ try {
     },
     bundle: true,
     define: {
-      __CODEX_WEB_BUILD__: JSON.stringify({
+      __CLAUDEX_WEB_BUILD__: JSON.stringify({
         version: "1.2.3",
         displayVersion: "1.2.3+dev.gabc1234.dirty",
         revision: "abc123456789",
@@ -93,7 +93,7 @@ try {
           );
           builder.onLoad({ filter: /.*/, namespace: "fixture" }, (args) => ({
             contents: args.path.endsWith("/xterm")
-              ? `export class Terminal {constructor(options){this.options=options;this.cols=80;this.rows=24;globalThis.testTerminals.push(this)} loadAddon(){} open(){} write(){} reset(){} dispose(){} onData(fn){this.input=fn}}`
+              ? `export class Terminal {constructor(options){this.options=options;this.cols=80;this.rows=24;globalThis.testTerminals.push(this)} loadAddon(){} open(){} write(){} reset(){} dispose(){} focus(){} onData(fn){this.input=fn}}`
               : `export class FitAddon {fit(){}}`,
           }));
         },

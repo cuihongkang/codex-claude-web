@@ -93,8 +93,12 @@
   overflow: auto;
   padding: 0 1.846154rem 1.769231rem;
 }
-.settings-body > h3 {
-  font-size: 0.923077rem;
+.modal-settings .modal-heading h2 {
+  font-size: 1.538462rem;
+}
+.settings-body > h3,
+.backend-settings > h3 {
+  font-size: 1.153846rem;
   margin: 1.538462rem 0 1rem;
   font-weight: 600;
 }
@@ -118,7 +122,14 @@
   margin: 0.384615rem 0 0;
   line-height: var(--ui-line-height);
 }
-.notification-settings .inline-error {
+.notification-settings .error-banner > span {
+  flex: 1 1 16em;
+  min-width: 0;
+}
+.error-banner > button {
+  flex: none;
+}
+.inline-error {
   margin: 0.384615rem 0 0;
 }
 .theme-options {
@@ -192,19 +203,6 @@
   gap: 0.307692rem;
   white-space: nowrap;
 }
-.shortcut-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.923077rem;
-}
-.shortcut-list > span {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.923077rem;
-}
-.shortcut-list kbd {
-  font-size: 0.846154rem;
-}
 .connection-banner {
   font-size: 0.846154rem;
   background: var(--subtle);
@@ -217,6 +215,8 @@
 }
 .error-banner {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
   align-items: center;
   justify-content: space-between;
   padding: 0.615385rem 0.923077rem;
@@ -237,6 +237,7 @@
   font-size: 0.923077rem;
 }
 .toast {
+  pointer-events: none;
   position: fixed;
   bottom: 25px;
   left: 50%;

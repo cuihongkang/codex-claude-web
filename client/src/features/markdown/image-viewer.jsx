@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSurfaceResize } from "../../ui/surface-resize.jsx";
 import { X } from "lucide-react";
 
 export function ImageViewer({ url, alt, onClose }) {
-  const dialog = useRef();
+  const { ref: dialog, style, handle } = useSurfaceResize({ id: "image" });
   const [originalSize, setOriginalSize] = useState(false);
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export function ImageViewer({ url, alt, onClose }) {
   return createPortal(
     <dialog
       ref={dialog}
+      style={style}
       className="image-viewer"
       aria-label="图片预览"
       aria-modal="true"
@@ -73,6 +75,7 @@ export function ImageViewer({ url, alt, onClose }) {
           onClick={() => setOriginalSize(!originalSize)}
         />
       </div>
+      {handle}
     </dialog>,
     document.body,
   );

@@ -96,17 +96,33 @@ function boundaryError(from, to) {
   if (
     from.startsWith("server/src/http/") &&
     (to.startsWith("server/src/bridge/") ||
+      to.startsWith("server/src/backends/") ||
       to === "server/src/application.mjs" ||
       to === "server/src/server.mjs")
   )
     return "HTTP 处理器通过参数取得运行状态";
   if (
-    from.startsWith("server/src/bridge/") &&
+    (from.startsWith("server/src/bridge/") ||
+      from.startsWith("server/src/backends/")) &&
     (to.startsWith("server/src/http/") ||
       to === "server/src/application.mjs" ||
       to === "server/src/server.mjs")
   )
     return "桥接业务不能依赖 HTTP 或进程入口";
+  if (
+    from.startsWith("server/src/bridge/") &&
+    to.startsWith("server/src/backends/")
+  )
+    return "公共桥接规则通过参数取得后端能力";
+  for (const backend of ["codex", "claude"]) {
+    if (
+      from.startsWith(`server/src/backends/${backend}/`) &&
+      to.startsWith("server/src/backends/") &&
+      !to.startsWith(`server/src/backends/${backend}/`) &&
+      /^server\/src\/backends\/(?:codex|claude)\//.test(to)
+    )
+      return "原生适配器只能依赖所属后端与公共服务";
+  }
   return null;
 }
 

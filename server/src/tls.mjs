@@ -1,3 +1,5 @@
+import { migrateProductConfig } from "./product-config.mjs";
+import { migrateWebDirectory } from "./web-config-migration.mjs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, readFile, rename, rm, mkdtemp } from "node:fs/promises";
@@ -18,13 +20,18 @@ export function localTlsClient(cert) {
   };
 }
 export async function readTls(config) {
+  await migrateProductConfig(config);
   if (config.tlsCert)
     return {
       cert: await readFile(config.tlsCert),
       key: await readFile(config.tlsKey),
       minVersion: "TLSv1.2",
     };
-  const parent = join(config.codexHome, "codex-web");
+  await migrateWebDirectory(config, "tls", [
+    "certificate.pem",
+    "private-key.pem",
+  ]);
+  const parent = config.configDir;
   const directory = join(parent, "tls");
   const certificate = join(directory, "certificate.pem");
   const key = join(directory, "private-key.pem");
@@ -51,7 +58,7 @@ export async function readTls(config) {
           "-days",
           "365",
           "-subj",
-          "/CN=Codex Web",
+          "/CN=Claudex Web",
           "-addext",
           `subjectAltName=${[...names].join(",")}`,
           "-keyout",

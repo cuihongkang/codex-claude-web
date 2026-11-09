@@ -1,3 +1,4 @@
+import { ResizableTextarea } from "../../ui/resizable-textarea.jsx";
 import React, { useEffect, useRef, useState } from "react";
 import { Copy, Pencil } from "lucide-react";
 import { copy, sendMessage, cancelMessageEdit, useStore } from "../../store.js";
@@ -111,7 +112,7 @@ function MessageEditor({ item, threadId, onCancel }) {
       {annotations.map((entry, index) => (
         <label className="inline-edit-annotation" key={index}>
           批注 {index + 1}
-          <textarea
+          <ResizableTextarea
             aria-label={`编辑批注 ${index + 1}`}
             value={entry.annotation}
             disabled={pending}
@@ -149,6 +150,14 @@ export function UserMessage({ item, readOnly, editable, cwd }) {
   const s = useStore();
   const [editing, setEditing] = useState(false);
   const threadId = s.current?.id;
+  useEffect(() => {
+    if (
+      editable &&
+      s.messageEditRequest?.threadId === threadId &&
+      s.messageEditRequest.itemId === item.id
+    )
+      setEditing(true);
+  }, [editable, threadId, item.id, s.messageEditRequest]);
   return (
     <article
       className="message user-message"

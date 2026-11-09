@@ -96,7 +96,44 @@ try {
     await page.getByTitle("移除 draft-notes.txt", { exact: true }).waitFor();
     await page.screenshot({ path: join(output, `${width}-uploaded.png`) });
     if (width < 700) await page.getByTitle("显示侧栏", { exact: true }).click();
+    if (width < 600)
+      await page
+        .locator(".sidebar-backdrop.visible")
+        .click({ position: { x: 380, y: 400 } });
+    await page
+      .getByRole("button", { name: "预览 draft-image.png", exact: true })
+      .click();
+    await page.getByRole("dialog", { name: "图片预览" }).waitFor();
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("button", { name: "预览 draft-notes.txt", exact: true })
+      .click();
+    assert.equal(
+      await page.locator(".attachment-preview-body pre").innerText(),
+      "文件附件的完整正文",
+    );
+    await page.keyboard.press("Escape");
+    const zip = Buffer.from([80, 75, 3, 4, 0, 255, 128, 1]);
+    await input.setInputFiles({
+      name: "archive.zip",
+      mimeType: "application/zip",
+      buffer: zip,
+    });
+    await page
+      .getByRole("button", { name: "预览 archive.zip", exact: true })
+      .click();
+    assert.equal(await page.locator(".attachment-preview-body pre").count(), 0);
+    const bytes = await page
+      .locator(".attachment-preview-body a")
+      .evaluate(async (a) =>
+        Array.from(new Uint8Array(await (await fetch(a.href)).arrayBuffer())),
+      );
+    assert.deepEqual(bytes, Array.from(zip));
+    await page.keyboard.press("Escape");
+    await page.getByTitle("移除 archive.zip", { exact: true }).click();
     // 展开隔离项目，使用真实侧栏入口切换到已有对话。
+    if (width < 600)
+      await page.getByRole("button", { name: "显示侧栏", exact: true }).click();
     if (!(await page.getByText("简短对话", { exact: true }).isVisible()))
       await page.locator(".project-heading > button").first().click();
     await page.getByText("简短对话", { exact: true }).click();

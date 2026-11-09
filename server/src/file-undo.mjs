@@ -67,7 +67,7 @@ export async function undoFileChanges({
   const currentPath = resolve(cwd, last.kind?.move_path || last.path);
   let path = currentPath;
   let data = snapshots.get(currentPath).data;
-  const scratch = await mkdtemp(join(tmpdir(), "codex-web-undo-"));
+  const scratch = await mkdtemp(join(tmpdir(), "claudex-web-undo-"));
   try {
     for (const change of changes.slice().reverse()) {
       const before = resolve(cwd, change.path);

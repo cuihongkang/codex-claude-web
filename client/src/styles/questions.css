@@ -19,7 +19,14 @@
   line-height: var(--chat-line-height);
 }
 .user-input-card {
-  padding: 1.076923rem;
+  padding: 0.769231rem;
+}
+.user-input-card .question {
+  margin-bottom: 0.769231rem;
+}
+.user-input-card .free-answer {
+  min-height: calc(1lh + 2rem);
+  padding: 0.461538rem 0.615385rem 1rem;
 }
 .historical-questions > .question-record-summary {
   list-style: none;
@@ -70,15 +77,8 @@
   font-size: 0.923077rem;
   line-height: var(--aux-line-height);
 }
-.user-input-card > .request-hint {
-  margin: 0 0 0.923077rem;
-}
-.user-input-card .request-actions > .request-hint {
-  margin-right: auto;
-}
 .user-input-card [role="alert"] {
   color: var(--red);
-  font-size: 0.923077rem;
 }
 .question {
   border: 0;
@@ -86,20 +86,11 @@
   margin: 0 0 1.230769rem;
   min-width: 0;
 }
-.question > legend {
-  font-size: 0.923077rem;
-  line-height: var(--aux-line-height);
-  color: var(--muted);
-  padding: 0;
-}
 .question > p {
   line-height: inherit;
   margin: 0 0 0.615385rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.question > legend + p {
-  margin-top: 0.307692rem;
 }
 .answer-option {
   display: flex;
@@ -160,14 +151,6 @@
   border-radius: 7px;
   padding: 0.769231rem;
   margin-top: 0.384615rem;
-  resize: vertical;
-}
-.answer-label {
-  display: block;
-  margin-top: 0.769231rem;
-  font-size: 0.923077rem;
-  line-height: var(--aux-line-height);
-  color: var(--muted);
 }
 .composer-wrap {
   flex: none;

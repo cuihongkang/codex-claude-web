@@ -9,9 +9,9 @@ import {
 } from "../src/thread-projects.mjs";
 
 test("为每次新建分配独立可写目录，创建失败时报告错误", async (t) => {
-  const home = await mkdtemp(join(tmpdir(), "codex-web-workspaces-"));
+  const home = await mkdtemp(join(tmpdir(), "claudex-web-workspaces-"));
   t.after(() => rm(home, { recursive: true, force: true }));
-  const root = join(home, "codex-web", "workspaces");
+  const root = join(home, "claudex-web", "workspaces");
   const directories = await Promise.all([
     prepareProjectlessDirectory(root),
     prepareProjectlessDirectory(root),
@@ -31,7 +31,7 @@ test("为每次新建分配独立可写目录，创建失败时报告错误", as
 });
 
 test("结合无项目标记和工作区记录识别自动目录，忽略外部目录与已有项目", async (t) => {
-  const home = await mkdtemp(join(tmpdir(), "codex-web-projects-"));
+  const home = await mkdtemp(join(tmpdir(), "claudex-web-projects-"));
   t.after(() => rm(home, { recursive: true, force: true }));
   const root = "/custom/documents/Codex";
   const directories = {
@@ -83,7 +83,7 @@ test("结合无项目标记和工作区记录识别自动目录，忽略外部�
 });
 
 test("桌面状态缺失、写入中或字段不完整时保留实际目录分组", async (t) => {
-  const home = await mkdtemp(join(tmpdir(), "codex-web-projects-"));
+  const home = await mkdtemp(join(tmpdir(), "claudex-web-projects-"));
   t.after(() => rm(home, { recursive: true, force: true }));
   assert.deepEqual(await readProjectlessDirectories(home), {});
   for (const content of [

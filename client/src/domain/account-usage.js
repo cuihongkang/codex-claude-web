@@ -22,12 +22,13 @@ export function quotaCreditsText(usage) {
 
 export function quotaWindows(usage) {
   const limits = quotaSnapshot(usage);
-  return [limits?.primary, limits?.secondary].filter(
+  return (limits?.windows || [limits?.primary, limits?.secondary]).filter(
     (window) => window && Number.isFinite(window.usedPercent),
   );
 }
 
-export function quotaLabel(minutes) {
+export function quotaLabel(minutes, label) {
+  if (label) return label;
   if (minutes === 10080) return "周额度";
   if (minutes >= 1440) return `${Math.round(minutes / 1440)} 天额度`;
   if (minutes >= 60) return `${minutes / 60} 小时额度`;
@@ -35,7 +36,8 @@ export function quotaLabel(minutes) {
   return "额度";
 }
 
-export function quotaShortLabel(minutes) {
+export function quotaShortLabel(minutes, label) {
+  if (label) return label;
   if (minutes === 10080) return "周";
   if (minutes >= 1440) return `${Math.round(minutes / 1440)}d`;
   if (minutes >= 60) return `${minutes / 60}h`;
@@ -88,8 +90,9 @@ export function mergeUsageUpdate(usage, incoming) {
   const merged = { ...previous };
   for (const [key, value] of Object.entries(incoming)) {
     if (value == null) continue;
-    merged[key] =
-      typeof value === "object"
+    merged[key] = Array.isArray(value)
+      ? value
+      : typeof value === "object"
         ? {
             ...previous[key],
             ...Object.fromEntries(
@@ -111,4 +114,25 @@ export function mergeUsageUpdate(usage, incoming) {
       rateLimitsByLimitId: { ...usage?.rateLimitsByLimitId, [id]: merged },
     }),
   };
+}
+
+export function quotaExtraUsageText(usage) {
+  const extra = quotaSnapshot(usage)?.extraUsage;
+  if (!extra) return null;
+  if (extra.enabled === false) return "未启用";
+  const format = (value) => {
+    if (!Number.isFinite(value)) return "暂缺";
+    if (!extra.currency)
+      return `${value.toLocaleString("zh-CN")}（最小货币单位）`;
+    const formatter = new Intl.NumberFormat("zh-CN", {
+      style: "currency",
+      currency: extra.currency,
+    });
+    const divisor =
+      extra.unit === "minor"
+        ? 10 ** formatter.resolvedOptions().maximumFractionDigits
+        : 1;
+    return formatter.format(value / divisor);
+  };
+  return `${format(extra.used)} / ${format(extra.limit)}`;
 }

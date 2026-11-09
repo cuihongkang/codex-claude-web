@@ -29,11 +29,11 @@ test(
   "桥接服务提供资源、隔离请求 ID，并恢复和同步提问状态",
   { timeout: 15000 },
   async (t) => {
-    const files = await mkdtemp(join(tmpdir(), "codex-web-test-"));
+    const files = await mkdtemp(join(tmpdir(), "claudex-web-test-"));
     const version = readVersion();
     const auth = await authenticationFixture(files);
     const fetch = httpsFetch(auth.tls.cert, auth.cookie);
-    await writeFile(join(files, "index.html"), "<h1>Codex Web test</h1>");
+    await writeFile(join(files, "index.html"), "<h1>Claudex Web test</h1>");
     await writeFile(
       join(files, "mermaid.core.js"),
       "export const diagram = 1;",
@@ -221,6 +221,7 @@ test(
           STATIC_DIR: files,
           DEFAULT_CWD: files,
           CODEX_HOME: files,
+          CLAUDEX_WEB_CONFIG_DIR: files,
           CODEX_APP_SERVER_URL: `ws://127.0.0.1:${upstream.address().port}`,
         },
         stdio: ["ignore", "pipe", "pipe"],
@@ -256,7 +257,7 @@ test(
             assert.equal(message.params.defaultCwd, files);
             assert.equal(
               message.params.projectlessRoot,
-              join(files, "codex-web", "workspaces"),
+              join(files, "workspaces"),
             );
             assert.deepEqual(message.params.version, version);
             onState(message.params);
@@ -316,9 +317,7 @@ test(
     );
     assert.deepEqual((await readModels).result.projects, expectedProjectModels);
     assert.deepEqual(
-      JSON.parse(
-        await readFile(join(files, "codex-web", "project-models.json"), "utf8"),
-      ),
+      JSON.parse(await readFile(join(files, "project-models.json"), "utf8")),
       expectedProjectModels,
     );
     assert.equal(
@@ -350,7 +349,7 @@ test(
     );
     assert.equal(
       await readFile(join(files, "index.html"), "utf8"),
-      "<h1>Codex Web test</h1>",
+      "<h1>Claudex Web test</h1>",
     );
     const started = messageFrom(first, (m) => m.method === "turn/started");
     backend.send(
@@ -437,7 +436,7 @@ test(
     ]);
     assert.notEqual(workspaces[0].cwd, workspaces[1].cwd);
     for (const workspace of workspaces) {
-      assert.equal(workspace.root, join(files, "codex-web", "workspaces"));
+      assert.equal(workspace.root, join(files, "workspaces"));
       assert.ok(workspace.cwd.startsWith(workspace.root + "/chat-"));
       assert.ok((await stat(workspace.cwd)).isDirectory());
     }
@@ -483,7 +482,7 @@ test(
       Buffer.from([0, 4, 5, 6]),
     );
     assert.equal(clientVersion, version.displayVersion);
-    assert.equal(await (await fetch(url)).text(), "<h1>Codex Web test</h1>");
+    assert.equal(await (await fetch(url)).text(), "<h1>Claudex Web test</h1>");
     await writeFile(join(files, "index.html"), "<h1>Updated build</h1>");
     assert.equal(await (await fetch(url)).text(), "<h1>Updated build</h1>");
     assert.equal((await fetch(url + "/missing")).status, 404);

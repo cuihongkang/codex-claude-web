@@ -1,42 +1,29 @@
+import { InlineReference } from "../../ui/inline-reference.jsx";
+import { inlineReference } from "../../domain/inline-references.js";
+import { openThread } from "../../store.js";
+import { textReferences } from "../../domain/inline-references.js";
+import { pathIcon } from "../../ui/path-icon.jsx";
 import React from "react";
+import { RichText } from "../markdown/rich-text.jsx";
 import { FileCode, Paperclip, Folder, Sparkles } from "lucide-react";
 import { set } from "../../store.js";
 import { MessageImage } from "../markdown/message-image.jsx";
 import { UserAnnotations } from "../annotations/message-annotations.jsx";
+import { planApprovalLabel } from "../../domain/plans.js";
 import { parseUserMessage } from "../../domain/user-message.js";
 export function Content({ content, cwd }) {
   const parsed = parseUserMessage(content);
-  const used = new Set();
-  const parts = [];
-  let offset = 0;
-  const references = [...parsed.references].sort(
-    (a, b) => b.name.length - a.name.length,
-  );
-  for (let index = 0; (index = parsed.text.indexOf("@", index)) !== -1;) {
-    const file = references.find((file) =>
-      parsed.text.startsWith("@" + file.name, index),
-    );
-    if (!file) {
-      index++;
-      continue;
-    }
-    parts.push(parsed.text.slice(offset, index));
-    parts.push(<FileReference key={index} file={file} />);
-    used.add(file.path);
-    offset = index + file.name.length + 1;
-    index = offset;
-  }
-  parts.push(parsed.text.slice(offset));
+  parsed.text = planApprovalLabel(parsed.text);
   return (
     <>
-      {parsed.text && <div className="user-text">{parts}</div>}
-      {parsed.references.some((file) => !used.has(file.path)) && (
-        <div className="user-reference-list">
-          {parsed.references
-            .filter((file) => !used.has(file.path))
-            .map((file, index) => (
-              <FileReference key={index} file={file} />
-            ))}
+      {(parsed.text || parsed.references.length > 0) && (
+        <div className="user-text">
+          <RichText
+            text={parsed.text}
+            cwd={cwd}
+            references={parsed.references}
+            renderReference={FileReference}
+          />
         </div>
       )}
       <UserAnnotations annotations={parsed.annotations} />
@@ -52,7 +39,20 @@ export function Content({ content, cwd }) {
               </span>
             )}
           </div>
-        ) : c.type === "skill" ? (
+        ) : c.type === "mention" &&
+          c.path?.startsWith("thread://") &&
+          !textReferences(parsed.text).some(
+            (ref) => ref.kind === "thread" && ref.path === c.path,
+          ) ? (
+          <InlineReference
+            key={i}
+            reference={inlineReference(c.path, c.name)}
+            onOpen={() => openThread(c.path.slice(9))}
+          />
+        ) : c.type === "skill" &&
+          !textReferences(parsed.text).some(
+            (ref) => ref.kind === "skill" && ref.path === c.path,
+          ) ? (
           <span key={i} className="skill-tag">
             <Sparkles size={14} />
             {c.name}
@@ -63,7 +63,7 @@ export function Content({ content, cwd }) {
   );
 }
 export function FileReference({ file }) {
-  const Icon = file.directory ? Folder : FileCode;
+  const Icon = file.directory ? Folder : pathIcon(file.path, { literal: true });
   const label = (
     <>
       <Icon size={14} aria-hidden="true" />

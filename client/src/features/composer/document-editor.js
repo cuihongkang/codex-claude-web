@@ -1,3 +1,11 @@
+import { TextSelection } from "@milkdown/kit/prose/state";
+import { closeHistory } from "@milkdown/kit/prose/history";
+import {
+  documentReferenceSchema,
+  documentReferenceView,
+  documentReferenceKeys,
+  referenceClipboardText,
+} from "./document-references.jsx";
 import { Crepe } from "@milkdown/crepe";
 import {
   editorViewCtx,
@@ -6,6 +14,7 @@ import {
   editorViewOptionsCtx,
 } from "@milkdown/kit/core";
 import { syntaxHighlighting } from "@codemirror/language";
+import { linkSchema } from "@milkdown/kit/preset/commonmark";
 import { codeHighlightStyle } from "../markdown/code-highlight-style.js";
 import { Plugin } from "@milkdown/kit/prose/state";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
@@ -13,7 +22,11 @@ import {
   documentInputRules,
   documentLinkRule,
 } from "./document-input-rules.js";
-import { documentCursor, selectDocumentPosition } from "./editor-selection.js";
+import {
+  documentCursor,
+  documentPosition,
+  selectDocumentPosition,
+} from "./editor-selection.js";
 import { documentList } from "./document-list.js";
 import { documentMathInput } from "./document-math-input.js";
 import {
@@ -33,9 +46,25 @@ function serializeDraft(doc, serialize) {
   }
   if (!size) return "";
   return (
-    serialize(doc.copy(doc.content.cut(0, size))).replace(/\n$/, "") +
+    serialize(doc.copy(doc.content.cut(0, size))).replace(/\s+$/, "") +
+    (doc
+      .child(doc.childCount - trailing - 1)
+      .textContent.match(/[ \t]+$/)?.[0] || "") +
     "\n".repeat(trailing)
   );
+}
+
+function restoreTrailingSpace(view, text) {
+  const trailing = text.match(/[ \t]+$/)?.[0] || "";
+  const existing =
+    view.state.doc.lastChild?.textContent.match(/[ \t]+$/)?.[0] || "";
+  if (trailing.length > existing.length)
+    view.dispatch(
+      view.state.tr.insertText(
+        trailing.slice(existing.length),
+        view.state.doc.content.size - 1,
+      ),
+    );
 }
 
 export async function createDocumentEditor(
@@ -80,9 +109,14 @@ export async function createDocumentEditor(
   });
   crepe.editor
     .config((ctx) => {
+      ctx.update(linkSchema.key, (schema) => (ctx) => ({
+        ...schema(ctx),
+        inclusive: false,
+      }));
       ctx.update(editorViewOptionsCtx, (previous) => ({
         ...previous,
         ...documentMathInput(),
+        clipboardTextSerializer: referenceClipboardText,
       }));
       ctx.set("CodeMirrorThemeCtx", [syntaxHighlighting(codeHighlightStyle)]);
       ctx.update(remarkStringifyOptionsCtx, (previous) => ({
@@ -97,6 +131,9 @@ export async function createDocumentEditor(
     .use(documentLinkRule)
     .use(documentList)
     .use(documentMathParser)
+    .use(documentReferenceSchema)
+    .use(documentReferenceView)
+    .use(documentReferenceKeys)
     .use(documentMathSchema)
     .use(documentMathView)
     .use(
@@ -125,6 +162,7 @@ export async function createDocumentEditor(
     throw error;
   }
   const view = crepe.editor.action((ctx) => ctx.get(editorViewCtx));
+  restoreTrailingSpace(view, value);
   const serialize = crepe.editor.action((ctx) => ctx.get(serializerCtx));
   return {
     dom: view.dom,
@@ -137,10 +175,39 @@ export async function createDocumentEditor(
     setCursor(start, end = start) {
       selectDocumentPosition(view, serialize, start, end);
     },
+    replaceText(text, start, end) {
+      const from = documentPosition(view, serialize, start);
+      const to = documentPosition(view, serialize, end);
+      const tr = closeHistory(view.state.tr).insertText(text, from, to);
+      tr.setSelection(TextSelection.create(tr.doc, from + text.length));
+      view.dispatch(tr.scrollIntoView());
+      view.dispatch(closeHistory(view.state.tr));
+      view.focus();
+    },
+    insertReference(reference, start, end) {
+      const from = documentPosition(view, serialize, start);
+      const to = documentPosition(view, serialize, end);
+      const node = view.state.schema.nodes.reference_inline.create({
+        reference,
+      });
+      let tr = closeHistory(view.state.tr).replaceWith(from, to, node);
+      const after = from + node.nodeSize;
+      const following = tr.doc.resolve(after).nodeAfter;
+      let cursor = after;
+      if (!following?.isText || !/^\s/.test(following.text)) {
+        tr.insertText(" ", after);
+        cursor++;
+      }
+      tr.setSelection(TextSelection.create(tr.doc, cursor));
+      view.dispatch(tr.scrollIntoView());
+      view.dispatch(closeHistory(view.state.tr));
+      view.focus();
+    },
     setText(text) {
       suppressed = true;
       try {
         crepe.editor.action(replaceAll(text, !text));
+        restoreTrailingSpace(view, text);
       } finally {
         suppressed = false;
       }

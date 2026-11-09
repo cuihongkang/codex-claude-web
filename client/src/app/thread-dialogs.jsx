@@ -1,3 +1,6 @@
+import { ThreadListErrors } from "./thread-list-errors.jsx";
+import { preserveFailedBackendThreads } from "../domain/thread-order.js";
+import { visibleBackendThreads } from "../domain/backend-visibility.js";
 import React, { useState, useEffect, useRef } from "react";
 
 import {
@@ -21,26 +24,64 @@ export function SearchDialog() {
   const s = useStore();
   const [q, query] = useState(""),
     [results, update] = useState(s.threads),
-    [loading, load] = useState(false);
+    [loading, load] = useState(false),
+    [errors, setErrors] = useState([]),
+    [attempt, retry] = useState(0);
   const epoch = useRef(0);
+  const previousScope = useRef({ archived: s.archived });
+  const enabledKey = (s.backends || [])
+    .filter((b) => b.enabled)
+    .map((b) => b.id)
+    .join(",");
+  const visibleResults = visibleBackendThreads(results, s.backends);
   useEffect(() => {
     const n = ++epoch.current;
+    const params = { archived: s.archived, searchTerm: q || undefined };
+    let failures = [];
     const timer = setTimeout(() => {
       load(true);
-      listThreads({
-        archived: s.archived,
-        searchTerm: q || undefined,
+      listThreads(params, {
+        onBackendErrors: (value) => {
+          failures = value;
+        },
       })
-        .then((r) => {
-          if (n === epoch.current) update(r.slice(0, 60));
+        .then((records) => {
+          if (n !== epoch.current) return;
+          setErrors(failures);
+          const previousParams = previousScope.current;
+          previousScope.current = params;
+          update((previous) =>
+            preserveFailedBackendThreads(
+              records,
+              previous,
+              failures,
+              params,
+              previousParams,
+            ).slice(0, 60),
+          );
         })
-        .catch(report)
+        .catch((error) => {
+          if (n !== epoch.current) return;
+          setErrors([{ message: error.message }]);
+          update((previous) =>
+            preserveFailedBackendThreads(
+              [],
+              previous,
+              [{ backendId: "codex" }, { backendId: "claude" }],
+              params,
+              previousScope.current,
+            ),
+          );
+        })
         .finally(() => {
           if (n === epoch.current) load(false);
         });
     }, 250);
-    return () => clearTimeout(timer);
-  }, [q]);
+    return () => {
+      clearTimeout(timer);
+      epoch.current++;
+    };
+  }, [q, s.archived, attempt, enabledKey]);
   return (
     <>
       <label className="search-input">
@@ -53,8 +94,13 @@ export function SearchDialog() {
         />
         {loading && <LoaderCircle size={16} className="spin" />}
       </label>
+      <ThreadListErrors
+        errors={errors}
+        loading={loading}
+        onRetry={() => retry((value) => value + 1)}
+      />
       <div className="search-results">
-        {results.map((t) => (
+        {visibleResults.map((t) => (
           <button
             key={t.id}
             onClick={() => {
@@ -70,7 +116,7 @@ export function SearchDialog() {
             <ChevronRight size={14} />
           </button>
         ))}
-        {!results.length && !loading && (
+        {!visibleResults.length && !loading && !errors.length && (
           <Empty icon={Search} title="没有找到对话" />
         )}
       </div>

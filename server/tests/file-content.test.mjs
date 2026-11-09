@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { serveFile } from "../src/file-content.mjs";
 
 async function fixture(t) {
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-media-test-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-media-test-"));
   const path = join(directory, "训练 #1.MP4");
   const bytes = Buffer.from(Array.from({ length: 256 }, (_, i) => i));
   await writeFile(path, bytes);

@@ -6,10 +6,12 @@ import { compatibleEffort } from "../domain/model-preferences.js";
 import { saved, persist } from "../infrastructure/storage.js";
 import { uid } from "../domain/format.js";
 export function createModelPreferences({ get, set, rpc, transport, report }) {
+  const storageKey = (name, id = get().backendId) =>
+    !id || id === "codex" ? name : `${name}-${id}`;
   let defaultModelSelection = { model: "", effort: "" };
   let modelSelectionRevision = 0;
   let projectModelsRemote = false;
-  let projectModelsWriting = null;
+  const projectModelsWriting = new Map();
   function selectModel(model) {
     const tier = resolveServiceTier(get().serviceTier, model);
     const previous = get().models.find((entry) => entry.model === get().model);
@@ -38,19 +40,19 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
       model: get().model,
       effort: get().effort || model?.defaultReasoningEffort || "",
     };
-    persist("cx-project-models", {
-      ...saved("cx-project-models", {}),
+    persist(storageKey("cx-project-models"), {
+      ...saved(storageKey("cx-project-models"), {}),
       [key]: selection,
     });
-    persist("cx-project-models-pending", {
-      ...saved("cx-project-models-pending", {}),
+    persist(storageKey("cx-project-models-pending"), {
+      ...saved(storageKey("cx-project-models-pending"), {}),
       [key]: { selection, id: uid() },
     });
     flushProjectModels().catch(report);
   }
   function mergeProjectModels(projects) {
-    const pending = saved("cx-project-models-pending", {});
-    persist("cx-project-models", {
+    const pending = saved(storageKey("cx-project-models-pending"), {});
+    persist(storageKey("cx-project-models"), {
       ...projects,
       ...Object.fromEntries(
         Object.entries(pending).map(([key, entry]) => [key, entry.selection]),
@@ -59,20 +61,35 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
   }
   function flushProjectModels() {
     if (!projectModelsRemote || !get().connected) return Promise.resolve();
-    if (projectModelsWriting) return projectModelsWriting;
-    projectModelsWriting = (async () => {
-      while (get().connected) {
-        const [entry] = Object.entries(saved("cx-project-models-pending", {}));
+    const backendId = get().backendId;
+    if (projectModelsWriting.has(backendId))
+      return projectModelsWriting.get(backendId);
+    const connection = transport.connection;
+    const writing = (async () => {
+      while (
+        get().connected &&
+        get().backendId === backendId &&
+        transport.connection === connection
+      ) {
+        const [entry] = Object.entries(
+          saved(storageKey("cx-project-models-pending"), {}),
+        );
         if (!entry) return;
         const [cwd, pending] = entry;
         const result = await rpc("lan/projectModels/set", {
+          backendId,
           cwd,
           ...pending.selection,
           ifAbsent: pending.ifAbsent || false,
         });
-        const remaining = saved("cx-project-models-pending", {});
+        if (
+          get().backendId !== backendId ||
+          transport.connection !== connection
+        )
+          return;
+        const remaining = saved(storageKey("cx-project-models-pending"), {});
         if (remaining[cwd]?.id === pending.id) delete remaining[cwd];
-        persist("cx-project-models-pending", remaining);
+        persist(storageKey("cx-project-models-pending"), remaining);
         mergeProjectModels(result.projects);
       }
     })()
@@ -80,19 +97,23 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
         throw new Error("项目模型设置保存失败：" + error.message);
       })
       .finally(() => {
-        projectModelsWriting = null;
+        if (projectModelsWriting.get(backendId) === writing)
+          projectModelsWriting.delete(backendId);
       });
-    return projectModelsWriting;
+    projectModelsWriting.set(backendId, writing);
+    return writing;
   }
   async function syncProjectModels() {
     const connection = transport.connection;
-    const result = await rpc("lan/projectModels/read");
-    if (connection !== transport.connection) return;
+    const backendId = get().backendId;
+    const result = await rpc("lan/projectModels/read", { backendId });
+    if (connection !== transport.connection || backendId !== get().backendId)
+      return;
     projectModelsRemote = Boolean(result.projects);
     if (!projectModelsRemote) return;
-    const pending = saved("cx-project-models-pending", {});
+    const pending = saved(storageKey("cx-project-models-pending"), {});
     for (const [key, selection] of Object.entries(
-      saved("cx-project-models", {}),
+      saved(storageKey("cx-project-models"), {}),
     ))
       if (
         !Object.hasOwn(result.projects, key) &&
@@ -100,7 +121,7 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
         selection.model
       )
         pending[key] = { selection, id: uid(), ifAbsent: true };
-    persist("cx-project-models-pending", pending);
+    persist(storageKey("cx-project-models-pending"), pending);
     mergeProjectModels(result.projects);
     await flushProjectModels();
   }
@@ -110,15 +131,22 @@ export function createModelPreferences({ get, set, rpc, transport, report }) {
     fallback,
     models = get().models,
   ) {
-    const preferences = saved("cx-project-models", {});
+    const preferences = saved(storageKey("cx-project-models"), {});
     const key = projectless ? "" : cwd;
     const selection = Object.hasOwn(preferences, key)
       ? preferences[key]
       : fallback;
-    const model = models.find((entry) => entry.model === selection.model);
+    const model =
+      models.find((entry) => entry.model === selection.model) ||
+      models.find((entry) => entry.model === fallback.model) ||
+      models.find((entry) => entry.isDefault) ||
+      models[0];
     return {
-      model: selection.model,
-      effort: compatibleEffort(selection.effort, model),
+      model: model?.model || "",
+      effort: compatibleEffort(
+        model?.model === selection.model ? selection.effort : fallback.effort,
+        model || { supportedReasoningEfforts: [] },
+      ),
     };
   }
 

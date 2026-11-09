@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 
 const instructions = {
   Ubuntu: [
-    "下载证书，在文件管理器中打开下载目录，右键选择“在终端打开”。以下命令使用下载的 codex-web.cer 文件；重复下载时请核对文件名。",
+    "下载证书，在文件管理器中打开下载目录，右键选择“在终端打开”。以下命令使用下载的 claudex-web.cer 文件；重复下载时请核对文件名。",
     <>
       将下载的 DER 证书转换为 PEM 格式：
       <pre>
         <code>
-          openssl x509 -inform DER -in codex-web.cer -out codex-web.crt
+          openssl x509 -inform DER -in claudex-web.cer -out claudex-web.crt
         </code>
       </pre>
     </>,
@@ -16,12 +16,12 @@ const instructions = {
       <pre>
         <code>
           {
-            "sudo install -m 644 codex-web.crt /usr/local/share/ca-certificates/codex-web.crt\nsudo update-ca-certificates"
+            "sudo install -m 644 claudex-web.crt /usr/local/share/ca-certificates/claudex-web.crt\nsudo update-ca-certificates"
           }
         </code>
       </pre>
     </>,
-    "完全退出浏览器后重新打开本站，确认地址栏的证书警告已消失。Chrome / Chromium 仍有警告时，打开“设置 → 隐私和安全 → 安全 → 管理证书”，在自定义或受信任证书中导入 codex-web.crt；Firefox 可在“设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构”中导入并信任此证书以标识网站。完成后重启浏览器，再登录。",
+    "完全退出浏览器后重新打开本站，确认地址栏的证书警告已消失。Chrome / Chromium 仍有警告时，打开“设置 → 隐私和安全 → 安全 → 管理证书”，在自定义或受信任证书中导入 claudex-web.crt；Firefox 可在“设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构”中导入并信任此证书以标识网站。完成后重启浏览器，再登录。",
   ],
   Windows: [
     "打开下载的证书，选择“安装证书”，存储位置选择“当前用户”。",
@@ -102,7 +102,7 @@ export function CertificateHelp() {
               <a
                 className="certificate-download"
                 href="/api/tls/certificate"
-                download="codex-web.cer"
+                download="claudex-web.cer"
               >
                 下载证书
               </a>

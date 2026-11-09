@@ -292,3 +292,49 @@ select option {
   white-space: nowrap;
   font-size: 0.846154rem;
 }
+
+.attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.615385rem;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+.attachment-preview > span {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachment-text-preview {
+  width: min(42rem, 90vw);
+  height: min(32rem, 80vh);
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.attachment-text-preview header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.attachment-text-preview pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: auto;
+  height: calc(100% - 3rem);
+}
+
+.attachment-preview-body {
+  height: calc(100% - 3rem);
+  overflow: auto;
+}
+.attachment-preview-body video,
+.attachment-preview-body object {
+  width: 100%;
+  height: 70%;
+}

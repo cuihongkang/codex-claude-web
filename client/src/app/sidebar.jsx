@@ -1,5 +1,6 @@
-import React, { useState } from "react";
 import { ClaudeSidebar, newClaude } from "../claude.jsx";
+import { ThreadListErrors } from "./thread-list-errors.jsx";
+import React, { useState } from "react";
 import {
   PanelLeft,
   SquarePen,
@@ -12,22 +13,37 @@ import {
 } from "lucide-react";
 import { useStore, set, newChat, loadThreads, report } from "../store.js";
 import { IconButton } from "../ui/primitives.jsx";
-import { projectGroups } from "../domain/thread-order.js";
+import { projectGroups, sortThreads } from "../domain/thread-order.js";
 import { ProjectGroup } from "./project-group.jsx";
 import { ResizableSidebar } from "./sidebar-resize.jsx";
 import { AccountFooter } from "../features/account/account-usage.jsx";
-import codexWebIcon from "../assets/codex-web.svg";
+import claudexWebIcon from "../assets/claudex-web.svg";
 import { ThreadRow } from "./thread-row.jsx";
 export function Sidebar() {
   const s = useStore();
   const [filter, setFilter] = useState("all");
+  const [selection, setSelection] = useState({ id: null, retained: false });
+  const selectedId = s.current?.id ?? null;
+  const retained =
+    !!(s.active[selectedId] || s.unreadCompletions[selectedId]) ||
+    (selection.id === selectedId && selection.retained);
+  if (selection.id !== selectedId || selection.retained !== retained)
+    setSelection({ id: selectedId, retained });
+  const shortcuts = sortThreads(
+    s.threads.filter(
+      (t) =>
+        s.active[t.id] ||
+        s.unreadCompletions[t.id] ||
+        (t.id === selectedId && retained),
+    ),
+  );
   const pinned = s.threads.filter((t) => s.pins.includes(t.id));
   const groups = projectGroups(
     s.threads,
     s.projects,
     s.pins,
     s.projectlessDirectories,
-    s.projectlessRoot,
+    s.projectlessRoots.length ? s.projectlessRoots : s.projectlessRoot,
     s.projectOrder || [],
   );
   return (
@@ -39,8 +55,8 @@ export function Sidebar() {
       <ResizableSidebar open={s.sidebar}>
         <div className="sidebar-top">
           <button className="brand" onClick={() => newChat()}>
-            <img src={codexWebIcon} width={24} height={24} alt="" />
-            <strong>Codex + Claude</strong>
+            <img src={claudexWebIcon} width={24} height={24} alt="" />
+            <strong>Claudex</strong>
             <span>Web</span>
           </button>
           <IconButton
@@ -55,11 +71,11 @@ export function Sidebar() {
         <nav className="primary-nav">
           <button onClick={newClaude}>
             <SquarePen size={17} />
-            <span>新建 Claude 对话</span>
+            <span>Claude 插件会话</span>
           </button>
           <button onClick={() => newChat()}>
             <SquarePen size={17} />
-            <span>新建 Codex 对话</span>
+            <span>新对话</span>
             <kbd>⇧ ⌘ O</kbd>
           </button>
           <button onClick={() => set({ modal: { type: "search" } })}>
@@ -77,16 +93,7 @@ export function Sidebar() {
           </button>
         </nav>
         <div className="sidebar-section-title">
-          <select
-            className="provider-filter"
-            aria-label="筛选会话后端"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            <option value="all">全部会话</option>
-            <option value="codex">Codex</option>
-            <option value="claude">Claude</option>
-          </select>
+          <span>{s.archived ? "已归档" : "项目与对话"}</span>
           <div>
             <IconButton
               icon={Archive}
@@ -104,11 +111,34 @@ export function Sidebar() {
             />
           </div>
         </div>
+        <div className="sidebar-section-title">
+          <select
+            className="provider-filter"
+            aria-label="筛选会话入口"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          >
+            <option value="all">全部会话</option>
+            <option value="workspace">统一工作台</option>
+            <option value="shared">Claude 插件会话</option>
+          </select>
+        </div>
         <div className="thread-list">
-          <div hidden={filter === "codex"}>
+          <div hidden={filter === "workspace"}>
             <ClaudeSidebar />
           </div>
-          <div hidden={filter === "claude"}>
+          <div hidden={filter === "shared"}>
+            <ThreadListErrors
+              errors={s.threadListErrors}
+              onRetry={() => loadThreads().catch(report)}
+            />
+            {shortcuts.length > 0 && (
+              <div className="project-group running-threads">
+                {shortcuts.map((t) => (
+                  <ThreadRow key={t.id} thread={t} />
+                ))}
+              </div>
+            )}
             {pinned.length > 0 && (
               <div className="project-group">
                 <div className="pinned-heading">
@@ -131,7 +161,7 @@ export function Sidebar() {
                 ))}
               </ProjectGroup>
             ))}
-            {!s.threads.length && (
+            {!s.threads.length && !s.threadListErrors?.length && (
               <div className="sidebar-empty">
                 {s.booting
                   ? "正在载入…"

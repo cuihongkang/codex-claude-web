@@ -1,3 +1,4 @@
+import { claimClaudeSession } from "./claude-session-ownership.mjs";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
@@ -84,11 +85,20 @@ export class ClaudeRuntime {
     args.push(s.path ? "--resume" : "--session-id", s.id);
     if (s.model) args.push("--model", s.model);
     if (s.effort) args.push("--effort", s.effort);
-    const child = this.launch(this.executable, args, {
-      cwd: s.cwd,
-      env: { ...process.env, CLAUDE_CONFIG_DIR: this.home },
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const releaseClaim = claimClaudeSession(this.home, s.id);
+    let child;
+    try {
+      child = this.launch(this.executable, args, {
+        cwd: s.cwd,
+        env: { ...process.env, CLAUDE_CONFIG_DIR: this.home },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch (error) {
+      releaseClaim();
+      throw error;
+    }
+    child.once("close", releaseClaim);
+    child.once("error", releaseClaim);
     r = {
       child,
       status: "starting",

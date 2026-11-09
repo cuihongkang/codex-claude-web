@@ -234,7 +234,7 @@
   min-height: 0;
 }
 .subagent-history .user-bubble {
-  white-space: pre-wrap;
+  white-space: normal;
 }
 .message-author {
   display: block;

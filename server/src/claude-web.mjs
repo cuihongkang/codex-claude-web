@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { WebSocketServer } from "ws";
 import { ClaudeSessions } from "./claude-sessions.mjs";
 import { sendRpcText } from "./rpc-transport.mjs";
@@ -17,6 +18,12 @@ export function attachClaude(server, config, options = {}) {
   };
   const sessions = new ClaudeSessions({
     defaultCwd: config.defaultCwd,
+    home: config.claudeHome,
+    stateFile:
+      process.env.CLAUDE_WEB_STATE_FILE ||
+      (config.configDir
+        ? join(config.configDir, "plugin-sessions.json")
+        : undefined),
     ...options,
     emit: (message) => {
       if (message.method === "claude/activity")

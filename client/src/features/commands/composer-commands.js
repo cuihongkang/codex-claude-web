@@ -1,8 +1,9 @@
+import { newDraftKey } from "../../infrastructure/backend-storage.js";
 import * as store from "../../store.js";
 import { isCompacting } from "../../domain/compaction.js";
 import { readAnnotationDrafts } from "../annotations/annotation-drafts.js";
 
-// 已有网页命令复用原入口，新增命令仅包含 init、goal 和后台终端清理。
+// 通用命令维护产品状态，原生命令来自当前执行目录的实际目录。
 export const composerCommands = [
   {
     id: "init",
@@ -60,14 +61,35 @@ export const composerCommands = [
   },
 ];
 
-export function parseComposerCommand(text) {
-  const match = /^\s*\/([\w-]+)(?:\s+([\s\S]*))?$/.exec(text);
+export function nativeComposerCommands(state) {
+  const managed = new Set([
+    ...composerCommands.map((command) => command.id),
+    "clear",
+    "effort",
+    "fast",
+  ]);
+  return (state.nativeCommands || [])
+    .filter((command) => !managed.has(command.name))
+    .map((command) => ({
+      id: command.name,
+      label: command.name,
+      description: command.description || "",
+      args: command.argumentHint || "[参数]",
+      idle: true,
+      native: true,
+    }));
+}
+
+export function parseComposerCommand(text, native = []) {
+  const match = /^\s*\/([\w:-]+)(?:\s+([\s\S]*))?$/.exec(text);
   if (!match) return null;
   const name = match[1].toLowerCase();
   return {
     name,
     args: match[2]?.trim() || "",
-    command: composerCommands.find((c) => c.id === name),
+    command:
+      composerCommands.find((c) => c.id === name) ||
+      native.find((c) => c.id === name),
   };
 }
 
@@ -122,7 +144,10 @@ export async function runComposerCommand(text) {
 }
 
 async function executeCommand(text) {
-  const parsed = parseComposerCommand(text);
+  const parsed = parseComposerCommand(
+    text,
+    nativeComposerCommands(store.get()),
+  );
   if (!parsed) return false;
   const { command, name, args } = parsed;
   if (!command) throw new Error(`未识别的命令 /${name}。输入 / 查看可用命令。`);
@@ -145,6 +170,11 @@ async function executeCommand(text) {
     store.set({
       modal: { type: "command", view, thread: s.current, cwd: s.cwd, ...extra },
     });
+  if (command.native) {
+    if (!(await store.sendMessage(text, s.attachments, { clearDraft: true })))
+      return true;
+    return true;
+  }
   switch (command.id) {
     case "init": {
       const thread = await store.ensureThread();
@@ -245,7 +275,9 @@ async function executeCommand(text) {
   // /init 首次创建对话后，草稿已迁移到实际 ID。
   else if (command.id === "init" && store.get().draft === text)
     store.setDraft("");
-  const draftKey = "cx-draft-" + (s.current?.id || "new");
+  const draftKey = s.current
+    ? "cx-draft-" + s.current.id
+    : newDraftKey(s.backendId);
   if (
     store.get().current?.id !== s.current?.id &&
     localStorage.getItem(draftKey) === text

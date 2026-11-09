@@ -26,8 +26,20 @@ export async function bridge(t, handle = () => undefined) {
     sockets = [];
   let upstream,
     sequence = 1;
-  const respond = (request, result) =>
+  const respond = (request, result, { closed = true } = {}) => {
     upstream.send(JSON.stringify({ id: request.id, result }));
+    if (
+      request.method === "thread/unsubscribe" &&
+      result.status === "unsubscribed" &&
+      closed
+    )
+      upstream.send(
+        JSON.stringify({
+          method: "thread/closed",
+          params: { threadId: request.params.threadId },
+        }),
+      );
+  };
   backend.on("connection", (socket) => {
     upstream = socket;
     socket.on("message", (bytes) => {
@@ -55,7 +67,7 @@ export async function bridge(t, handle = () => undefined) {
       );
     });
   });
-  const directory = await mkdtemp(join(tmpdir(), "codex-web-subscriptions-"));
+  const directory = await mkdtemp(join(tmpdir(), "claudex-web-subscriptions-"));
   const auth = await authenticationFixture(directory);
   t.after(() => rm(directory, { recursive: true, force: true }));
   const child = spawn(
@@ -66,6 +78,7 @@ export async function bridge(t, handle = () => undefined) {
         ...process.env,
         HOST: "127.0.0.1",
         CODEX_HOME: directory,
+        CLAUDEX_WEB_CONFIG_DIR: directory,
         PORT: "0",
         CODEX_APP_SERVER_URL: `ws://127.0.0.1:${backend.address().port}`,
       },

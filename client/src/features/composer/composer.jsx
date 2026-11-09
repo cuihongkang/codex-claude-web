@@ -1,4 +1,7 @@
-import React, { useRef } from "react";
+import { ModelSelect } from "./model-select.jsx";
+import { InputQueue } from "./input-queue.jsx";
+import { backendReady, backendCapability } from "../../domain/backends.js";
+import React, { useRef, useState } from "react";
 
 import {
   ArrowUp,
@@ -17,7 +20,6 @@ import {
   useStore,
   useDraft,
   set,
-  selectModel,
   setDraft,
   refreshThreadAccess,
   stop,
@@ -35,7 +37,9 @@ import { useAnnotationDrafts } from "../annotations/annotation-drafts.js";
 import { isCompacting } from "../../domain/compaction.js";
 import { CompactionStatus } from "./compaction-status.jsx";
 import { MarkdownEditor } from "./markdown-editor.jsx";
+import { AttachmentPreview } from "./attachment-preview.jsx";
 export function Composer() {
+  const [preview, setPreview] = useState(null);
   const s = useStore(),
     draft = useDraft(),
     area = useRef(),
@@ -64,6 +68,7 @@ export function Composer() {
     (access && access.status !== "ready" && !(checking && access.background));
   return (
     <div className="composer-wrap">
+      <InputQueue />
       {compaction && (
         <CompactionStatus
           key={s.current?.id + compaction.id}
@@ -115,16 +120,29 @@ export function Composer() {
           }}
         >
           <ComposerAnnotations />
+          {preview && s.attachments.includes(preview) && (
+            <AttachmentPreview
+              attachment={preview}
+              onClose={() => setPreview(null)}
+            />
+          )}
           {s.attachments.length > 0 && (
             <div className="attachment-list">
               {s.attachments.map((a) => (
                 <div className="attachment" key={a.id}>
-                  {a.preview ? (
-                    <img src={a.preview} />
-                  ) : (
-                    <Paperclip size={17} />
-                  )}
-                  <span>{a.name}</span>
+                  <button
+                    type="button"
+                    className="attachment-preview"
+                    aria-label={"预览 " + a.name}
+                    onClick={() => setPreview(a)}
+                  >
+                    {a.preview ? (
+                      <img src={a.preview} />
+                    ) : (
+                      <Paperclip size={17} />
+                    )}
+                    <span>{a.name}</span>
+                  </button>
                   <IconButton
                     icon={X}
                     title={"移除 " + a.name}
@@ -139,7 +157,7 @@ export function Composer() {
             </div>
           )}
           <MarkdownEditor
-            key={s.current?.id || "new"}
+            key={s.current?.id || "new-" + s.backendId}
             inputRef={area}
             theme={s.theme}
             rows={2}
@@ -149,7 +167,9 @@ export function Composer() {
               compacting
                 ? "正在整理上下文…"
                 : active
-                  ? "补充说明，或等待 Codex 完成…"
+                  ? backendCapability(s, "inputMode") === "queue"
+                    ? "输入后排队执行…"
+                    : "补充说明，或等待任务完成…"
                   : "描述任务，@ 引用文件，/ 使用命令…"
             }
             value={draft}
@@ -203,28 +223,13 @@ export function Composer() {
                 title="添加图片或文本附件"
                 onClick={() => files.current.click()}
               />
-              <label className="select-control model-select">
-                <select
-                  aria-label="模型"
-                  value={s.model}
-                  onChange={(e) => {
-                    const m = s.models.find((m) => m.model === e.target.value);
-                    selectModel(m);
-                  }}
-                >
-                  {s.models.map((m) => (
-                    <option key={m.id} value={m.model}>
-                      {m.displayName || m.model}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={12} />
-              </label>
+              <ModelSelect />
               <ReasoningEffortControl />
               <ServiceTierToggle />
               <IconButton
                 icon={ListChecks}
                 title="计划模式"
+                aria-pressed={s.mode === "plan"}
                 active={s.mode === "plan"}
                 onClick={() =>
                   set({ mode: s.mode === "plan" ? "default" : "plan" })
@@ -249,6 +254,7 @@ export function Composer() {
                 title="发送消息"
                 disabled={
                   !s.connected ||
+                  !backendReady(s) ||
                   checking ||
                   compacting ||
                   s.busy ||

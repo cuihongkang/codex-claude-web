@@ -1,0 +1,96 @@
+.modal {
+  position: relative;
+  flex-shrink: 0;
+  min-width: min(20rem, calc(100vw - 2 * var(--window-inset)));
+  max-width: calc(100vw - 2 * var(--window-inset));
+  min-height: min(12rem, calc(100dvh - 2 * var(--window-inset)));
+  max-height: calc(100dvh - 2 * var(--window-inset));
+}
+.modal-backdrop {
+  --window-inset: 1.846154rem;
+  padding: var(--window-inset);
+}
+.modal > :not(.modal-heading, .surface-resizer) {
+  min-height: 0;
+  overflow: auto;
+}
+.modal > .settings-body,
+.modal > .command-dialog,
+.modal > .directory-list,
+.modal > .search-results {
+  flex: 1;
+}
+.surface-resizer-left {
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+.conversation-layout .context-workspace.showing-panel[data-open] {
+  min-width: min(22rem, 60cqw);
+  max-width: calc(100cqw - 4rem);
+  width: clamp(
+    min(22rem, 60cqw),
+    var(--context-preferred, 44cqw),
+    calc(100cqw - 4rem)
+  );
+  padding-left: 0.615385rem;
+}
+@media (min-width: 1101px) {
+  .conversation-layout:has(
+    .context-workspace.showing-panel:not([data-open="false"])
+  ) {
+    --context-space: clamp(
+      min(22rem, 60cqw),
+      var(--context-preferred, 44cqw),
+      calc(100cqw - 4rem)
+    );
+  }
+}
+@media (max-width: 1100px) {
+  .conversation-layout:has(.conversation-navigation)
+    .context-workspace.showing-panel {
+    width: clamp(
+      min(22rem, 60cqw),
+      var(--context-preferred, 600px),
+      calc(100cqw - 4rem)
+    );
+  }
+}
+.image-viewer {
+  inset: 0;
+  margin: auto;
+  width: calc(100vw - 2rem);
+  height: calc(100dvh - 2rem);
+  min-width: min(24rem, calc(100vw - 2rem));
+  min-height: min(16rem, calc(100dvh - 2rem));
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+  border-radius: 1rem;
+}
+@media (max-width: 600px) {
+  .modal-backdrop {
+    --window-inset: 0.75rem;
+  }
+}
+.annotation-editor {
+  min-width: min(18rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  min-height: 3.3846rem;
+}
+.annotation-editor[data-resized="true"] {
+  display: flex;
+  flex-direction: column;
+  min-height: min(9rem, calc(100dvh - 1rem));
+}
+.annotation-editor[data-resized="true"] textarea {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+}
+.annotation-editor .annotation-editor-actions {
+  right: 1.8rem;
+}
+.annotation-editor:not([data-expanded="true"]) {
+  padding-right: 6.9rem;
+}

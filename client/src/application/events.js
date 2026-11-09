@@ -1,6 +1,12 @@
+import {
+  terminalWorkspace,
+  terminalSelectionKey,
+  workspaceTerminalIds,
+} from "../../../shared/terminal-workspace.mjs";
 import { isCompacting, mergeCompactions } from "../domain/compaction.js";
 import { persist } from "../infrastructure/storage.js";
 import { b64decode } from "../domain/format.js";
+import { appendReasoningSummary } from "../domain/reasoning-summary.js";
 export function createEvents({
   get,
   set,
@@ -13,11 +19,35 @@ export function createEvents({
   notifications,
 }) {
   function closeTerminal(processId) {
-    if (localStorage.getItem("cx-terminal") !== processId) return;
-    localStorage.removeItem("cx-terminal");
-    set({ terminalOpen: false });
+    const terminal = get().terminals[processId];
+    if (!terminal) return;
+    const key = terminalSelectionKey(terminal.cwd);
+    if (
+      localStorage.getItem(key) !== processId &&
+      localStorage.getItem("cx-terminal") !== processId
+    )
+      return;
+    const next = workspaceTerminalIds(get().terminals, terminal.cwd).find(
+      (id) => id !== processId,
+    );
+    if (next) localStorage.setItem(key, next);
+    else localStorage.removeItem(key);
+    if (terminalWorkspace(terminal.cwd) !== terminalWorkspace(get().cwd))
+      return;
+    if (next) localStorage.setItem("cx-terminal", next);
+    else {
+      localStorage.removeItem("cx-terminal");
+      set({ terminalOpen: false });
+    }
   }
   function handle({ method, params: p = {} }) {
+    if (method === "lan/executionStatus") {
+      if (get().active[p.threadId] === p.turnId)
+        set({
+          executionStatuses: { ...get().executionStatuses, [p.threadId]: p },
+        });
+      return;
+    }
     if (method.startsWith("account/")) {
       account.handle({ method, params: p });
       return;
@@ -40,6 +70,10 @@ export function createEvents({
       messages.handleReverted(p.threadId);
       return;
     }
+    if (method === "thread/folder/updated") {
+      catalog.applyThreadFolder(p.thread);
+      return;
+    }
     if (method === "thread/deleted") {
       catalog.forgetThread(p.threadId);
       return;
@@ -56,10 +90,29 @@ export function createEvents({
       set({
         terminals: {
           ...get().terminals,
-          [p.processId]: { buffer: "", running: true },
+          [p.processId]: {
+            buffer: "",
+            running: true,
+            processName: p.processName,
+            owner: p.owner,
+            cwd: p.cwd,
+          },
         },
       });
-    if (method === "command/exec/outputDelta" && get().terminals[p.processId]) {
+    if (method === "lan/terminalUpdated" && get().terminals[p.processId])
+      set({
+        terminals: {
+          ...get().terminals,
+          [p.processId]: {
+            ...get().terminals[p.processId],
+            processName: p.processName,
+          },
+        },
+      });
+    if (
+      ["command/exec/outputDelta", "lan/terminalOutput"].includes(method) &&
+      get().terminals[p.processId]
+    ) {
       const t = get().terminals[p.processId];
       set({
         terminals: {
@@ -198,7 +251,12 @@ export function createEvents({
       set({ plans: { ...get().plans, [p.threadId]: p } });
     if (p.threadId !== get().current?.id) return;
     if (method === "thread/settings/updated")
-      set({ serviceTier: p.threadSettings.serviceTier ?? null });
+      set({
+        serviceTier: p.threadSettings.serviceTier ?? null,
+        ...(p.threadSettings.collaborationMode?.mode && {
+          mode: p.threadSettings.collaborationMode.mode,
+        }),
+      });
     if (method === "error") report(p.error || p.message || "任务失败");
     if (method === "item/started" || method === "item/completed") {
       if (p.item.type === "contextCompaction") {
@@ -238,10 +296,10 @@ export function createEvents({
         ...(questionId ? { questionId } : {}),
       });
     }
-    if (method === "item/agentMessage/delta") {
+    if (method === "item/agentMessage/delta" || method === "item/plan/delta") {
       const i = get().items.find((i) => i.id === p.itemId) || {
         id: p.itemId,
-        type: "agentMessage",
+        type: method === "item/plan/delta" ? "plan" : "agentMessage",
         text: "",
         turnId: p.turnId,
       };
@@ -259,11 +317,16 @@ export function createEvents({
       const i = get().items.find((i) => i.id === p.itemId) || {
         id: p.itemId,
         type: "reasoning",
+        turnId: p.turnId,
         summary: [],
       };
-      const summary = [...(i.summary || [])];
-      summary[p.summaryIndex] = (summary[p.summaryIndex] || "") + p.delta;
-      messages.put({ ...i, summary });
+      const summary = appendReasoningSummary(
+        i.summary,
+        p.summaryIndex,
+        p.delta,
+        p.summaryTitle,
+      );
+      messages.put({ ...i, turnId: p.turnId, summary });
     }
   }
   return { handle, closeTerminal };

@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from "react";
 
-import { ChevronRight, LoaderCircle, ListChecks } from "lucide-react";
+import {
+  ChevronRight,
+  LoaderCircle,
+  ListChecks,
+  MessageSquare,
+} from "lucide-react";
 
 import { reasoningSummaries } from "../../domain/reasoning-summary.js";
 import { turnElapsedMs, formatElapsed } from "../../domain/turn-timing.js";
 import { ReasoningPart } from "./activity.jsx";
+import { userMessageText } from "../../domain/user-message.js";
+import { Content } from "./user-content.jsx";
 import { Message } from "./message.jsx";
 export function ProcessDuration({ timing, working }) {
   const [now, setNow] = useState(Date.now);
-  const ticking =
-    working &&
-    Number.isFinite(timing?.startedAt) &&
-    !Number.isFinite(timing?.completedAt) &&
-    !Number.isFinite(timing?.durationMs);
+  const ticking = working && Number.isFinite(timing?.startedAt);
   useEffect(() => {
     if (!ticking) return;
     setNow(Date.now());
@@ -41,7 +44,10 @@ export function ProcessGroup({
 }) {
   const [open, setOpen] = useState(false);
   const latest = group.items.findLast(
-    (item) => item.type !== "userInputRequest" && !item.questions?.length,
+    (item) =>
+      item.type !== "userMessage" &&
+      item.type !== "userInputRequest" &&
+      !item.questions?.length,
   );
   const summary =
     latest?.type === "reasoning"
@@ -66,15 +72,34 @@ export function ProcessGroup({
         </summary>
         {open && (
           <div className="process-content">
-            {group.items.map((item) => (
-              <Message
-                key={item.id}
-                item={item}
-                annotations={annotations.get(item.id)}
-                readOnly={readOnly}
-                cwd={cwd}
-              />
-            ))}
+            {group.items.map((item) =>
+              item.type === "userMessage" ? (
+                <details
+                  className="activity supplemental-message"
+                  key={item.id}
+                >
+                  <summary className="activity-summary">
+                    <MessageSquare size={15} />
+                    <span className="supplemental-preview">
+                      {userMessageText(item.content) || "附件"}
+                    </span>
+                    {item.optimistic && <small>发送中</small>}
+                    <ChevronRight className="summary-chevron" size={13} />
+                  </summary>
+                  <div className="activity-body">
+                    <Content content={item.content} cwd={cwd} />
+                  </div>
+                </details>
+              ) : (
+                <Message
+                  key={item.id}
+                  item={item}
+                  annotations={annotations.get(item.id)}
+                  readOnly={readOnly}
+                  cwd={cwd}
+                />
+              ),
+            )}
           </div>
         )}
       </details>

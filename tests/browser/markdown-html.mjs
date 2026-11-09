@@ -17,7 +17,7 @@ const output = join(
 await mkdir(output, { recursive: true });
 assert(process.env.CHROME_PATH, "通过 CHROME_PATH 指定 Chromium 可执行文件");
 const buildDirectory = await mkdtemp(
-  join(tmpdir(), "codex-web-annotation-build-"),
+  join(tmpdir(), "claudex-web-annotation-build-"),
 );
 await cp(
   join(
@@ -44,7 +44,7 @@ const document = await readFile(join(root, "README.md"), "utf8");
 const files = Object.fromEntries(
   await Promise.all(
     [
-      "client/src/assets/codex-web.svg",
+      "client/src/assets/claudex-web.svg",
       "docs/images/desktop-light.png",
       "docs/images/desktop-dark.png",
       "docs/images/mobile.png",
@@ -77,7 +77,7 @@ const fixtureData = {
         '<h2 align="center">项目文档预览</h2>',
         '<p align="center"><strong>在浏览器中继续工作。</strong><br>查看对话、任务与文件。</p>',
         "<details><summary>查看说明</summary>\n\n支持 **Markdown** 与 HTML 混排。\n\n</details>",
-        "![项目图标](./client/src/assets/codex-web.svg)",
+        "![项目图标](./client/src/assets/claudex-web.svg)",
         "完整说明见 [README.md](./README.md)。",
         "<script>window.htmlExecuted=true</script><style>body{display:none}</style>",
       ].join("\n\n"),
@@ -249,7 +249,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const profile = await mkdtemp(join(tmpdir(), "codex-web-command-browser-"));
+const profile = await mkdtemp(join(tmpdir(), "claudex-web-command-browser-"));
 const child = spawn(
   process.env.CHROME_PATH,
   [
@@ -413,7 +413,7 @@ try {
     console.log("复现：消息与文件预览均将 HTML 显示为文字");
   } else {
     await waitFor(
-      'document.querySelector(".file-markdown-preview h1")?.textContent === "Codex Web"',
+      'document.querySelector(".file-markdown-preview h1")?.textContent === "Claudex Web"',
     );
     await waitFor(
       'document.querySelector(".file-markdown-preview picture img")?.naturalWidth === 1440',

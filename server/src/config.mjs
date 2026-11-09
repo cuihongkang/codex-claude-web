@@ -2,6 +2,8 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { productDirectories } from "./product-config.mjs";
+
 export function readConfig(env = process.env) {
   const port = Number(env.PORT || 8766);
   if (!Number.isInteger(port) || port < 0 || port > 65535)
@@ -10,6 +12,10 @@ export function readConfig(env = process.env) {
   if (!["ws:", "wss:"].includes(new URL(upstreamUrl).protocol))
     throw new Error("CODEX_APP_SERVER_URL 必须是 WebSocket 地址");
   const codexHome = resolve(env.CODEX_HOME || join(homedir(), ".codex"));
+  const { configDir, legacyConfigDir } = productDirectories(env);
+  const claudeHome = resolve(
+    env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"),
+  );
   const backend = new URL(upstreamUrl);
   if (
     backend.protocol === "ws:" &&
@@ -25,6 +31,9 @@ export function readConfig(env = process.env) {
   if (!/^[a-zA-Z0-9_-]+$/.test(pamService))
     throw new Error("AUTH_PAM_SERVICE 必须是 PAM 服务名称");
   return {
+    backendsFile: env.CLAUDEX_WEB_BACKENDS_FILE
+      ? resolve(env.CLAUDEX_WEB_BACKENDS_FILE)
+      : join(configDir, "backends.json"),
     sessionDays,
     pamService,
     pamtesterPath: env.AUTH_PAMTESTER
@@ -36,7 +45,10 @@ export function readConfig(env = process.env) {
     port,
     upstreamUrl,
     codexHome,
-    projectlessRoot: join(codexHome, "codex-web", "workspaces"),
+    claudeHome,
+    configDir,
+    legacyConfigDir,
+    projectlessRoot: join(configDir, "workspaces"),
     defaultCwd: resolve(env.DEFAULT_CWD || homedir()),
     staticDir: env.STATIC_DIR
       ? resolve(env.STATIC_DIR)

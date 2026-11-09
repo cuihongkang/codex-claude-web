@@ -46,6 +46,10 @@ export async function verifyContextReset({
         `document.querySelector('.sidebar.mobile-open') && document.querySelector('.sidebar').getBoundingClientRect().left>=-0.1`,
       );
     }
+    if (!(await evaluate(`Boolean(document.querySelector(".thread-link"))`))) {
+      await click(".project-heading > button:first-child");
+      await waitFor(`document.querySelector(".thread-link")`);
+    }
     await click(".thread-link");
     await waitFor(`document.querySelector('.file-change-name')`);
   };
