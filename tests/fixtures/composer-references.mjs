@@ -29,13 +29,29 @@ export function composerReferenceFixture() {
     if (method === "fuzzyFileSearch")
       result = {
         files: entries
-          .filter((row) => row.fileName.includes(params.query))
+          .filter((row) =>
+            row.fileName.includes(params.query.split("/").at(-1)),
+          )
           .map((row) => ({
-            path: row.fileName,
+            path: params.query.includes("/")
+              ? params.query.slice(0, params.query.lastIndexOf("/") + 1) +
+                row.fileName
+              : row.fileName,
             root: "/demo/history",
             file_name: row.fileName,
             match_type: row.isDirectory ? "directory" : "file",
           })),
+      };
+    if (method === "fuzzyFileSearch" && params.query === "target")
+      result = {
+        files: ["target/a.js", "target/b.js", "z/target.js", "target"].map(
+          (path) => ({
+            root: "/demo/history",
+            path,
+            file_name: path.split("/").at(-1),
+            match_type: path === "target" ? "directory" : "file",
+          }),
+        ),
       };
     if (method === "turn/start")
       result = { turn: { id: "reference-turn", status: "inProgress" } };

@@ -175,6 +175,15 @@ export async function createDocumentEditor(
     setCursor(start, end = start) {
       selectDocumentPosition(view, serialize, start, end);
     },
+    replaceText(text, start, end) {
+      const from = documentPosition(view, serialize, start);
+      const to = documentPosition(view, serialize, end);
+      const tr = closeHistory(view.state.tr).insertText(text, from, to);
+      tr.setSelection(TextSelection.create(tr.doc, from + text.length));
+      view.dispatch(tr.scrollIntoView());
+      view.dispatch(closeHistory(view.state.tr));
+      view.focus();
+    },
     insertReference(reference, start, end) {
       const from = documentPosition(view, serialize, start);
       const to = documentPosition(view, serialize, end);

@@ -1,3 +1,4 @@
+import { rankFileSuggestions } from "../../domain/file-suggestions.js";
 import { matchingSkills as findSkills } from "../../domain/skill-suggestions.js";
 import { pathIcon } from "../../ui/path-icon.jsx";
 import { referenceMarkdown } from "../../domain/inline-references.js";
@@ -136,7 +137,8 @@ export function useComposerShortcuts(area) {
             directory: f.match_type === "directory",
           }));
         }
-        if (n === generation.current) setFiles(rows.slice(0, 60));
+        if (n === generation.current)
+          setFiles(rankFileSuggestions(rows, q, s.cwd).slice(0, 60));
       } catch (e) {
         if (n === generation.current) setError(e.message);
       } finally {
@@ -162,17 +164,20 @@ export function useComposerShortcuts(area) {
     setTrigger(null);
   }, [s.current?.id]);
   const q = trigger?.query.toLowerCase() || "";
-  const matchingSkills = findSkills(s.skills, q).map((skill) => ({
-    id: "skill:" + (skill.path || skill.name),
-    kind: "skill",
-    label: skill.interface?.displayName || skill.name,
-    description:
-      skill.interface?.shortDescription ||
-      skill.shortDescription ||
-      skill.description,
-    icon: Sparkles,
-    skill,
-  }));
+  const pathQuery = trigger?.kind === "@" && /[/\\]/.test(q);
+  const matchingSkills = findSkills(pathQuery ? [] : s.skills, q).map(
+    (skill) => ({
+      id: "skill:" + (skill.path || skill.name),
+      kind: "skill",
+      label: skill.interface?.displayName || skill.name,
+      description:
+        skill.interface?.shortDescription ||
+        skill.shortDescription ||
+        skill.description,
+      icon: Sparkles,
+      skill,
+    }),
+  );
   const items =
     trigger?.kind === "/"
       ? [
@@ -216,7 +221,7 @@ export function useComposerShortcuts(area) {
             })),
             ...matchingSkills,
             ...referenceThreads(
-              s.threads,
+              pathQuery ? [] : s.threads,
               currentBackendId(s),
               s.current?.id,
               q,
@@ -314,6 +319,32 @@ export function useComposerShortcuts(area) {
       );
     });
   }
+  function complete(item) {
+    if (!item || !trigger) return;
+    const query =
+      item.kind === "file"
+        ? item.file.path.startsWith(s.cwd + "/")
+          ? item.file.path.slice(s.cwd.length + 1)
+          : item.file.path
+        : item.skill?.name || item.label;
+    const replacement =
+      trigger.kind + (item.kind === "command" ? item.id : query);
+    if (trigger.query !== query) setFiles([]);
+    if (area.current?.replaceText) {
+      area.current.replaceText(replacement, trigger.start, trigger.end);
+      return;
+    }
+    const text = store.get().draft;
+    const next =
+      text.slice(0, trigger.start) + replacement + text.slice(trigger.end);
+    const position = trigger.start + replacement.length;
+    store.setDraft(next);
+    detect(next, position);
+    requestAnimationFrame(() => {
+      area.current?.focus();
+      area.current?.setSelectionRange(position, position);
+    });
+  }
   function close() {
     dismissed.current = trigger
       ? { text: store.get().draft, position: trigger.end }
@@ -339,7 +370,10 @@ export function useComposerShortcuts(area) {
     }
     if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
       e.preventDefault();
-      if (items.length) choose(items[selected]);
+      if (items.length) {
+        if (e.key === "Tab") complete(items[selected]);
+        else choose(items[selected]);
+      }
       return true;
     }
     return false;
@@ -404,7 +438,7 @@ export function useComposerShortcuts(area) {
         )}
       </div>
       <div className="shortcut-footer">
-        <span>↑ ↓ 选择 · Enter / Tab 确认</span>
+        <span>↑ ↓ 选择 · Tab 补全 · Enter 确认</span>
         <span>Esc 关闭</span>
       </div>
     </div>

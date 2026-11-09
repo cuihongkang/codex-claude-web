@@ -239,6 +239,8 @@ Claude 网页桥接重启或异常退出时，独立执行服务继续持有模�
 
 `app` 将输入框和错误提示作为底部插槽传入对话布局。对话布局统一提供消息、底部输入和右侧详情的几何边界；桌面展开详情时输入区域避让右侧面板，详情占满工作区高度。文件下载入口归文件面板工具栏，媒体预览组件负责内容展示及加载重试。
 
+`domain/file-suggestions.js` 负责将原生文件候选按名称与查询路径的相关性统一排序，展示数量在排序后限制；后端继续持有原生索引与查询生命周期。
+
 `domain/skill-suggestions.js` 拥有技能建议的模糊匹配与排序规则，`@`、`/` 和技能面板共用该规则。
 
 `domain/inline-references.js` 管理引用链接与类型解析，`domain/composer-references.js` 定义同后端候选与 Claude 会话正文快照。`document-references.jsx` 拥有文件、目录、技能和会话的原子行内节点，使用 Markdown 链接持久保存名称和目标；输入与消息回显共用 `ui/inline-reference.jsx` 和 `ui/path-icon.jsx`。编辑器在单次事务中替换查询、关闭建议并移动光标，整项删除与撤销由文档历史管理。`application/reference-input.js` 在发送用例的正文快照上生成原生 skill/mention；Claude 技能交给原生命令，Claude 会话引用复用完整分页历史。引用随正文删除和恢复，图片附件继续使用既有附件草稿。

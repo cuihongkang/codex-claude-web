@@ -112,6 +112,57 @@ try {
       .last()
       .waitFor();
   }
+  for (const query of ["@demo/", "@/", "@demo/nested/", "前文 @demo/"]) {
+    await clear();
+    await page.keyboard.type(query);
+    await page.getByRole("listbox", { name: "引用建议" }).waitFor();
+    await page.getByRole("option").filter({ hasText: "sample.js" }).waitFor();
+    assert.equal(await field.textContent(), query);
+    assert.equal(
+      await page.getByRole("option").filter({ hasText: "demo-skill" }).count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .getByRole("listbox", { name: "快捷命令", exact: true })
+        .count(),
+      0,
+    );
+    await page.keyboard.press("Escape");
+  }
+  await clear();
+  await page.keyboard.type("@target");
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll('.shortcut-options [role="option"]').length ===
+      4,
+  );
+  assert.deepEqual(
+    await page.locator('.shortcut-options [role="option"] b').allTextContents(),
+    ["target", "target.js", "a.js", "b.js"],
+  );
+  await page.keyboard.press("Escape");
+  await clear();
+  await page.keyboard.type("@资");
+  await page.getByRole("option").filter({ hasText: "资料" }).hover();
+  await page.keyboard.press("Tab");
+  assert.equal(await field.textContent(), "@资料");
+  assert.equal(await field.locator(".document-reference").count(), 0);
+  await page.getByRole("listbox", { name: "引用建议" }).waitFor();
+  await page.keyboard.type("/");
+  await page.getByRole("option").filter({ hasText: "sample.js" }).waitFor();
+  assert.equal(await field.textContent(), "@资料/");
+  await page.getByRole("option").filter({ hasText: "sample.js" }).hover();
+  await page.keyboard.press("Tab");
+  assert.equal(await field.textContent(), "@资料/sample.js");
+  await page.getByRole("option").filter({ hasText: "sample.js" }).waitFor();
+  await page.keyboard.press("Enter");
+  await field.locator('[data-reference-kind="file"]').waitFor();
+  await page.getByRole("listbox").waitFor({ state: "hidden" });
+  await clear();
+  await page.keyboard.type("/demo");
+  await page.getByRole("option").filter({ hasText: "demo-skill" }).waitFor();
+  await page.keyboard.press("Escape");
   await clear();
   await field.fill("前文  后文");
   await page.keyboard.press("Control+Home");
@@ -168,7 +219,7 @@ try {
   await field.locator(".document-reference").waitFor();
   await page.keyboard.press("Control+End");
   await page.keyboard.type(" ");
-  await choose("分析.py", "file", "Tab");
+  await choose("分析.py");
   await choose("图片.png");
   await choose("资料", "directory");
   await choose("demo-skill", "skill");
