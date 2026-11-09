@@ -80,7 +80,7 @@ export async function testSidebarDensity({
   assert.equal(await opened(""), "false");
   assert.equal(await rows(""), 0);
   const titles = await evaluate(
-    `[...document.querySelectorAll(${JSON.stringify(group("/demo/Atlas") + " .thread-link > span")})].map(e=>e.textContent)`,
+    `[...document.querySelectorAll(${JSON.stringify(group("/demo/Atlas") + " .thread-link > .thread-title")})].map(e=>e.textContent)`,
   );
   assert.deepEqual(titles, [
     "完善快速开始文档",
@@ -94,6 +94,91 @@ export async function testSidebarDensity({
       "pinRequests.filter(m=>m.method==='thread/list').some(m=>m.params.cursor==='density-next')",
     ),
     "读取后端全部分页",
+  );
+  await evaluate(
+    `for (const threadId of ['atlas-a', 'beacon']) pinSocket.onmessage({data:JSON.stringify({method:'turn/started',params:{threadId,turn:{id:'running-'+threadId,status:'inProgress',startedAt:4000}}})})`,
+  );
+  await waitFor(
+    "document.querySelectorAll('.running-threads .thread-row').length===2",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.thread-list > .project-group').classList.contains('running-threads')",
+    ),
+    true,
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.running-threads').children.length",
+    ),
+    2,
+    "顶部仅有会话行",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.running-threads .spin').length",
+    ),
+    2,
+  );
+  assert.equal(await rows("/demo/Atlas"), 5, "运行期间保留项目列表");
+  assert.deepEqual(
+    await evaluate(
+      `[...document.querySelectorAll(${JSON.stringify(group("/demo/Atlas") + " .thread-title")})].map(e=>e.textContent)`,
+    ),
+    titles,
+    "顶部快捷入口保留原文件夹会话",
+  );
+  await click(heading("/demo/Beacon"));
+  assert.equal(await rows("/demo/Beacon"), 5);
+  assert.equal(
+    await evaluate(
+      `document.querySelector(${JSON.stringify(group("/demo/Beacon") + " .thread-title")}).textContent`,
+    ),
+    "整理本周笔记",
+    "单独展开文件夹仍显示运行会话",
+  );
+  await click(heading("/demo/Beacon"));
+  await click(".running-threads .thread-link");
+  await waitFor(
+    "document.querySelector('.running-threads .thread-row.selected') && !document.querySelector('[aria-label=消息]').disabled",
+  );
+  await capture("desktop-running");
+  await evaluate(
+    `for (const threadId of ['atlas-a', 'beacon']) pinSocket.onmessage({data:JSON.stringify({method:'turn/completed',params:{threadId,turn:{id:'running-'+threadId,status:'completed',completedAt:4001}}})})`,
+  );
+  await waitFor(
+    "document.querySelectorAll('.running-threads .thread-completed-dot').length===1 && document.querySelectorAll('.running-threads .thread-row').length===2",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.running-threads .thread-row.selected .thread-title').textContent",
+    ),
+    "完善快速开始文档",
+    "当前会话完成后保留顶部选中行",
+  );
+  await capture("desktop-completed-selected");
+  for (const title of ["完善快速开始文档", "整理本周笔记"]) {
+    await evaluate(
+      `[...document.querySelectorAll('.running-threads .thread-link')].find(e=>e.querySelector('.thread-title').textContent===${JSON.stringify(title)}).click()`,
+    );
+    await waitFor(
+      `document.querySelector('.running-threads .thread-row.selected .thread-title')?.textContent===${JSON.stringify(title)} && !document.querySelector('.running-threads .thread-row.selected .thread-completed-dot')`,
+    );
+  }
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.running-threads .thread-row').length",
+    ),
+    1,
+    "离开已读会话后收起其顶部入口",
+  );
+  await click(".primary-nav button:first-child");
+  await waitFor("!document.querySelector('.running-threads')");
+  assert.equal(
+    await evaluate(
+      `document.querySelectorAll(${JSON.stringify(group("/demo/Atlas") + " .thread-title")}).length`,
+    ),
+    5,
   );
   await capture("desktop-default");
   await click('[aria-label="查看更多 Atlas 的对话"]');

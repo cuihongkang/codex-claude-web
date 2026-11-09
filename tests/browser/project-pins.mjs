@@ -115,6 +115,7 @@ function fixture(density, threadDrag) {
     static OPEN = 1;
     readyState = 1;
     constructor() {
+      window.pinSocket = this;
       setTimeout(
         () =>
           this.onmessage({

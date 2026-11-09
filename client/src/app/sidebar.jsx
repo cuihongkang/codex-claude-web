@@ -1,5 +1,5 @@
 import { ThreadListErrors } from "./thread-list-errors.jsx";
-import React from "react";
+import React, { useState } from "react";
 import {
   PanelLeft,
   SquarePen,
@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useStore, set, newChat, loadThreads, report } from "../store.js";
 import { IconButton } from "../ui/primitives.jsx";
-import { projectGroups } from "../domain/thread-order.js";
+import { projectGroups, sortThreads } from "../domain/thread-order.js";
 import { ProjectGroup } from "./project-group.jsx";
 import { ResizableSidebar } from "./sidebar-resize.jsx";
 import { AccountFooter } from "../features/account/account-usage.jsx";
@@ -20,6 +20,21 @@ import claudexWebIcon from "../assets/claudex-web.svg";
 import { ThreadRow } from "./thread-row.jsx";
 export function Sidebar() {
   const s = useStore();
+  const [selection, setSelection] = useState({ id: null, retained: false });
+  const selectedId = s.current?.id ?? null;
+  const retained =
+    !!(s.active[selectedId] || s.unreadCompletions[selectedId]) ||
+    (selection.id === selectedId && selection.retained);
+  if (selection.id !== selectedId || selection.retained !== retained)
+    setSelection({ id: selectedId, retained });
+  const shortcuts = sortThreads(
+    s.threads.filter(
+      (t) =>
+        s.active[t.id] ||
+        s.unreadCompletions[t.id] ||
+        (t.id === selectedId && retained),
+    ),
+  );
   const pinned = s.threads.filter((t) => s.pins.includes(t.id));
   const groups = projectGroups(
     s.threads,
@@ -95,6 +110,13 @@ export function Sidebar() {
             errors={s.threadListErrors}
             onRetry={() => loadThreads().catch(report)}
           />
+          {shortcuts.length > 0 && (
+            <div className="project-group running-threads">
+              {shortcuts.map((t) => (
+                <ThreadRow key={t.id} thread={t} />
+              ))}
+            </div>
+          )}
           {pinned.length > 0 && (
             <div className="project-group">
               <div className="pinned-heading">
