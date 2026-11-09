@@ -145,6 +145,10 @@ export function backendFixture(data) {
             (provider) => p.includeDisabled || provider.enabled !== false,
           ),
         };
+      if (m.method === "lan/providers/remove") {
+        providers = providers.filter((provider) => provider.id !== p.id);
+        result = { providers };
+      }
       if (m.method === "lan/providers/save") {
         const previous = providers.find((provider) => provider.id === p.id);
         providers = [

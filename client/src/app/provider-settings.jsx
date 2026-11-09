@@ -2,7 +2,7 @@ import { ResizableTextarea } from "../ui/resizable-textarea.jsx";
 import React, { useEffect, useState } from "react";
 import { ProviderModelNames } from "./provider-model-names.jsx";
 import { PresetProviderForm } from "./preset-provider-form.jsx";
-import { rpc, saveProvider } from "../store.js";
+import { rpc, saveProvider, removeProvider } from "../store.js";
 export function ProviderSettings({ backend }) {
   const [providers, setProviders] = useState([]),
     [editing, setEditing] = useState(null),
@@ -43,10 +43,35 @@ export function ProviderSettings({ backend }) {
             <span>{p.name}</span>
           </span>
           {p.preset && <span>{p.hasApiKey ? "已启用" : "待填写 API Key"}</span>}
-          <button onClick={() => setEditing(p)}>编辑</button>
+          <button disabled={busy} onClick={() => setEditing(p)}>
+            编辑
+          </button>
+          {!p.preset && (
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  const result = await removeProvider({ id: p.id });
+                  setProviders(result.providers);
+                  if (editing?.id === p.id) setEditing(null);
+                } catch (error) {
+                  setError(error.message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              删除
+            </button>
+          )}
         </div>
       ))}
-      <button onClick={() => setEditing({ name: "", baseUrl: "", models: [] })}>
+      <button
+        disabled={busy}
+        onClick={() => setEditing({ name: "", baseUrl: "", models: [] })}
+      >
         添加供应商
       </button>
       {editing?.preset && (

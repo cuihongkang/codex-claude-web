@@ -140,6 +140,29 @@ try {
         o.textContent.includes("日常模型"),
       ),
   );
+  await page
+    .locator(".backend-heading")
+    .filter({ hasText: "示例供应商" })
+    .getByRole("button", { name: "编辑", exact: true })
+    .click();
+  await page
+    .locator(".backend-heading")
+    .filter({ hasText: "示例供应商" })
+    .getByRole("button", { name: "删除", exact: true })
+    .click();
+  await page.waitForFunction(() =>
+    fixtureRequests.some((r) => r.method === "lan/providers/remove"),
+  );
+  await page.waitForFunction(
+    () => !document.querySelector(".provider-settings .backend-form"),
+  );
+  assert.equal(
+    await page
+      .locator(".backend-heading")
+      .filter({ hasText: "示例供应商" })
+      .count(),
+    0,
+  );
   console.log(
     "PASS 供应商模型别名编辑、保存、重新读取、清空、原始 ID、主题与缩放",
   );

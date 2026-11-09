@@ -389,7 +389,17 @@ export function createBackends({
     await rpc("lan/providers/save", value);
     await activateBackend(get().backendId);
   }
+  async function removeProvider(value) {
+    const result = await rpc("lan/providers/remove", value);
+    if (!get().current && get().providerId === value.id) {
+      set({ providerId: "", model: "", effort: "" });
+      persist("cx-provider-" + get().backendId, "");
+    }
+    await activateBackend(get().backendId);
+    return result;
+  }
   return {
+    removeProvider,
     activateBackend,
     selectModelChoice,
     selectProvider,
