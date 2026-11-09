@@ -381,3 +381,5 @@ Ubuntu 安装指引回归在设备选择器中实际切换 Ubuntu，检查 DER �
 尺寸手柄状态由 `tests/browser/resize-handle-states.mjs` 统一验证。窗口回归和终端回归分别对侧栏、终端高度、终端列表、文件详情、弹窗、图片、批注和多行表单检查默认、悬停、键盘聚焦及指针捕获期间的实际计算样式，确认标记尺寸、透明操作区、拖动高亮与释放状态；同时执行真实拖动及键盘调整，检查字段内容和复位。终端回归继续使用隔离的真实 zsh/Python 进程。通过 `BROWSER_OUTPUT_DIR` 选择证据目录，`RESIZE_STYLE_BEFORE=1` 配合 `BROWSER_BUILD_DIR`（窗口）或 `UI_BUILD_DIR`（终端）可采集统一前构建的状态对照。
 
 对话拖拽回归使用 `THREAD_FOLDER_DRAG=1 CHROME_PATH=/path/to/chromium node tests/browser/project-pins.mjs`，验证真实鼠标拖起、目标高亮、保存、刷新恢复、未分类及深浅主题，证据保存到 `.cache/project-pins-browser/after`。`node tests/integration/codex-folder-native.mjs` 使用隔离历史验证原生目录恢复，模型请求为零；`node tests/integration/thread-folder-native.mjs` 使用真实 Claude CLI 与本机模拟模型服务验证跨目录继续、旧正文及目标 AGENTS 指令，全部数据位于临时目录。网页项目以单个文件夹为归属边界。
+
+批注换行边界回归在构建后执行 `ANNOTATION_WRAPPING=1 CHROME_PATH=/path/to/chromium node tests/browser/annotations.mjs`，使用隔离浏览器与模拟历史，逐字覆盖窄字符、中文长文、深浅主题及删除后收起。结果保存在 `.cache/annotations-browser/wrapping-results.json`。

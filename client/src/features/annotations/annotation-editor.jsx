@@ -34,10 +34,13 @@ export function AnnotationEditor({
       return;
     }
     const lineHeight = parseFloat(view.getComputedStyle(field).lineHeight);
-    field.style.width = expanded ? "calc(100% - 4.4615rem)" : "";
+    const surface = panel.current;
+    const previousExpanded = surface.dataset.expanded;
+    // 按紧凑布局的实际可用宽度判断换行，保持两种布局的判定一致。
+    surface.dataset.expanded = "false";
     field.style.height = "0px";
     const multiline = field.scrollHeight > lineHeight + 1;
-    field.style.width = "";
+    surface.dataset.expanded = previousExpanded;
     field.style.height = Math.min(field.scrollHeight, lineHeight * 5) + "px";
     setExpanded(multiline);
   }, [entry.annotation, expanded, size]);

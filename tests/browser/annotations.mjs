@@ -406,6 +406,19 @@ async function runScenario() {
     });
     return;
   }
+  if (process.env.ANNOTATION_WRAPPING === "1") {
+    const { verifyAnnotationWrapping } =
+      await import("./annotation-wrapping.mjs");
+    await verifyAnnotationWrapping({
+      select,
+      fill,
+      evaluate,
+      pause,
+      screenshot,
+      output,
+    });
+    return;
+  }
   await fill('textarea[aria-label="消息"]', "请合并处理这些批注。");
   await select("先检查项目实际配置");
   await screenshot("editor-empty");
