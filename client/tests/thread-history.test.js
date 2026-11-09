@@ -82,9 +82,13 @@ test("首屏回调先交付最近一页，后台分页保留轮内顺序与完�
           throw new Error("thread/items/list is not supported yet");
         const records = params.cursor ? [entry(1)] : [entry(3), entry(2)];
         const page = {
-          data: legacy
-            ? records.map(({ item, turnId }) => ({ id: turnId, items: [item] }))
-            : records,
+          data:
+            method === "thread/turns/list"
+              ? records.map(({ item, turnId }) => ({
+                  id: turnId,
+                  items: [item],
+                }))
+              : records,
           nextCursor: params.cursor ? null : "older",
         };
         if (params.cursor)
@@ -110,4 +114,72 @@ test("首屏回调先交付最近一页，后台分页保留轮内顺序与完�
     );
     assert.equal(firstPages.length, 1);
   }
+});
+
+test("长历史首屏使用消息分页，随后按完整轮次减少串行请求", async () => {
+  const calls = [];
+  const items = await readThreadHistory(
+    async (method, params) => {
+      calls.push({ method, params });
+      if (method === "thread/items/list")
+        return {
+          data: [{ item: { id: "recent" }, turnId: "new" }],
+          nextCursor: "items-cursor",
+        };
+      assert.equal(params.itemsView, "full");
+      assert.equal(params.limit, 1);
+      return {
+        data: [
+          {
+            id: params.cursor ? "old" : "new",
+            items: [{ id: params.cursor ? "early" : "recent" }],
+          },
+        ],
+        nextCursor: params.cursor ? null : "turn-cursor",
+      };
+    },
+    "long",
+    { onFirstPage: (items) => assert.equal(items[0].id, "recent") },
+  );
+  assert.deepEqual(
+    items.map((x) => x.id),
+    ["early", "recent"],
+  );
+  assert.equal(calls.length, 3);
+  assert.equal(calls[1].params.cursor, undefined);
+});
+
+test("短轮次维持消息分页，完整轮次读取错误保留供重试", async () => {
+  const calls = [];
+  const first = [
+    { turnId: "b", item: { id: "b" } },
+    { turnId: "a", item: { id: "a" } },
+  ];
+  const items = await readThreadHistory(
+    async (method, params) => {
+      calls.push(method);
+      return params.cursor
+        ? { data: [{ turnId: "old", item: { id: "old" } }], nextCursor: null }
+        : { data: first, nextCursor: "older" };
+    },
+    "short-turns",
+    { onFirstPage() {} },
+  );
+  assert.deepEqual(calls, ["thread/items/list", "thread/items/list"]);
+  assert.deepEqual(
+    items.map((item) => item.id),
+    ["old", "a", "b"],
+  );
+  await assert.rejects(
+    readThreadHistory(
+      async (method) => {
+        if (method === "thread/items/list")
+          return { data: [first[0]], nextCursor: "older" };
+        throw new Error("历史读取失败");
+      },
+      "failed",
+      { onFirstPage() {} },
+    ),
+    /历史读取失败/,
+  );
 });

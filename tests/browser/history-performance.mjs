@@ -110,7 +110,19 @@ try {
         (r) => r.method === "thread/items/list" && r.params.threadId === "long",
       ).length,
   );
-  assert.equal(parsed, 33, "自动读取全部 33 页");
+  assert.equal(parsed, before ? 33 : 1, "首屏使用消息分页");
+  if (!before)
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.historyFixture.requests.filter(
+            (r) =>
+              r.method === "thread/turns/list" && r.params.itemsView === "full",
+          ).length,
+      ),
+      15,
+      "完整恢复 15 轮",
+    );
   evidence.push({ scenario: "首次切换", firstPaint, fullMs, pages: parsed });
   const firstLoadRenders = await page.evaluate(
     () => window.historyFixture.richTextRenders,

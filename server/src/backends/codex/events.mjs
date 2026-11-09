@@ -13,12 +13,10 @@ export function createBridgeEvents({
   broadcast,
   state,
   releaseUnusedThreads,
-  threadClosed,
 }) {
   function onEvent(message) {
     if (message.id !== undefined) questions.set(String(message.id), message);
     const p = message.params || {};
-    if (message.method === "thread/closed") threadClosed(p.threadId);
     if (
       ["thread/name/updated", "thread/deleted", "thread/archived"].includes(
         message.method,

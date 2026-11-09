@@ -15,8 +15,12 @@ export async function testProgressiveHistory(app, requests, setResponse, emit) {
   let view;
   setResponse(({ method, params }) => {
     if (["thread/read", "thread/resume"].includes(method)) return { thread };
-    if (method !== "thread/items/list") return { data: [] };
-    if (params.cursor)
+    if (
+      method !== "thread/items/list" &&
+      !(method === "thread/turns/list" && params.itemsView === "full")
+    )
+      return { data: [] };
+    if (method === "thread/turns/list")
       return new Promise((resolve) => {
         finishPage = () =>
           resolve(
@@ -25,12 +29,14 @@ export async function testProgressiveHistory(app, requests, setResponse, emit) {
               : {
                   data: [
                     {
-                      turnId: "old",
-                      item: {
-                        id: "old-answer",
-                        type: "agentMessage",
-                        text: "较早的回答",
-                      },
+                      id: "old",
+                      items: [
+                        {
+                          id: "old-answer",
+                          type: "agentMessage",
+                          text: "较早的回答",
+                        },
+                      ],
                     },
                   ],
                   nextCursor: null,

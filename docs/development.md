@@ -170,7 +170,7 @@ CLAUDE_EXECUTABLE=/absolute/path/to/claude MODEL_BASE_URL=https://model.example 
 
 ## 格式与验证
 
-长对话切换回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/history-performance.mjs`。脚本使用生产构建、独立浏览器和 15 轮、3,210 条记录、33 页的隔离历史，每页模拟 50 毫秒往返；记录首屏和完整恢复耗时，验证最近消息及输入先可用、自动完整分页、普通状态更新复用 Markdown、读取期间草稿与实时更新保留、历史前插时的阅读位置、目录跳转和快速切换隔离，覆盖深浅主题、80% 至 200% 缩放及窄屏。证据与构建来源保存在 `.cache/history-performance/after`。修改前的构建及来源分别保存为 `.cache/history-performance-before/dist` 和 `build-info.json`，以 `BROWSER_BEFORE=1` 记录同机对照，耗时用于比较同机行为。单元及组件回归同时验证旧接口完整轮次回退、分页失败后的可读记录与重试、实时结果优先及切换隔离。现有 README 图片展示完整加载后的界面，布局和内容继续适用。
+长对话切换回归先执行 `npm run build`，再运行 `CHROME_PATH=/path/to/chromium PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs node tests/browser/history-performance.mjs`。脚本使用生产构建、独立浏览器和 15 轮、3,210 条记录的隔离历史（消息分页基线 33 页，优化后首屏加 15 个轮次分页），每页模拟 50 毫秒往返；记录首屏和完整恢复耗时，验证最近消息及输入先可用、自动完整分页、普通状态更新复用 Markdown、读取期间草稿与实时更新保留、历史前插时的阅读位置、目录跳转和快速切换隔离，覆盖深浅主题、80% 至 200% 缩放及窄屏。证据与构建来源保存在 `.cache/history-performance/after`。修改前的构建及来源分别保存为 `.cache/history-performance-before/dist` 和 `build-info.json`，以 `BROWSER_BEFORE=1` 记录同机对照，耗时用于比较同机行为。单元及组件回归同时验证旧接口完整轮次回退、分页失败后的可读记录与重试、实时结果优先及切换隔离。现有 README 图片展示完整加载后的界面，布局和内容继续适用。
 
 侧栏收纳回归执行 `SIDEBAR_DENSITY=1 CHROME_PATH=/path/to/chromium node tests/browser/project-pins.mjs`，使用隔离的 Atlas/Beacon 与最近有活动的未分类对话、超过 60 条的后端分页，验证未分类始终位于末尾、固定与未固定的默认收放、每组最新五条、全部展开及收起、刷新重置、键盘操作、深浅主题、80% 至 200% 缩放和手机布局。截图与构建信息保存在 `.cache/sidebar-density-browser/after/`。旧构建及来源位于 `.cache/sidebar-density-before/`，追加 `SIDEBAR_DENSITY_BEFORE=1` 保存旧版全部展开的对照截图。
 
