@@ -42,7 +42,9 @@ export function ClaudeWorkspace() {
   useEffect(() => {
     setModel(s.session?.model || "");
     setCustomModel(
-      !["", "opus", "sonnet", "haiku"].includes(s.session?.model || ""),
+      !["", "opus", "fable", "sonnet", "haiku"].includes(
+        s.session?.model || "",
+      ),
     );
     setEffort(s.session?.effort || "");
   }, [s.selected, s.session?.model, s.session?.effort]);
@@ -215,6 +217,7 @@ export function ClaudeWorkspace() {
                   : "默认"}
               </option>
               <option value="opus">Opus</option>
+              <option value="fable">Fable</option>
               <option value="sonnet">Sonnet</option>
               <option value="haiku">Haiku</option>
               <option value="custom">自定义模型</option>

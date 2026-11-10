@@ -858,6 +858,48 @@ try {
       () => !document.querySelector('[aria-label="Claude 模型"]').disabled,
     );
     assert.equal(configured.model, "haiku");
+    const fable = page
+      .getByLabel("Claude 模型", { exact: true })
+      .locator('option[value="fable"]');
+    if (!(await fable.count()))
+      await page.screenshot({
+        path: join(output, "fable-missing.png"),
+        fullPage: true,
+      });
+    assert.equal(
+      await fable.count(),
+      1,
+      "Fable is available as a built-in model",
+    );
+    await page.getByLabel("Claude 模型", { exact: true }).selectOption("fable");
+    await page.getByRole("button", { name: "应用", exact: true }).click();
+    await page.waitForFunction(
+      () => !document.querySelector('[aria-label="Claude 模型"]').disabled,
+    );
+    assert.equal(configured.model, "fable");
+    await page.reload();
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[aria-label="Claude 模型"]')?.value === "fable",
+    );
+    assert.equal(await page.getByLabel("Claude 自定义模型").count(), 0);
+    await page.screenshot({
+      path: join(output, "mobile-fable.png"),
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "dark";
+    });
+    await page.screenshot({
+      path: join(output, "desktop-fable-dark.png"),
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "light";
+    });
+
     await page.getByLabel("Claude 权限模式").selectOption("auto");
     await page.getByRole("button", { name: "应用", exact: true }).click();
     await page.waitForFunction(
